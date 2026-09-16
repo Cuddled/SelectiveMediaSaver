@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "name": "Cuddled's Revenge Plugins",
+  "description": "Revenge Next plugins by Cuddled, including Selective Media Saver.",
+  "plugins": {
+    "com.cuddled.selectivemediasaver": {
+      "name": "Selective Media Saver",
+      "description": "Save selected Discord images, GIFs, videos, avatars, and banners on Android.",
+      "author": "Cuddled",
+      "channels": {
+        "beta": "2.4.0-next1"
+      },
+      "versions": {
+        "2.4.0-next1": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/pool/com.cuddled.selectivemediasaver@2.4.0-next1.zip",
+          "sha256": "c9cefe305907fdcf51c0cedb6b65c2ce46699bb373297799e27138111a94b251",
+          "size": 46574,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        }
+      }
+    }
+  }
+}
