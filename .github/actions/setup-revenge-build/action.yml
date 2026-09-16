@@ -15,13 +15,20 @@ runs:
         java-version: '25'
         cache: gradle
 
-    - uses: android-actions/setup-android@v3
-
     - name: Install Android SDK platforms and build tools
       shell: bash
       run: |
-        yes | sdkmanager --licenses >/dev/null 2>&1 || true
-        sdkmanager \
+        sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+        sdkmanager_bin="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
+        if [[ ! -x "$sdkmanager_bin" ]]; then
+          sdkmanager_bin="$({ find "$sdk_root/cmdline-tools" -path '*/bin/sdkmanager' -type f -print 2>/dev/null || true; } | sort -V | tail -n 1)"
+        fi
+        if [[ -z "$sdkmanager_bin" || ! -x "$sdkmanager_bin" ]]; then
+          echo "sdkmanager was not found under $sdk_root" >&2
+          exit 1
+        fi
+        yes | "$sdkmanager_bin" --licenses >/dev/null 2>&1 || true
+        "$sdkmanager_bin" \
           'platform-tools' \
           'platforms;android-36' \
           'build-tools;36.0.0' \
