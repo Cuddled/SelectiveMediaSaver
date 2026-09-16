@@ -21,5 +21,12 @@ jq -r '.[] | [.tag, .id, .version, .zip] | @tsv' "$PLAN" |
 
         # Keep every published plugin available as a normal GitHub Release download too. This is
         # useful for private repositories that cannot serve GitHub Pages on the owner's plan.
-        gh release upload "$tag" "$zip" --clobber
+        # Versioned artifacts are immutable: never delete and replace an existing asset.
+        asset_name="$(basename "$zip")"
+        if gh release view "$tag" --json assets --jq '.assets[].name' | grep -Fqx -- "$asset_name"; then
+            echo "= ${tag}/${asset_name}"
+        else
+            gh release upload "$tag" "$zip"
+            echo "+ ${tag}/${asset_name}"
+        fi
     done
