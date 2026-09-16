@@ -29,10 +29,16 @@ jobs:
       - name: Install pinned JavaScript dependencies
         run: npm ci
 
+      - name: Build Classic Revenge bundle
+        run: npm run build:classic
+
+      - name: Verify Classic Revenge loader and runtime
+        run: npm run verify:classic
+
       - name: Check out the published pool
         env:
           REQUIRE_POOL: 1
         run: bash .github/scripts/checkout-pool.sh
 
-      - name: Regenerate and publish index.json
+      - name: Regenerate and publish Pages layout
         run: bash .github/scripts/regenerate-index.sh

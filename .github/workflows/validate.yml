@@ -27,6 +27,12 @@ jobs:
       - name: Test capture and filtering logic
         run: npm test
 
+      - name: Build Classic Revenge bundle
+        run: npm run build:classic
+
+      - name: Verify Classic Revenge loader and runtime
+        run: npm run verify:classic
+
       - name: Build and package all plugins
         run: ./gradlew --no-daemon packageAllPlugins
 
@@ -38,9 +44,33 @@ jobs:
             --out /tmp/index.json
           jq . /tmp/index.json
 
+      - name: Stage and validate GitHub Pages layout
+        env:
+          POOL_CHECKOUT: build/pages
+          POOL_REMOTE: https://github.com/${{ github.repository }}.git
+          PAGES_BASE_URL: https://revenge.local
+          REQUIRE_POOL: 1
+        run: |
+          bash .github/scripts/checkout-pool.sh
+          : > build/pages-plan.tsv
+          for zip in build/dist/*.zip; do
+            file="$(basename "$zip")"
+            if [ ! -f "build/pages/pool/$file" ]; then
+              printf '%s\t%s\n' "$zip" "$file" >> build/pages-plan.tsv
+            fi
+          done
+          bash .github/scripts/update-pages-tree.sh build/pages-plan.tsv
+
       - name: Upload test artifact
         uses: actions/upload-artifact@v4
         with:
           name: selective-media-saver-revenge
-          path: build/dist/*.zip
+          path: |
+            build/dist/*.zip
+            build/classic/manifest.json
+            build/classic/index.js
+            build/pages/manifest.json
+            build/pages/index.js
+            build/pages/index.json
+            build/pages/next/index.json
           if-no-files-found: error
