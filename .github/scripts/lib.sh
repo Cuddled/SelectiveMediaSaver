@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Shared helpers for pool workflows.
 
 # Branch holding the pool and the index. Set the POOL_BRANCH repository variable to move it.
