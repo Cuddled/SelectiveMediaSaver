@@ -1,0 +1,11 @@
+{
+  "name": "Selective Media Saver",
+  "description": "Automatically save selected Discord images, GIFs, videos, avatars, and banners on Android.",
+  "authors": [
+    {
+      "name": "Cuddled"
+    }
+  ],
+  "main": "index.js",
+  "hash": "daad77309f34084f1b94101f6f97370a98510c99199c5d561b7dfa33973b7d0b"
+}
