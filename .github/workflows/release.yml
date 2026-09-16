@@ -39,12 +39,12 @@ jobs:
         if: steps.plan.outputs.count != '0'
         run: ./gradlew --no-daemon packageAllPlugins
 
-      - name: Publish artifacts and index to the pool
-        if: steps.plan.outputs.count != '0'
-        run: bash .github/scripts/publish-pool.sh
-
       - name: Tag releases and write changelogs
         if: steps.plan.outputs.count != '0'
         env:
           GH_TOKEN: ${{ github.token }}
         run: bash .github/scripts/tag-releases.sh
+
+      - name: Publish artifacts and index to the pool
+        if: steps.plan.outputs.count != '0'
+        run: bash .github/scripts/publish-pool.sh

@@ -44,8 +44,8 @@ browser/cleanup scheduler, and a mobile manual-save menu are still follow-up wor
 
 ## Install in Revenge Next
 
-After the first release workflow publishes the repository, add this URL under Revenge's custom
-plugin repositories:
+After the first release workflow publishes the repository and GitHub Pages is enabled from the
+`gh-pages` branch, add this URL under Revenge's custom plugin repositories:
 
 ```text
 https://cuddled.github.io/SelectiveMediaSaver
@@ -54,6 +54,12 @@ https://cuddled.github.io/SelectiveMediaSaver
 Install the **beta** version, enable it, reload Discord, and open the plugin's settings page. Add at
 least one user, server, or channel ID before expecting automatic saves; the safe default is to save
 nothing while every allowlist is empty.
+
+GitHub Pages must be available for the repository. GitHub's free plan does not serve Pages from a
+private repository, so either make the repository public or use a plan that supports private Pages.
+The release workflow also attaches each compiled plugin ZIP to its matching GitHub Release, but an
+asset in a private repository still requires GitHub authentication and is not a custom-repository
+URL for Revenge.
 
 Files are stored in Android's public Pictures or Movies collection under the configured album name.
 No broad storage permission is needed on Android 10 or newer.
@@ -99,7 +105,7 @@ Requirements:
 
 - Node.js 24
 - JDK 25
-- Android SDK platforms 36 and 37 with matching build tools
+- Android SDK platform 36 with build tools 36.0.0
 - Git
 
 Windows:
@@ -144,8 +150,7 @@ It must contain `manifest.json`, `index.js`, and `plugin.jar` at the ZIP root.
 - Java: 25
 - Gradle: 9.6.1
 
-The Android plugin compiles against SDK 36. SDK 37 is also installed in CI because the pinned
-RevengeXposed source uses it while publishing the compile-only Revenge API artifact.
+The Android plugin and the pinned Revenge API are compiled in CI with Android SDK 36.
 
 ## Publishing and promotion
 
