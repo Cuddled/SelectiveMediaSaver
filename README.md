@@ -57,7 +57,9 @@ nothing while every allowlist is empty.
 
 GitHub Pages must be available for the repository. GitHub's free plan does not serve Pages from a
 private repository, so either make the repository public or use a plan that supports private Pages.
-The release workflow also attaches each compiled plugin ZIP to its matching GitHub Release.
+The release workflow also attaches each compiled plugin ZIP to its matching GitHub Release, but an
+asset in a private repository still requires GitHub authentication and is not a custom-repository
+URL for Revenge.
 
 Files are stored in Android's public Pictures or Movies collection under the configured album name.
 No broad storage permission is needed on Android 10 or newer.
@@ -103,7 +105,7 @@ Requirements:
 
 - Node.js 24
 - JDK 25
-- Android SDK platforms 36 and 37 with matching build tools
+- Android SDK platform 36 with build tools 36.0.0
 - Git
 
 Windows:
