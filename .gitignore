@@ -1,0 +1,20 @@
+# Gradle / Android
+.gradle/
+build/
+plugins/*/build/
+local.properties
+.kotlin/
+
+# JS
+node_modules/
+
+# Workflow scratch checkouts
+published/
+.deps/
+
+# Misc
+.DS_Store
+.idea/
+*.iml
+*.decoded.zip
+port-drafts/

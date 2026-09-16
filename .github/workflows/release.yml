@@ -1,0 +1,50 @@
+name: Release plugins
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-pool
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  POOL_BRANCH: ${{ vars.POOL_BRANCH }}
+  PAGES_BASE_URL: ${{ vars.PAGES_BASE_URL }}
+  POOL_REMOTE: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+  PLAN: ${{ github.workspace }}/releases.json
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-revenge-build
+
+      - name: Check out the published pool
+        run: bash .github/scripts/checkout-pool.sh
+
+      - name: Plan releases
+        id: plan
+        run: bash .github/scripts/plan-releases.sh
+
+      - name: Build plugins
+        if: steps.plan.outputs.count != '0'
+        run: ./gradlew --no-daemon packageAllPlugins
+
+      - name: Publish artifacts and index to the pool
+        if: steps.plan.outputs.count != '0'
+        run: bash .github/scripts/publish-pool.sh
+
+      - name: Tag releases and write changelogs
+        if: steps.plan.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/tag-releases.sh

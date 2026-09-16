@@ -1,0 +1,41 @@
+name: Set up Revenge plugin build
+description: Installs pinned Java/Android/JS tooling and publishes the pinned Revenge API locally.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: npm
+
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '25'
+        cache: gradle
+
+    - uses: android-actions/setup-android@v3
+
+    - name: Install Android SDK platforms and build tools
+      shell: bash
+      run: |
+        yes | sdkmanager --licenses >/dev/null 2>&1 || true
+        sdkmanager \
+          'platform-tools' \
+          'platforms;android-36' \
+          'build-tools;36.0.0' \
+          'platforms;android-37' \
+          'build-tools;37.0.0'
+
+    - name: Restore the pinned Gradle wrapper JAR
+      shell: bash
+      run: bash scripts/bootstrap-gradle-wrapper.sh
+
+    - name: Publish the pinned Revenge native API to Maven Local
+      shell: bash
+      run: bash scripts/prepare-revenge-api.sh "$RUNNER_TEMP/revenge-xposed"
+
+    - name: Install pinned JavaScript dependencies
+      shell: bash
+      run: npm ci
