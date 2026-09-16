@@ -1,0 +1,49 @@
+{
+	"name": "@cuddled/selective-media-saver-revenge",
+	"version": "2.4.0-next1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"postinstall": "tsc -p node_modules/@revenge-mod/plugin-cli/tsconfig.json",
+		"build": "revenge-plugin build",
+		"build:dev": "revenge-plugin build --dev",
+		"generate-index": "revenge-plugin generate-index",
+		"plan-releases": "revenge-plugin plan-releases",
+		"serve": "revenge-plugin serve",
+		"test": "tsx --test plugins/com.cuddled.selectivemediasaver/js/core.test.ts",
+		"lint": "biome check plugins package.json repo.config.json tsconfig.json biome.json",
+		"lint:fix": "biome check --write plugins package.json repo.config.json tsconfig.json biome.json",
+		"lint:types": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@revenge-mod/devtools-client": "1.4.0",
+		"@revenge-mod/devtools-shared": "1.3.0",
+		"@revenge-mod/plugin-cli": "https://github.com/revenge-mod/revenge-plugin-cli/archive/b41bab26bbc446e450673f8a24fb986b469d1e29.tar.gz",
+		"@revenge-mod/types": "https://github.com/revenge-mod/revenge-types/archive/565026d875a34d0567b26ab6f4e3e2e3938e85ad.tar.gz"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.5.12",
+		"@types/node": "25.9.7",
+		"@types/react": "19.2.18",
+		"react": "19.2.3",
+		"react-native": "0.86.0",
+		"tsx": "4.23.13",
+		"typescript": "7.0.2"
+	},
+	"overrides": {
+		"@react-native/community-cli-plugin": "npm:dry-uninstall",
+		"@react-native/codegen": "npm:dry-uninstall",
+		"babel-jest": "npm:dry-uninstall",
+		"babel-plugin-syntax-hermes-parser": "npm:dry-uninstall",
+		"hermes-compiler": "npm:dry-uninstall",
+		"jsc-android": "npm:dry-uninstall",
+		"react-devtools-core": "npm:dry-uninstall",
+		"recyclerlistview": "npm:dry-uninstall",
+		"react-native-gesture-handler": "npm:dry-uninstall",
+		"react-native-screens": "npm:dry-uninstall"
+	},
+	"trustedDependencies": [
+		"@revenge-mod/plugin-cli",
+		"@swc/core"
+	]
+}

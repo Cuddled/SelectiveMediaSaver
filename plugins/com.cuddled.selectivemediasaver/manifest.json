@@ -1,0 +1,23 @@
+{
+	"format": 1,
+	"id": "com.cuddled.selectivemediasaver",
+	"name": "Selective Media Saver",
+	"description": "Save selected Discord images, GIFs, videos, avatars, and banners on Android.",
+	"author": "Cuddled",
+	"version": "2.4.0-next1",
+	"dependencies": {
+		"revenge.api": {
+			"version": ">=1.0.0 <2.0.0"
+		},
+		"discord": {
+			"version": ">=347.0 <348.0"
+		}
+	},
+	"dist": {
+		"script": "index.js",
+		"android": {
+			"path": "plugin.jar",
+			"class": "com.cuddled.selectivemediasaver.SelectiveMediaSaverPlugin"
+		}
+	}
+}

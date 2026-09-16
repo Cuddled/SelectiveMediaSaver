@@ -1,0 +1,38 @@
+name: Publish repository index
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: publish-pool
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  POOL_BRANCH: ${{ vars.POOL_BRANCH }}
+  PAGES_BASE_URL: ${{ vars.PAGES_BASE_URL }}
+  POOL_REMOTE: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install pinned JavaScript dependencies
+        run: npm ci
+
+      - name: Check out the published pool
+        env:
+          REQUIRE_POOL: 1
+        run: bash .github/scripts/checkout-pool.sh
+
+      - name: Regenerate and publish index.json
+        run: bash .github/scripts/regenerate-index.sh

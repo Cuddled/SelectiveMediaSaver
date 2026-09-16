@@ -1,0 +1,46 @@
+name: Validate
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-revenge-build
+
+      - name: Lint workflow scripts
+        run: shellcheck .github/scripts/*.sh scripts/*.sh
+
+      - name: Lint TypeScript and JSON
+        run: npm run lint
+
+      - name: Type-check plugin sources
+        run: npm run lint:types
+
+      - name: Test capture and filtering logic
+        run: npm test
+
+      - name: Build and package all plugins
+        run: ./gradlew --no-daemon packageAllPlugins
+
+      - name: Verify packaged repository metadata
+        run: |
+          npm run generate-index -- \
+            --dist build/dist \
+            --base-url https://revenge.local/pool \
+            --out /tmp/index.json
+          jq . /tmp/index.json
+
+      - name: Upload test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: selective-media-saver-revenge
+          path: build/dist/*.zip
+          if-no-files-found: error
