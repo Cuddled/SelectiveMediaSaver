@@ -8,7 +8,8 @@ set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 base="$(pages_base_url)"
-echo "Serving the pool from ${base}/pool"
+echo "Serving Classic Revenge from ${base}"
+echo "Serving Revenge Next from ${base}/next (legacy repository URL remains ${base})"
 
 count="$(jq 'length' "$PLAN")"
 jq -r '.[] | [.zip, .file] | @tsv' "$PLAN" > plan.tsv
@@ -19,20 +20,17 @@ while IFS=$'\t' read -r zip _; do
 done < plan.tsv
 
 attempt_publish() {
-    mkdir -p "$POOL_CHECKOUT/pool"
+    # Retries reset the checkout, so the complete layout is staged on every attempt.
+    bash .github/scripts/update-pages-tree.sh plan.tsv || return 1
 
-    while IFS=$'\t' read -r zip file; do
-        # Retries reset the checkout, so we need to copy the artifact here.
-        cp "$zip" "$POOL_CHECKOUT/pool/${file}" || return 1
-    done < plan.tsv
-
-    npm run generate-index -- \
-        --dist "$POOL_CHECKOUT/pool" \
-        --base-url "${base}/pool" \
-        --out "$POOL_CHECKOUT/index.json" || return 1
-
-    git -C "$POOL_CHECKOUT" add pool index.json || return 1
-    commit_pool "Pool already holds this plan." "Publish ${count} plugin release(s)"
+    git -C "$POOL_CHECKOUT" add -f .nojekyll
+    git -C "$POOL_CHECKOUT" add \
+        manifest.json index.js \
+        pool index.json \
+        next/pool next/index.json || return 1
+    commit_pool \
+        "Pages already hold the Classic bundle and this Next release plan." \
+        "Publish Classic bundle and ${count} Revenge Next release(s)"
 }
 
 for attempt in 1 2 3; do

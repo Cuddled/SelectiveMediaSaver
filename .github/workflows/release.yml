@@ -29,7 +29,15 @@ jobs:
       - uses: ./.github/actions/setup-revenge-build
 
       - name: Check out the published pool
+        env:
+          REQUIRE_POOL: 1
         run: bash .github/scripts/checkout-pool.sh
+
+      - name: Build Classic Revenge bundle
+        run: npm run build:classic
+
+      - name: Verify Classic Revenge loader and runtime
+        run: npm run verify:classic
 
       - name: Plan releases
         id: plan
@@ -45,6 +53,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash .github/scripts/tag-releases.sh
 
-      - name: Publish artifacts and index to the pool
-        if: steps.plan.outputs.count != '0'
+      - name: Publish Classic bundle and Revenge Next repositories
         run: bash .github/scripts/publish-pool.sh

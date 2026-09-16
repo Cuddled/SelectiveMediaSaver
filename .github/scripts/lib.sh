@@ -35,3 +35,33 @@ commit_pool() {
     git -C "$POOL_CHECKOUT" commit -m "$2"
     git -C "$POOL_CHECKOUT" push origin "$POOL_BRANCH"
 }
+
+# Keeps the legacy Revenge Next pool at /pool and its canonical copy at /next/pool byte-for-byte
+# compatible. The legacy path cannot be removed because existing installs already point at it.
+mirror_next_pools() {
+    local legacy="$POOL_CHECKOUT/pool"
+    local canonical="$POOL_CHECKOUT/next/pool"
+    local source file name destination
+
+    mkdir -p "$legacy" "$canonical"
+
+    for source in "$legacy" "$canonical"; do
+        if [ "$source" = "$legacy" ]; then
+            destination="$canonical"
+        else
+            destination="$legacy"
+        fi
+
+        while IFS= read -r -d '' file; do
+            name="${file##*/}"
+            if [ -f "$destination/$name" ]; then
+                cmp -s "$file" "$destination/$name" || {
+                    echo "::error::Revenge Next artifact ${name} differs between /pool and /next/pool"
+                    return 1
+                }
+            else
+                cp "$file" "$destination/$name" || return 1
+            fi
+        done < <(find "$source" -maxdepth 1 -type f -name '*.zip' -print0)
+    done
+}

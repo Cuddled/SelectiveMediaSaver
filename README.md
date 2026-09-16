@@ -1,13 +1,18 @@
 # Selective Media Saver
 
 Selective Media Saver automatically saves new Discord images, GIFs, and videos from the users,
-servers, or channels you choose. This repository contains both the original BetterDiscord v2.4.0
-source archive and a new Android port for Revenge Next.
+servers, or channels you choose. This repository contains the verified BetterDiscord v2.4.0 source
+archive plus separate Android builds for Revenge Classic and Revenge Next.
 
-The Android port is currently `2.4.0-next1`, a beta build for the exact setup it was developed
-against:
+The two Revenge plugin systems use different loaders and are not interchangeable:
 
-- Revenge Next main build `1b1d297`
+- Revenge Classic installs a loose `manifest.json` + `index.js` bundle from the site root. The
+  Classic port targets the `1b1d297-main` build shown as Revenge 1.11.6 in the app.
+- Revenge Next installs a compiled plugin ZIP from a repository index. Its beta repository lives at
+  the explicit `/next` path so Classic never tries to execute a Next ZIP.
+
+The Revenge Next port is currently `2.4.0-next1`, a beta build for this tested client stack:
+
 - RevengeXposed loader `1.6.2`
 - Discord Android `347.1` (`347201`)
 - React `19.2.3` and React Native `0.86.0`
@@ -16,7 +21,26 @@ against:
 Revenge will reject the plugin on Discord 348+ until that client version has been tested and the
 manifest range is deliberately widened.
 
-## Android beta features
+## Revenge Classic beta features
+
+- A visual in-app settings screen with switches, ID editors, status, save/failure totals, and a
+  one-press history reset.
+- Persistent user, server, and channel allowlists with match-any or require-all behavior.
+- A safe default that saves nothing until at least one allowlist is configured.
+- Automatic image, GIF, video, embed-image, and optional embed-thumbnail capture.
+- Optional allowlisted avatar and banner capture when Discord receives the corresponding live
+  message or profile event.
+- Ignore-bot and ignore-self switches, size checks when Discord supplies an attachment size, a
+  bounded queue, and bounded persistent duplicate history.
+- Discord's own Android media downloader, avoiding JavaScript buffering of whole videos.
+
+Classic capture is foreground-only and only sees new events received while Discord is running. It
+does not scan old messages or fetch profiles in the background. Discord chooses the final public
+download location and filename; custom albums, custom filenames, file open/share/delete tools, the
+desktop metadata browser, cleanup scheduler, and right-click BetterDiscord menus are not available
+in the Classic build.
+
+## Revenge Next beta features
 
 - A native React Native settings page with live capture and bridge status.
 - Persistent user, server, and channel allowlists.
@@ -42,24 +66,38 @@ Desktop-only BetterDiscord features such as Electron folder opening, DOM setting
 desktop menus are not used on mobile. Cross-restart media hash deduplication, the desktop metadata
 browser/cleanup scheduler, and a mobile manual-save menu are still follow-up work.
 
-## Install in Revenge Next
+## Install in Revenge Classic
 
-After the first release workflow publishes the repository and GitHub Pages is enabled from the
-`gh-pages` branch, add this URL under Revenge's custom plugin repositories:
+In **Settings → Plugins**, press the add button and enter this direct plugin URL:
 
 ```text
 https://cuddled.github.io/SelectiveMediaSaver
+```
+
+Classic automatically requests `/manifest.json` and then `/index.js`. Do not paste the ZIP URL or
+the `/next` repository URL into the Classic add-plugin dialog.
+
+After installation, enable the plugin, reload Discord, and open its settings. Add at least one user,
+server, or channel ID before expecting automatic saves; the safe default is to save nothing while
+every allowlist is empty.
+
+## Install in Revenge Next
+
+Add this URL under Revenge Next's custom plugin repositories:
+
+```text
+https://cuddled.github.io/SelectiveMediaSaver/next
 ```
 
 Install the **beta** version, enable it, reload Discord, and open the plugin's settings page. Add at
 least one user, server, or channel ID before expecting automatic saves; the safe default is to save
 nothing while every allowlist is empty.
 
-GitHub Pages must be available for the repository. GitHub's free plan does not serve Pages from a
-private repository, so either make the repository public or use a plan that supports private Pages.
-The release workflow also attaches each compiled plugin ZIP to its matching GitHub Release, but an
-asset in a private repository still requires GitHub authentication and is not a custom-repository
-URL for Revenge.
+The original Next URL at `https://cuddled.github.io/SelectiveMediaSaver/index.json` and its `/pool`
+artifact URLs remain published for compatibility with existing installs. New Next installs should
+use `/next`; the site root itself is the Classic install URL.
+
+The release workflow also attaches each compiled Next plugin ZIP to its matching GitHub Release.
 
 Files are stored in Android's public Pictures or Movies collection under the configured album name.
 No broad storage permission is needed on Android 10 or newer.
@@ -80,6 +118,9 @@ from the matching v2.4.0 source and verified by size, ZIP CRC, and SHA-256.
 ## Project layout
 
 ```text
+classic/
+└── ...                         # Revenge Classic source and build tooling
+
 plugins/com.cuddled.selectivemediasaver/
 ├── manifest.json
 ├── js/
@@ -117,6 +158,7 @@ npm ci
 npm run lint
 npm run lint:types
 npm test
+npm run build:classic
 ./gradlew.bat --no-daemon packageAllPlugins
 ```
 
@@ -129,12 +171,15 @@ npm ci
 npm run lint
 npm run lint:types
 npm test
+npm run build:classic
 ./gradlew --no-daemon packageAllPlugins
 ```
 
-The distributable is written to:
+The distributables are written to:
 
 ```text
+build/classic/manifest.json
+build/classic/index.js
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next1.zip
 ```
 
@@ -154,8 +199,10 @@ The Android plugin and the pinned Revenge API are compiled in CI with Android SD
 
 ## Publishing and promotion
 
-Pull requests run linting, type checks, unit tests, native compilation, D8 packaging, and repository
-metadata validation. Merges to `main` publish immutable plugin ZIPs and `index.json` to `gh-pages`.
+Pull requests run linting, type checks, unit tests, Classic bundling, native compilation, D8
+packaging, and a full Pages-layout validation. Merges to `main` publish Classic `manifest.json` and
+`index.js` at the site root, preserve the legacy Next `index.json` and `/pool`, and mirror the Next
+repository under `/next`.
 
 `2.4.0-next1` remains on the beta channel. Promote only after testing installation, settings,
 capture, large-file cancellation, duplicates, and lifecycle reloads on the target phone. A stable

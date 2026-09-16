@@ -8,7 +8,8 @@ set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 if git clone --depth 1 --branch "$POOL_BRANCH" "$POOL_REMOTE" "$POOL_CHECKOUT" 2>/dev/null; then
-    echo "Pool holds $(find "$POOL_CHECKOUT/pool" -name '*.zip' 2>/dev/null | wc -l) artifact(s) on ${POOL_BRANCH}."
+    echo "Legacy pool holds $(find "$POOL_CHECKOUT/pool" -name '*.zip' 2>/dev/null | wc -l) artifact(s) on ${POOL_BRANCH}."
+    echo "Canonical Next pool holds $(find "$POOL_CHECKOUT/next/pool" -name '*.zip' 2>/dev/null | wc -l) artifact(s)."
 elif [ "${REQUIRE_POOL:-0}" = 1 ]; then
     echo "::error::branch ${POOL_BRANCH} does not exist, so there is no pool to read"
     exit 1
@@ -19,7 +20,7 @@ else
     git -C "$POOL_CHECKOUT" remote add origin "$POOL_REMOTE"
 fi
 
-mkdir -p "$POOL_CHECKOUT/pool"
+mkdir -p "$POOL_CHECKOUT/pool" "$POOL_CHECKOUT/next/pool"
 
 git -C "$POOL_CHECKOUT" config user.name 'github-actions[bot]'
 git -C "$POOL_CHECKOUT" config user.email 'github-actions[bot]@users.noreply.github.com'
