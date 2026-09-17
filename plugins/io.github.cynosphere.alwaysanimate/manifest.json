@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "io.github.cynosphere.alwaysanimate",
+	"name": "Always Animate",
+	"description": "Always animates guild icons and avatars.",
+	"author": "Cynosphere",
+	"icon": "icon-qs-gifs",
+	"version": "1.0.0",
+	"dependencies": {
+		"revenge.api": {
+			"version": ">=1.0.0 <2.0.0"
+		},
+		"discord": {
+			"version": ">=347.0 <348.0"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}

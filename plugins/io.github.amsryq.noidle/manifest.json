@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "io.github.amsryq.noidle",
+	"name": "NoIdle",
+	"description": "Prevent status from idling when Discord is in the background.",
+	"author": "pylix (Revenge Next port by Cuddled)",
+	"version": "1.0.0",
+	"icon": "StatusIdle",
+	"dependencies": {
+		"revenge.api": {
+			"version": ">=1.0.0 <2.0.0"
+		},
+		"discord": {
+			"version": ">=347.0 <348.0"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}

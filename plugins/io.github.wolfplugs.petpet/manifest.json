@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "io.github.wolfplugs.petpet",
+	"name": "petPet",
+	"description": "pet someone P.",
+	"author": "Wolfkid (Revenge Next port by Cuddled)",
+	"version": "1.0.0",
+	"icon": "ic_badge_staff",
+	"dependencies": {
+		"revenge.api": {
+			"version": ">=1.0.0 <2.0.0"
+		},
+		"discord": {
+			"version": ">=347.0 <348.0"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}

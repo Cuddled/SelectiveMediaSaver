@@ -70,6 +70,26 @@ Desktop-only BetterDiscord features such as Electron folder opening, DOM setting
 desktop menus are not used on mobile. Cross-restart media hash deduplication, the desktop metadata
 browser/cleanup scheduler, and a mobile manual-save menu are still follow-up work.
 
+## Revenge Classic compatibility ports for Next
+
+The same Revenge Next repository also contains direct compatibility ports of these nine supplied
+Classic plugins. Each installs and enables independently; their original behavior, labels, options,
+and quirks are intentionally retained while only loader/API integration was adapted for Next:
+
+- petPet
+- NoIdle
+- No typing
+- NoCompression
+- BetterBios / ClickableBioLinks
+- PlatformIndicators
+- NoBandwidthKick
+- Always Animate
+- Chatbox Avatar
+
+Each plugin's packaged `NOTICE.md` identifies the exact audited Classic artifact, snapshot hash,
+source revision, and license. These ports target the same Discord 347.x client range as the current
+Selective Media Saver Next build.
+
 ## Install in Revenge Classic
 
 In **Settings → Plugins**, press the add button and enter this direct plugin URL:
@@ -97,6 +117,9 @@ Install the **beta** version, enable it, reload Discord, and open the plugin's s
 least one user, server, or channel ID before expecting automatic saves; the safe default is to save
 nothing while every allowlist is empty. New installs organize future downloads by sender by default;
 the visual Folder organization card can switch to flat folders or server/DM then sender.
+
+The nine Classic compatibility ports appear as separate plugins in this same repository. Install
+only the ones you want, enable them, and reload Discord.
 
 The original Next URL at `https://cuddled.github.io/SelectiveMediaSaver/index.json` and its `/pool`
 artifact URLs remain published for compatibility with existing installs. New Next installs should
@@ -188,7 +211,9 @@ build/classic/index.js
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next2.zip
 ```
 
-It must contain `manifest.json`, `index.js`, and `plugin.jar` at the ZIP root.
+The Selective Media Saver ZIP must contain `manifest.json`, `index.js`, and `plugin.jar` at its
+root. Each compatibility port produces its own `build/dist/<plugin-id>@1.0.0.zip` containing
+`manifest.json`, `index.js`, and its source/license notice files.
 
 ## Pinned toolchain
 

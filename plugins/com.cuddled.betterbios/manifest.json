@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "com.cuddled.betterbios",
+	"name": "BetterBios",
+	"description": "Makes bio text selectable and links in them clickable",
+	"icon": "ic_profile_24px",
+	"author": "Vendicated (original), Cuddled (Revenge Next port)",
+	"version": "1.0.0",
+	"dependencies": {
+		"revenge.api": {
+			"version": ">=1.0.0 <2.0.0"
+		},
+		"discord": {
+			"version": ">=347.0 <348.0"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}
