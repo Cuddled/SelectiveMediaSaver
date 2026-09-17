@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "com.cuddled.nocompression",
+	"name": "NoCompression",
+	"description": "Prevents Discord from compressing files when uploading",
+	"icon": "ic_file_upload_24px",
+	"author": "MSMA (original), Cuddled (Revenge Next port)",
+	"version": "1.0.0",
+	"dependencies": {
+		"revenge.api": {
+			"version": ">=1.0.0 <2.0.0"
+		},
+		"discord": {
+			"version": ">=347.0 <348.0"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}

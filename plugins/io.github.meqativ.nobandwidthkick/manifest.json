@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "io.github.meqativ.nobandwidthkick",
+	"name": "NoBandwidthKick",
+	"description": "Disables the bandwidth kicks. eg when you're alone in a DM vc for a while\n(ported from an enmity plugin)",
+	"author": "mafu, meqativ :3",
+	"icon": "ic_emoji_recent_color_24px",
+	"version": "1.0.0",
+	"dependencies": {
+		"revenge.api": {
+			"version": ">=1.0.0 <2.0.0"
+		},
+		"discord": {
+			"version": ">=347.0 <348.0"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}

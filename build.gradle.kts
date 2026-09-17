@@ -294,6 +294,20 @@ pluginDefs.forEach { (dir, id, version, jarName, scriptName) ->
 
         from(File(dir, "manifest.json"))
 
+        val noticeFile = File(dir, "NOTICE.md")
+        if (noticeFile.isFile) {
+            from(noticeFile)
+        }
+
+        val licenseFile = File(dir, "LICENSE")
+        if (licenseFile.isFile) {
+            from(licenseFile)
+        } else if (dir.name == "io.github.amsryq.noidle") {
+            // NoIdle is GPL-3.0; its notice points to the repository-root license.
+            // Put that complete license beside the bundled notice in the binary ZIP.
+            from(file("LICENSE"))
+        }
+
         if (jarName != null && File(dir, "src/main").isDirectory) {
             val nativePath = ":plugins:${dir.name}"
             dependsOn("$nativePath:dexJar")

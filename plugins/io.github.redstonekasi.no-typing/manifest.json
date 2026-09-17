@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "io.github.redstonekasi.no-typing",
+	"name": "No typing",
+	"description": "Hides your typing status from others.",
+	"author": "redstonekasi (Revenge Next port by Cuddled)",
+	"version": "1.0.0",
+	"icon": "ic_chat_bubble_16px",
+	"dependencies": {
+		"revenge.api": {
+			"version": ">=1.0.0 <2.0.0"
+		},
+		"discord": {
+			"version": ">=347.0 <348.0"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}
