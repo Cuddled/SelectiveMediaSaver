@@ -301,6 +301,130 @@ function DestinationEditor({
 	)
 }
 
+function FolderSettings({
+	api,
+	settings,
+}: {
+	api: SmsPluginApi
+	settings: SelectiveMediaSaverSettings
+}) {
+	const { View } = revenge.react.ReactNative
+	const { Button, Card, Stack, TableRow, TableRowGroup, TableSwitchRow, Text } =
+		revenge.discord.design.Design
+	const layouts: Array<{
+		value: SelectiveMediaSaverSettings['folderOrganization']
+		label: string
+		description: string
+	}> = [
+		{
+			value: 'flat',
+			label: 'Flat folders',
+			description: 'Keep every sender together in the album folder',
+		},
+		{
+			value: 'sender',
+			label: 'By sender',
+			description: 'One folder per global username and full user ID',
+		},
+		{
+			value: 'location_sender',
+			label: 'Server / DMs → sender',
+			description: 'Group the sender folders by server or Direct Messages',
+		},
+	]
+	const previewAlbum = settings.separateFoldersByType
+		? `${settings.albumName} Images`
+		: settings.albumName
+	const preview =
+		settings.folderOrganization === 'flat'
+			? `Pictures / ${previewAlbum}`
+			: settings.folderOrganization === 'sender'
+				? `Pictures / ${previewAlbum} / username__123…`
+				: `Pictures / ${previewAlbum} / server__123… / username__123…`
+
+	return (
+		<Card
+			variant="secondary"
+			border="none"
+			style={{
+				backgroundColor: '#5865f214',
+				borderColor: '#5865f255',
+				borderWidth: 1,
+			}}
+		>
+			<View style={{ padding: 16 }}>
+				<Stack spacing={12}>
+					<Stack spacing={3}>
+						<Text variant="heading-md/semibold" color="text-strong">
+							Folder organization
+						</Text>
+						<Text variant="text-sm/normal" color="text-muted">
+							Choose how future downloads are arranged. Existing files stay
+							where they are.
+						</Text>
+					</Stack>
+					<TableRowGroup>
+						{layouts.map(layout => {
+							const selected = settings.folderOrganization === layout.value
+							return (
+								<TableRow
+									key={layout.value}
+									label={layout.label}
+									subLabel={layout.description}
+									trailing={
+										<Button
+											size="sm"
+											variant={selected ? 'primary' : 'tertiary'}
+											text={selected ? 'Selected' : 'Use'}
+											disabled={selected}
+											onPress={() =>
+												saveSetting(api, 'folderOrganization', layout.value)
+											}
+										/>
+									}
+								/>
+							)
+						})}
+					</TableRowGroup>
+					<TableRowGroup>
+						<TableSwitchRow
+							label="Separate Images and Videos"
+							subLabel="Keep the existing media-type album split"
+							value={settings.separateFoldersByType}
+							onValueChange={value =>
+								saveSetting(api, 'separateFoldersByType', value)
+							}
+						/>
+						<TableSwitchRow
+							label="Profile media by sender"
+							subLabel="Put future avatars and banners in that user's folder"
+							value={settings.organizeProfileMediaBySender}
+							onValueChange={value =>
+								saveSetting(api, 'organizeProfileMediaBySender', value)
+							}
+						/>
+					</TableRowGroup>
+					<Stack spacing={2}>
+						<Text variant="text-sm/semibold" color="text-strong">
+							Example
+						</Text>
+						<Text variant="text-xs/normal" color="text-muted">
+							{preview}
+						</Text>
+						<Text variant="text-xs/normal" color="text-muted">
+							Names are cleaned for Android, and full Discord IDs prevent
+							username collisions. First folder names stay assigned through
+							username changes (
+							{Object.keys(settings.senderFolderAssignments).length}{' '}
+							remembered).
+						</Text>
+					</Stack>
+				</Stack>
+			</View>
+		</Card>
+	)
+}
+
 function ProfileMediaSettings({
 	api,
 	settings,
@@ -578,14 +702,8 @@ export default function Settings({ api }: { api: SmsPluginApi }) {
 								saveSetting(api, 'showErrorToasts', value)
 							}
 						/>
-						<TableSwitchRow
-							label="Separate Images and Videos"
-							value={settings.separateFoldersByType}
-							onValueChange={value =>
-								saveSetting(api, 'separateFoldersByType', value)
-							}
-						/>
 					</TableRowGroup>
+					<FolderSettings api={api} settings={settings} />
 					<DestinationEditor api={api} settings={settings} />
 
 					<Text variant="text-sm/normal" color="text-muted">

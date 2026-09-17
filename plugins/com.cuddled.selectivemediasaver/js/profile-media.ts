@@ -58,11 +58,19 @@ function displayName(user: UnknownRecord | undefined, userId: string): string {
 	)
 }
 
+function username(user: UnknownRecord | undefined, userId: string): string {
+	return (
+		stringField(user, 'username', 'globalName', 'global_name') ??
+		`user-${userId.slice(-6)}`
+	)
+}
+
 function profileAssetCandidate(
 	kind: 'avatar' | 'banner',
 	userId: string,
 	assetHash: string,
 	userName: string,
+	userUsername: string,
 	userIsBot: boolean,
 ): ProfileAssetCandidate {
 	const animated = assetHash.toLowerCase().startsWith('a_')
@@ -72,6 +80,7 @@ function profileAssetCandidate(
 		kind,
 		userId,
 		userName,
+		userUsername,
 		userIsBot,
 		assetHash,
 		url: `https://cdn.discordapp.com/${kind === 'avatar' ? 'avatars' : 'banners'}/${userId}/${assetHash}${extension}?size=${size}`,
@@ -96,6 +105,7 @@ export function avatarCandidateFromUser(
 		userId,
 		assetHash,
 		displayName(user, userId),
+		username(user, userId),
 		boolField(user, 'bot'),
 	)
 }
@@ -171,6 +181,7 @@ export function bannerCandidateFromProfileEvent(
 			userId,
 			assetHash,
 			displayName(user ?? profile, userId),
+			username(user ?? profile, userId),
 			boolField(user, 'bot'),
 		)
 	}

@@ -1,6 +1,6 @@
 {
 	"name": "@cuddled/selective-media-saver-revenge",
-	"version": "2.4.0-next1",
+	"version": "2.4.0-next2",
 	"private": true,
 	"type": "module",
 	"scripts": {

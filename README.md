@@ -11,7 +11,7 @@ The two Revenge plugin systems use different loaders and are not interchangeable
 - Revenge Next installs a compiled plugin ZIP from a repository index. Its beta repository lives at
   the explicit `/next` path so Classic never tries to execute a Next ZIP.
 
-The Revenge Next port is currently `2.4.0-next1`, a beta build for this tested client stack:
+The Revenge Next port is currently `2.4.0-next2`, a beta build for this tested client stack:
 
 - RevengeXposed loader `1.6.2`
 - Discord Android `347.1` (`347201`)
@@ -53,6 +53,10 @@ in the Classic build.
 - Foreground capture from new `MESSAGE_CREATE` events.
 - A bounded processing queue and bounded in-session event deduplication.
 - Configurable album name, separate image/video folders, and a 1–512 MiB per-file limit.
+- Visual folder modes for flat storage, stable per-sender folders, or server/DM then sender. Sender
+  folders combine the global username with the full Discord user ID so duplicate names never mix.
+- Bounded persistent sender-folder assignments keep a person's original folder stable after a
+  username change, with optional per-sender avatar and banner folders.
 - One summary toast per message instead of one notification per attachment.
 - Native Android MediaStore downloads that appear in gallery/files apps.
 - Streamed downloads, so a large video is not buffered in JavaScript or loaded fully into memory.
@@ -91,7 +95,8 @@ https://cuddled.github.io/SelectiveMediaSaver/next
 
 Install the **beta** version, enable it, reload Discord, and open the plugin's settings page. Add at
 least one user, server, or channel ID before expecting automatic saves; the safe default is to save
-nothing while every allowlist is empty.
+nothing while every allowlist is empty. New installs organize future downloads by sender by default;
+the visual Folder organization card can switch to flat folders or server/DM then sender.
 
 The original Next URL at `https://cuddled.github.io/SelectiveMediaSaver/index.json` and its `/pool`
 artifact URLs remain published for compatibility with existing installs. New Next installs should
@@ -180,7 +185,7 @@ The distributables are written to:
 ```text
 build/classic/manifest.json
 build/classic/index.js
-build/dist/com.cuddled.selectivemediasaver@2.4.0-next1.zip
+build/dist/com.cuddled.selectivemediasaver@2.4.0-next2.zip
 ```
 
 It must contain `manifest.json`, `index.js`, and `plugin.jar` at the ZIP root.
@@ -204,7 +209,7 @@ packaging, and a full Pages-layout validation. Merges to `main` publish Classic 
 `index.js` at the site root, preserve the legacy Next `index.json` and `/pool`, and mirror the Next
 repository under `/next`.
 
-`2.4.0-next1` remains on the beta channel. Promote only after testing installation, settings,
+`2.4.0-next2` remains on the beta channel. Promote only after testing installation, settings,
 capture, large-file cancellation, duplicates, and lifecycle reloads on the target phone. A stable
 release uses a newer version without a prerelease label.
 

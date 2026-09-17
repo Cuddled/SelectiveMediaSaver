@@ -2,9 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
 	addProfileHistoryEntry,
+	addSenderFolderAssignment,
 	DEFAULT_SETTINGS,
 	hasProfileAsset,
+	identityFolderSegment,
+	MAX_SENDER_FOLDER_ASSIGNMENTS,
 	normalizeProfileHistory,
+	normalizeSenderFolderAssignments,
 	normalizeSettings,
 	sanitizeFolderSegment,
 } from './defaults'
@@ -13,8 +17,11 @@ import {
 	extractMedia,
 	httpsHost,
 	isMessageAllowed,
+	locationFolderSegment,
 	messageContext,
+	messageFolderSegments,
 	messageFromEvent,
+	profileFolderSegments,
 	seenKey,
 } from './media'
 import {
@@ -39,10 +46,18 @@ test('settings normalization supplies safe defaults and cleans persisted input',
 	assert.deepEqual(settings.allowedGuildIds, [])
 	assert.equal(settings.maxDownloadMiB, 512)
 	assert.equal(settings.albumName, '-My-Album')
+	assert.equal(settings.folderOrganization, 'sender')
+	assert.equal(settings.organizeProfileMediaBySender, true)
+	assert.deepEqual(settings.senderFolderAssignments, {})
 })
 
 test('folder names never keep traversal separators or control characters', () => {
 	assert.equal(sanitizeFolderSegment('  Photos/2026\u0000  '), 'Photos-2026-')
+	assert.equal(sanitizeFolderSegment('Fullwidth／Path'), 'Fullwidth-Path')
+	assert.equal(sanitizeFolderSegment('Hidden\u202eName'), 'Hidden-Name')
+	assert.equal(sanitizeFolderSegment('Soft\u00adHyphen'), 'Soft-Hyphen')
+	assert.equal(sanitizeFolderSegment(' .hidden'), 'hidden')
+	assert.equal(sanitizeFolderSegment(`${'a'.repeat(47)} .tail`), 'a'.repeat(47))
 	assert.equal(sanitizeFolderSegment('...'), DEFAULT_SETTINGS.albumName)
 })
 
@@ -60,8 +75,63 @@ test('message payload and context parsing tolerates Discord event variants', () 
 		guildId: 'g1',
 		authorId: 'u1',
 		authorName: 'Display',
+		authorUsername: 'Display',
 		authorIsBot: false,
 	})
+})
+
+test('identity folders keep full IDs and preserve the first assigned username', () => {
+	const userId = '123456789012345678'
+	assert.equal(
+		identityFolderSegment('../A/Very:Unsafe User', userId),
+		'-A-Very-Unsafe User__123456789012345678',
+	)
+	assert.equal(
+		identityFolderSegment(`${'a'.repeat(43)} .tail`, userId),
+		`${'a'.repeat(43)}__${userId}`,
+	)
+
+	const first = addSenderFolderAssignment({}, userId, 'first_name')
+	assert.equal(first.changed, true)
+	assert.equal(first.segment, `first_name__${userId}`)
+	const renamed = addSenderFolderAssignment(
+		first.assignments,
+		userId,
+		'new_name',
+	)
+	assert.equal(renamed.changed, false)
+	assert.equal(renamed.segment, first.segment)
+	assert.deepEqual(
+		normalizeSenderFolderAssignments(renamed.assignments),
+		first.assignments,
+	)
+})
+
+test('sender folder assignments are validated and bounded', () => {
+	let assignments: Record<string, string> = {}
+	for (let index = 0; index < MAX_SENDER_FOLDER_ASSIGNMENTS + 2; index += 1) {
+		const userId = String(100_000_000_000_000_000n + BigInt(index))
+		assignments = addSenderFolderAssignment(
+			assignments,
+			userId,
+			`user${index}`,
+		).assignments
+	}
+	assert.equal(Object.keys(assignments).length, MAX_SENDER_FOLDER_ASSIGNMENTS)
+	assert.equal(assignments['100000000000000000'], 'user0__100000000000000000')
+	assert.equal(
+		assignments[
+			String(100_000_000_000_000_000n + BigInt(MAX_SENDER_FOLDER_ASSIGNMENTS))
+		],
+		undefined,
+	)
+	assert.deepEqual(
+		normalizeSenderFolderAssignments({
+			'123456789012345678': 'wrong-id__223456789012345678',
+			bad: 'bad__bad',
+		}),
+		{},
+	)
 })
 
 test('allowlist any mode accepts one match and an empty allowlist denies', () => {
@@ -71,6 +141,7 @@ test('allowlist any mode accepts one match and an empty allowlist denies', () =>
 		guildId: 'g1',
 		authorId: 'u1',
 		authorName: 'User',
+		authorUsername: 'User',
 		authorIsBot: false,
 	}
 	const empty = normalizeSettings(undefined)
@@ -93,6 +164,7 @@ test('allowlist all mode requires every configured category', () => {
 		id: 'm1',
 		guildId: '',
 		authorName: 'User',
+		authorUsername: 'User',
 		authorIsBot: false,
 	}
 
@@ -183,7 +255,7 @@ test('capture switches filter kinds and optional thumbnails', () => {
 	assert.equal(found[0].kind, 'video')
 })
 
-test('download request sanitizes names and applies visual folder mode', () => {
+test('download request sanitizes names and applies sender folder mode', () => {
 	const settings = normalizeSettings({
 		onlySaveAllowlisted: false,
 		albumName: 'Saved/Media',
@@ -195,8 +267,9 @@ test('download request sanitizes names and applies visual folder mode', () => {
 			id: 'm1',
 			channelId: 'c1',
 			guildId: 'g1',
-			authorId: 'u1',
+			authorId: '123456789012345678',
 			authorName: 'User',
+			authorUsername: 'global.user',
 			authorIsBot: false,
 		},
 		{
@@ -212,8 +285,106 @@ test('download request sanitizes names and applies visual folder mode', () => {
 	)
 
 	assert.equal(request.fileName, '-bad-name.png')
-	assert.equal(request.folder, 'Saved-Media Images')
+	assert.deepEqual(request.folderSegments, [
+		'Saved-Media Images',
+		'global.user__123456789012345678',
+	])
 	assert.equal(request.maxBytes, 25 * 1024 * 1024)
+})
+
+test('folder modes support flat, sender, and server or DM grouping', () => {
+	const context = {
+		id: 'm1',
+		channelId: '223456789012345678',
+		guildId: '323456789012345678',
+		authorId: '123456789012345678',
+		authorName: 'Server Display Name',
+		authorUsername: 'global_name',
+		authorIsBot: false,
+	}
+	assert.deepEqual(
+		messageFolderSegments(
+			context,
+			normalizeSettings({ folderOrganization: 'flat' }),
+			'image',
+			'My Server',
+		),
+		['SelectiveMediaSaver Images'],
+	)
+	assert.deepEqual(
+		messageFolderSegments(
+			context,
+			normalizeSettings({ folderOrganization: 'sender' }),
+			'video',
+			'My Server',
+		),
+		['SelectiveMediaSaver Videos', 'global_name__123456789012345678'],
+	)
+	assert.deepEqual(
+		messageFolderSegments(
+			context,
+			normalizeSettings({ folderOrganization: 'location_sender' }),
+			'image',
+			'My/Server',
+		),
+		[
+			'SelectiveMediaSaver Images',
+			'My-Server__323456789012345678',
+			'global_name__123456789012345678',
+		],
+	)
+	assert.equal(locationFolderSegment('', undefined), 'Direct Messages')
+	assert.equal(
+		locationFolderSegment('../bad', 'Unsafe/Server'),
+		'Unsafe-Server__unknown',
+	)
+	assert.deepEqual(
+		messageFolderSegments(
+			{ ...context, guildId: '' },
+			normalizeSettings({ folderOrganization: 'location_sender' }),
+			'image',
+		),
+		[
+			'SelectiveMediaSaver Images',
+			'Direct Messages',
+			'global_name__123456789012345678',
+		],
+	)
+})
+
+test('assigned sender paths survive username changes and profile sorting is optional', () => {
+	const userId = '123456789012345678'
+	const settings = normalizeSettings({
+		folderOrganization: 'sender',
+		organizeProfileMediaBySender: true,
+	})
+	const assigned = `original_name__${userId}`
+	const context = {
+		id: 'm1',
+		channelId: '223456789012345678',
+		guildId: '',
+		authorId: userId,
+		authorName: 'Renamed',
+		authorUsername: 'renamed',
+		authorIsBot: false,
+	}
+	assert.deepEqual(
+		messageFolderSegments(context, settings, 'image', undefined, assigned),
+		['SelectiveMediaSaver Images', assigned],
+	)
+	assert.deepEqual(
+		profileFolderSegments(settings, 'avatar', 'renamed', userId, assigned),
+		['SelectiveMediaSaver Avatars', assigned],
+	)
+	assert.deepEqual(
+		profileFolderSegments(
+			normalizeSettings({ organizeProfileMediaBySender: false }),
+			'banner',
+			'renamed',
+			userId,
+		),
+		['SelectiveMediaSaver Banners'],
+	)
 })
 
 test('URL helpers accept TLS hosts and make stable signed-URL keys', () => {
@@ -242,11 +413,13 @@ test('avatar candidates construct exact Discord CDN URLs from safe fields', () =
 		id: '123456789012345678',
 		avatar: '0123456789abcdef0123456789abcdef',
 		global_name: 'Display',
+		username: 'global.user',
 	})
 	assert.deepEqual(staticAvatar, {
 		kind: 'avatar',
 		userId: '123456789012345678',
 		userName: 'Display',
+		userUsername: 'global.user',
 		userIsBot: false,
 		assetHash: '0123456789abcdef0123456789abcdef',
 		url: 'https://cdn.discordapp.com/avatars/123456789012345678/0123456789abcdef0123456789abcdef.png?size=512',

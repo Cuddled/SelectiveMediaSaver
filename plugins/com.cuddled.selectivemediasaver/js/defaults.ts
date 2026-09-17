@@ -29,17 +29,49 @@ export const DEFAULT_SETTINGS: SelectiveMediaSaverSettings = {
 	showErrorToasts: true,
 	albumName: 'SelectiveMediaSaver',
 	separateFoldersByType: true,
+	folderOrganization: 'sender',
+	organizeProfileMediaBySender: true,
+	senderFolderAssignments: {},
 	maxDownloadMiB: 100,
 }
 
 const MAX_DOWNLOAD_MIB = 512
+export const MAX_SENDER_FOLDER_ASSIGNMENTS = 1_024
 export const MAX_PROFILE_HISTORY_ENTRIES = 256
 export const MAX_PROFILE_HISTORY_PER_USER = 8
 
 function replaceControlCharacters(value: string): string {
 	return Array.from(value, character =>
-		(character.codePointAt(0) ?? 0) < 32 ? '-' : character,
+		isUnsafeFormatCodePoint(character.codePointAt(0) ?? 0) ? '-' : character,
 	).join('')
+}
+
+function isUnsafeFormatCodePoint(codePoint: number): boolean {
+	return (
+		codePoint < 32 ||
+		(codePoint >= 0x7f && codePoint <= 0x9f) ||
+		codePoint === 0xad ||
+		(codePoint >= 0x600 && codePoint <= 0x605) ||
+		codePoint === 0x61c ||
+		codePoint === 0x6dd ||
+		codePoint === 0x70f ||
+		(codePoint >= 0x890 && codePoint <= 0x891) ||
+		codePoint === 0x8e2 ||
+		codePoint === 0x180e ||
+		(codePoint >= 0x200b && codePoint <= 0x200f) ||
+		(codePoint >= 0x202a && codePoint <= 0x202e) ||
+		(codePoint >= 0x2060 && codePoint <= 0x2064) ||
+		(codePoint >= 0x2066 && codePoint <= 0x206f) ||
+		codePoint === 0xfeff ||
+		(codePoint >= 0xfff9 && codePoint <= 0xfffb) ||
+		codePoint === 0x110bd ||
+		codePoint === 0x110cd ||
+		(codePoint >= 0x13430 && codePoint <= 0x13455) ||
+		(codePoint >= 0x1bca0 && codePoint <= 0x1bca3) ||
+		(codePoint >= 0x1d173 && codePoint <= 0x1d17a) ||
+		codePoint === 0xe0001 ||
+		(codePoint >= 0xe0020 && codePoint <= 0xe007f)
+	)
 }
 
 function booleanOr(value: unknown, fallback: boolean): boolean {
@@ -155,14 +187,89 @@ export function addProfileHistoryEntry(
 }
 
 export function sanitizeFolderSegment(value: unknown): string {
-	const safe = replaceControlCharacters(String(value ?? ''))
+	const normalized = replaceControlCharacters(
+		String(value ?? '').normalize('NFKC'),
+	)
 		.replace(/[\\/:*?"<>|]/g, '-')
 		.replace(/\s+/g, ' ')
 		.replace(/^\.+|\.+$/g, '')
 		.trim()
-		.slice(0, 48)
+	const safe = truncateCodePoints(normalized, 48)
+		.replace(/^[.\s]+|[.\s]+$/gu, '')
+		.trim()
 
 	return safe || DEFAULT_SETTINGS.albumName
+}
+
+function truncateCodePoints(value: string, limit: number): string {
+	return Array.from(value).slice(0, limit).join('')
+}
+
+/** Produces a readable identity segment while retaining the complete Discord ID. */
+export function identityFolderSegment(
+	username: string,
+	userId: string,
+): string {
+	const id = DISCORD_ID_PATTERN.test(userId) ? userId : 'unknown'
+	const safeName = sanitizeFolderSegment(username)
+	const maxNameCodePoints = Math.max(1, 64 - 2 - id.length)
+	const label = sanitizeFolderSegment(
+		truncateCodePoints(safeName, maxNameCodePoints),
+	)
+	return `${label}__${id}`
+}
+
+export function normalizeSenderFolderAssignments(
+	value: unknown,
+): Record<string, string> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+	const entries = Object.entries(value as Record<string, unknown>)
+		.filter(
+			(entry): entry is [string, string] =>
+				DISCORD_ID_PATTERN.test(entry[0]) && typeof entry[1] === 'string',
+		)
+		.map(([userId, stored]) => {
+			const suffix = `__${userId}`
+			if (!stored.endsWith(suffix)) return undefined
+			const username = stored.slice(0, -suffix.length)
+			if (!username) return undefined
+			return [userId, identityFolderSegment(username, userId)] as const
+		})
+		.filter((entry): entry is readonly [string, string] => Boolean(entry))
+		.slice(-MAX_SENDER_FOLDER_ASSIGNMENTS)
+	return Object.fromEntries(entries)
+}
+
+export function addSenderFolderAssignment(
+	value: unknown,
+	userId: string,
+	username: string,
+): { assignments: Record<string, string>; segment: string; changed: boolean } {
+	const assignments = normalizeSenderFolderAssignments(value)
+	const existing = assignments[userId]
+	if (existing) return { assignments, segment: existing, changed: false }
+
+	const segment = identityFolderSegment(username, userId)
+	if (!DISCORD_ID_PATTERN.test(userId)) {
+		return { assignments, segment, changed: false }
+	}
+	if (Object.keys(assignments).length >= MAX_SENDER_FOLDER_ASSIGNMENTS) {
+		return { assignments, segment, changed: false }
+	}
+	const nextEntries = [...Object.entries(assignments), [userId, segment]]
+	return {
+		assignments: Object.fromEntries(nextEntries),
+		segment,
+		changed: true,
+	}
+}
+
+function folderOrganizationOr(
+	value: unknown,
+): SelectiveMediaSaverSettings['folderOrganization'] {
+	return value === 'flat' || value === 'sender' || value === 'location_sender'
+		? value
+		: DEFAULT_SETTINGS.folderOrganization
 }
 
 /**
@@ -232,6 +339,14 @@ export function normalizeSettings(value: unknown): SelectiveMediaSaverSettings {
 		separateFoldersByType: booleanOr(
 			raw.separateFoldersByType,
 			DEFAULT_SETTINGS.separateFoldersByType,
+		),
+		folderOrganization: folderOrganizationOr(raw.folderOrganization),
+		organizeProfileMediaBySender: booleanOr(
+			raw.organizeProfileMediaBySender,
+			DEFAULT_SETTINGS.organizeProfileMediaBySender,
+		),
+		senderFolderAssignments: normalizeSenderFolderAssignments(
+			raw.senderFolderAssignments,
 		),
 		maxDownloadMiB,
 	}
