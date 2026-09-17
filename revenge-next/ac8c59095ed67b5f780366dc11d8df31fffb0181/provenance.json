@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "name": "Revenge Next production bundle",
+  "upstreamRepository": "https://github.com/revenge-mod/revenge-bundle-next",
+  "sourceCommit": "ac8c59095ed67b5f780366dc11d8df31fffb0181",
+  "sourceArchive": "https://github.com/revenge-mod/revenge-bundle-next/archive/ac8c59095ed67b5f780366dc11d8df31fffb0181.zip",
+  "workflowRun": "https://github.com/revenge-mod/revenge-bundle-next/actions/runs/34494844176",
+  "artifactId": 10159315439,
+  "artifactName": "revenge-bundle",
+  "artifactCreatedAt": "2026-09-10T15:19:26Z",
+  "artifactZipSize": 175604,
+  "artifactZipSha256": "ca13905a6d8d399933561e164336f68bb86060fa1f2e543a8062e11b055ca29e",
+  "bundleFile": "revenge.bundle",
+  "bundleSize": 386688,
+  "bundleSha256": "62f4c9e1632ae9cf6a47f35976acf2784ee1c0b92524a8a6565b64347893073b",
+  "license": "GPL-3.0",
+  "mirroredUnmodified": true
+}
