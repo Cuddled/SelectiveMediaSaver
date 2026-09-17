@@ -3,6 +3,78 @@
   "name": "Cuddled's Revenge Plugins",
   "description": "Revenge Next plugins by Cuddled, including Selective Media Saver.",
   "plugins": {
+    "com.cuddled.betterbios": {
+      "name": "BetterBios",
+      "description": "Makes bio text selectable and links in them clickable",
+      "author": "Vendicated (original), Cuddled (Revenge Next port)",
+      "icon": "ic_profile_24px",
+      "channels": {
+        "latest": "1.0.0"
+      },
+      "versions": {
+        "1.0.0": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/com.cuddled.betterbios@1.0.0.zip",
+          "sha256": "6f7ad01e368aad666ebf3400034a72b296c2cb8cd1f29001f5c7351d76632638",
+          "size": 2771,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        }
+      }
+    },
+    "com.cuddled.nocompression": {
+      "name": "NoCompression",
+      "description": "Prevents Discord from compressing files when uploading",
+      "author": "MSMA (original), Cuddled (Revenge Next port)",
+      "icon": "ic_file_upload_24px",
+      "channels": {
+        "latest": "1.0.0"
+      },
+      "versions": {
+        "1.0.0": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/com.cuddled.nocompression@1.0.0.zip",
+          "sha256": "488f24a03c725e3bbe5b37d446b785203e6e41918a20730fc2c75642ecbc4da7",
+          "size": 2567,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        }
+      }
+    },
+    "com.cuddled.platformindicators": {
+      "name": "PlatformIndicators",
+      "description": "Adds platform indicators (Desktop, Mobile, Web...) to users",
+      "author": "MSMA (original), Cuddled (Revenge Next port)",
+      "icon": "ic_person_status",
+      "channels": {
+        "latest": "1.0.0"
+      },
+      "versions": {
+        "1.0.0": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/com.cuddled.platformindicators@1.0.0.zip",
+          "sha256": "76ff945b56399857d4e842259385292c668f265f44d4efb5c0422f5ccc9a88c2",
+          "size": 5966,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        }
+      }
+    },
     "com.cuddled.selectivemediasaver": {
       "name": "Selective Media Saver",
       "description": "Save selected Discord images, GIFs, videos, avatars, and banners on Android.",
@@ -28,6 +100,150 @@
           "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/com.cuddled.selectivemediasaver@2.4.0-next2.zip",
           "sha256": "e0d5d2878ab8fb0fa51a794fac0351d0fb0fd9e2cd14b995c67e1e5b985694b2",
           "size": 49820,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        }
+      }
+    },
+    "io.github.amsryq.noidle": {
+      "name": "NoIdle",
+      "description": "Prevent status from idling when Discord is in the background.",
+      "author": "pylix (Revenge Next port by Cuddled)",
+      "icon": "StatusIdle",
+      "channels": {
+        "latest": "1.0.0"
+      },
+      "versions": {
+        "1.0.0": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/io.github.amsryq.noidle@1.0.0.zip",
+          "sha256": "8c0b96d30d8b2e59c95be1977f83ed45c99b33213c4b8bdf0ec516926bdd2f55",
+          "size": 12529,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        }
+      }
+    },
+    "io.github.cynosphere.alwaysanimate": {
+      "name": "Always Animate",
+      "description": "Always animates guild icons and avatars.",
+      "author": "Cynosphere",
+      "icon": "icon-qs-gifs",
+      "channels": {
+        "latest": "1.0.0"
+      },
+      "versions": {
+        "1.0.0": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/io.github.cynosphere.alwaysanimate@1.0.0.zip",
+          "sha256": "6cf5d876d81b24d06dde29ba5e42bfc89cd9d36d91c6a4b2bb18818526779567",
+          "size": 2824,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        }
+      }
+    },
+    "io.github.cynosphere.chatboxavatar": {
+      "name": "Chatbox Avatar",
+      "description": "Quickly view your profile from the chatbox.",
+      "author": "Cynosphere",
+      "icon": "UserSquareIcon",
+      "channels": {
+        "latest": "1.0.0"
+      },
+      "versions": {
+        "1.0.0": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/io.github.cynosphere.chatboxavatar@1.0.0.zip",
+          "sha256": "097c19747cd547796a8168efd71892984028a01467483341974fe234f542ad20",
+          "size": 2893,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        }
+      }
+    },
+    "io.github.meqativ.nobandwidthkick": {
+      "name": "NoBandwidthKick",
+      "description": "Disables the bandwidth kicks. eg when you're alone in a DM vc for a while\n(ported from an enmity plugin)",
+      "author": "mafu, meqativ :3",
+      "icon": "ic_emoji_recent_color_24px",
+      "channels": {
+        "latest": "1.0.0"
+      },
+      "versions": {
+        "1.0.0": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/io.github.meqativ.nobandwidthkick@1.0.0.zip",
+          "sha256": "2ad6e6e72c40930bd41deca432c480c0347913a99f2b2b405458bb4c07a77092",
+          "size": 2112,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        }
+      }
+    },
+    "io.github.redstonekasi.no-typing": {
+      "name": "No typing",
+      "description": "Hides your typing status from others.",
+      "author": "redstonekasi (Revenge Next port by Cuddled)",
+      "icon": "ic_chat_bubble_16px",
+      "channels": {
+        "latest": "1.0.0"
+      },
+      "versions": {
+        "1.0.0": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/io.github.redstonekasi.no-typing@1.0.0.zip",
+          "sha256": "b567666a1e0daf1a10dddeaa0a9550a1bc6e1ee0b703bd0fa12c2260a93aa8f3",
+          "size": 1989,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        }
+      }
+    },
+    "io.github.wolfplugs.petpet": {
+      "name": "petPet",
+      "description": "pet someone P.",
+      "author": "Wolfkid (Revenge Next port by Cuddled)",
+      "icon": "ic_badge_staff",
+      "channels": {
+        "latest": "1.0.0"
+      },
+      "versions": {
+        "1.0.0": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/io.github.wolfplugs.petpet@1.0.0.zip",
+          "sha256": "32b7371cf19a787115a4215e5c494ef5a1e03b12e975a79f0aba37a98e531767",
+          "size": 1958,
           "dependencies": {
             "revenge.api": {
               "version": ">=1.0.0 <2.0.0"
