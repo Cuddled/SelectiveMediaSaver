@@ -51,6 +51,9 @@ private const val MAX_REDIRECTS = 5
 private const val COPY_BUFFER_BYTES = 64 * 1024
 private const val SIGNATURE_BYTES = 32
 private const val COMPILE_API = 36
+private const val MAX_FOLDER_DEPTH = 4
+private const val MAX_FOLDER_SEGMENT_CODE_POINTS = 64
+private const val MAX_FOLDER_SEGMENT_UTF8_BYTES = 240
 
 private val lifecycleGeneration = AtomicLong(0)
 private val lifecycleLock = Any()
@@ -171,7 +174,7 @@ private data class DownloadRequest(
     val uri: URI,
     val requestedFileName: String?,
     val mimeHint: String?,
-    val folder: String,
+    val folderSegments: List<String>,
     val maxBytes: Long,
 )
 
@@ -263,8 +266,8 @@ private class SelectiveMediaSaverService(
         val legacyPermissionGranted = hasLegacyWritePermission()
         val storageMounted = Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED
         val canWrite = storageMounted && (Build.VERSION.SDK_INT >= 29 || legacyPermissionGranted)
-        val imageRelativePath = relativePath(MediaKind.IMAGE, DEFAULT_FOLDER)
-        val videoRelativePath = relativePath(MediaKind.VIDEO, DEFAULT_FOLDER)
+        val imageRelativePath = relativePath(MediaKind.IMAGE, listOf(DEFAULT_FOLDER))
+        val videoRelativePath = relativePath(MediaKind.VIDEO, listOf(DEFAULT_FOLDER))
 
         return hashMapOf(
             "ok" to true,
@@ -518,7 +521,7 @@ private class SelectiveMediaSaverService(
             throw BridgeFailure("UNSUPPORTED_MIME", "The requested media type is not supported.", safeDetails = mimeHint)
         }
 
-        val folder = sanitizeFolder(request["folder"] as? String)
+        val folderSegments = parseFolderSegments(request)
         val maxBytes = when (val raw = request["maxBytes"]) {
             null -> DEFAULT_MAX_BYTES
             is Number -> raw.toLong()
@@ -534,7 +537,7 @@ private class SelectiveMediaSaverService(
         validateRequestedExtension(requestedFileName, "fileName")
         validateRequestedExtension(sourceFileName(uri), "URL")
 
-        return DownloadRequest(uri, requestedFileName, mimeHint, folder, maxBytes)
+        return DownloadRequest(uri, requestedFileName, mimeHint, folderSegments, maxBytes)
     }
 
     private fun resolveMediaType(
@@ -585,7 +588,7 @@ private class SelectiveMediaSaverService(
         request: DownloadRequest,
         mediaType: AllowedMediaType,
     ): Destination {
-        val relativePath = relativePath(mediaType.kind, request.folder)
+        val relativePath = relativePath(mediaType.kind, request.folderSegments)
         val collection = collectionFor(mediaType.kind)
         val sourceName = request.requestedFileName ?: sourceFileName(request.uri)
         val displayName = uniqueDisplayName(collection, relativePath, sourceName, mediaType)
@@ -596,8 +599,19 @@ private class SelectiveMediaSaverService(
                 put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             } else {
-                val publicDirectory = Environment.getExternalStoragePublicDirectory(mediaType.kind.directory)
-                val folder = File(publicDirectory, request.folder)
+                val publicDirectory = Environment
+                    .getExternalStoragePublicDirectory(mediaType.kind.directory)
+                    .canonicalFile
+                val folder = request.folderSegments
+                    .fold(publicDirectory) { parent, segment -> File(parent, segment) }
+                    .canonicalFile
+                val publicPrefix = publicDirectory.path.trimEnd(File.separatorChar) + File.separator
+                if (!folder.path.startsWith(publicPrefix)) {
+                    throw BridgeFailure(
+                        "INVALID_FOLDER_SEGMENTS",
+                        "The requested media folder escapes its public collection.",
+                    )
+                }
                 if (!folder.exists() && !folder.mkdirs()) {
                     throw BridgeFailure("DIRECTORY_CREATE_FAILED", "The public media folder could not be created.")
                 }
@@ -925,14 +939,76 @@ private fun sanitizeFileName(raw: String?): String {
     return truncateByCodePoints(cleaned.ifBlank { "discord_media" }, 96)
 }
 
-private fun sanitizeFolder(raw: String?): String {
-    val candidate = raw?.trim()?.takeIf(String::isNotEmpty) ?: DEFAULT_FOLDER
-    if ('/' in candidate || '\\' in candidate || candidate == "." || candidate == "..") {
-        throw BridgeFailure("INVALID_FOLDER", "The folder must be a single folder name.")
+private fun parseFolderSegments(request: Map<*, *>): List<String> {
+    val rawSegments = request["folderSegments"]
+    if (rawSegments != null) {
+        val values = rawSegments as? List<*>
+            ?: throw BridgeFailure("INVALID_FOLDER_SEGMENTS", "folderSegments must be an array of folder names.")
+        if (values.isEmpty() || values.size > MAX_FOLDER_DEPTH) {
+            throw BridgeFailure(
+                "INVALID_FOLDER_SEGMENTS",
+                "folderSegments must contain between 1 and $MAX_FOLDER_DEPTH folder names.",
+            )
+        }
+        return values.mapIndexed { index, value ->
+            val segment = value as? String
+                ?: throw BridgeFailure(
+                    "INVALID_FOLDER_SEGMENT",
+                    "Folder segment ${index + 1} must be text.",
+                )
+            validateFolderSegment(segment, index)
+        }
     }
-    val cleaned = sanitizeFileName(candidate).trim(' ', '.')
-    if (cleaned.isBlank()) throw BridgeFailure("INVALID_FOLDER", "The folder name is empty after sanitizing.")
-    return truncateByCodePoints(cleaned, 48)
+
+    // Backward compatibility for builds that sent one legacy folder field.
+    val legacyFolder = (request["folder"] as? String) ?: DEFAULT_FOLDER
+    return listOf(validateFolderSegment(legacyFolder, 0))
+}
+
+private fun validateFolderSegment(raw: String, index: Int): String {
+    val normalized = Normalizer.normalize(raw, Normalizer.Form.NFKC)
+    if (
+        normalized.isEmpty() ||
+        normalized != normalized.trim() ||
+        normalized == "." ||
+        normalized == ".."
+    ) {
+        throw BridgeFailure(
+            "INVALID_FOLDER_SEGMENT",
+            "Folder segment ${index + 1} is empty or ambiguous.",
+        )
+    }
+    if (normalized.any { character ->
+            character in setOf('/', '\\', ':', '*', '?', '"', '<', '>', '|') ||
+                Character.isISOControl(character) ||
+                Character.getType(character) == Character.FORMAT.toInt()
+        }
+    ) {
+        throw BridgeFailure(
+            "INVALID_FOLDER_SEGMENT",
+            "Folder segment ${index + 1} contains unsupported characters.",
+        )
+    }
+    if (normalized.first() == '.' || normalized.last() == '.') {
+        throw BridgeFailure(
+            "INVALID_FOLDER_SEGMENT",
+            "Folder segment ${index + 1} cannot start or end with a period.",
+        )
+    }
+
+    if (normalized.codePointCount(0, normalized.length) > MAX_FOLDER_SEGMENT_CODE_POINTS) {
+        throw BridgeFailure(
+            "INVALID_FOLDER_SEGMENT",
+            "Folder segment ${index + 1} is too long.",
+        )
+    }
+    if (normalized.toByteArray(Charsets.UTF_8).size > MAX_FOLDER_SEGMENT_UTF8_BYTES) {
+        throw BridgeFailure(
+            "INVALID_FOLDER_SEGMENT",
+            "Folder segment ${index + 1} uses too many encoded bytes.",
+        )
+    }
+    return normalized
 }
 
 private fun sanitizeShareTitle(raw: String?): String =
@@ -963,8 +1039,8 @@ private fun truncateUtf8(value: String, maxBytes: Int): String {
     return result.toString()
 }
 
-private fun relativePath(kind: MediaKind, folder: String): String =
-    "${kind.directory}/$folder/"
+private fun relativePath(kind: MediaKind, folderSegments: List<String>): String =
+    "${kind.directory}/${folderSegments.joinToString("/")}/"
 
 private fun success(vararg values: Pair<String, Any?>): HashMap<String, Any?> =
     hashMapOf<String, Any?>("ok" to true).apply {

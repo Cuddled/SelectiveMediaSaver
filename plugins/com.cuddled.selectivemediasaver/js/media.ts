@@ -1,4 +1,8 @@
-import { sanitizeFolderSegment } from './defaults'
+import {
+	DISCORD_ID_PATTERN,
+	identityFolderSegment,
+	sanitizeFolderSegment,
+} from './defaults'
 import type {
 	ExtractedMedia,
 	MediaKind,
@@ -128,6 +132,12 @@ export function messageContext(
 				read(author, 'global_name'),
 				read(author, 'username'),
 			) ?? 'Unknown user',
+		authorUsername:
+			firstString(
+				read(author, 'username'),
+				read(author, 'globalName'),
+				read(author, 'global_name'),
+			) ?? 'unknown-user',
 		authorIsBot: read(author, 'bot') === true,
 	}
 }
@@ -276,26 +286,83 @@ function sanitizeFileName(value: string): string {
 	return safe || 'discord-media'
 }
 
+export function locationFolderSegment(
+	guildId: string,
+	guildName?: string,
+): string {
+	if (!guildId) return 'Direct Messages'
+	const id = DISCORD_ID_PATTERN.test(guildId) ? guildId : 'unknown'
+	const safeName = sanitizeFolderSegment(guildName || 'Server')
+	const maxNameCodePoints = Math.max(1, 64 - 2 - id.length)
+	const label = sanitizeFolderSegment(
+		Array.from(safeName).slice(0, maxNameCodePoints).join(''),
+	)
+	return `${label}__${id}`
+}
+
+export function messageFolderSegments(
+	context: MessageContext,
+	settings: SelectiveMediaSaverSettings,
+	mediaKind: MediaKind,
+	guildName?: string,
+	assignedSenderFolder?: string,
+): string[] {
+	const album = sanitizeFolderSegment(settings.albumName)
+	const root = settings.separateFoldersByType
+		? `${album} ${mediaKind === 'image' ? 'Images' : 'Videos'}`
+		: album
+	const segments = [sanitizeFolderSegment(root)]
+
+	if (settings.folderOrganization === 'location_sender') {
+		segments.push(locationFolderSegment(context.guildId, guildName))
+	}
+	if (settings.folderOrganization !== 'flat') {
+		segments.push(
+			assignedSenderFolder ??
+				identityFolderSegment(context.authorUsername, context.authorId),
+		)
+	}
+	return segments
+}
+
+export function profileFolderSegments(
+	settings: SelectiveMediaSaverSettings,
+	kind: 'avatar' | 'banner',
+	username: string,
+	userId: string,
+	assignedSenderFolder?: string,
+): string[] {
+	const root = sanitizeFolderSegment(
+		`${settings.albumName} ${kind === 'avatar' ? 'Avatars' : 'Banners'}`,
+	)
+	return settings.organizeProfileMediaBySender
+		? [root, assignedSenderFolder ?? identityFolderSegment(username, userId)]
+		: [root]
+}
+
 export function buildDownloadRequest(
 	context: MessageContext,
 	media: ExtractedMedia,
 	index: number,
 	settings: SelectiveMediaSaverSettings,
+	guildName?: string,
+	assignedSenderFolder?: string,
 ): NativeDownloadRequest {
 	const fallbackName = `${context.authorId || 'unknown'}-${context.id}-${index + 1}${media.extension}`
 	let fileName = sanitizeFileName(media.fileName || fallbackName)
 	if (!extensionFrom(fileName)) fileName += media.extension
 
-	const album = sanitizeFolderSegment(settings.albumName)
-	const folder = settings.separateFoldersByType
-		? `${album} ${media.kind === 'image' ? 'Images' : 'Videos'}`
-		: album
-
 	return {
 		url: media.url,
 		fileName,
 		mimeType: media.mimeType,
-		folder,
+		folderSegments: messageFolderSegments(
+			context,
+			settings,
+			media.kind,
+			guildName,
+			assignedSenderFolder,
+		),
 		maxBytes: settings.maxDownloadMiB * 1024 * 1024,
 	}
 }

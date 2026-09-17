@@ -1,8 +1,8 @@
 import {
 	addProfileHistoryEntry,
+	addSenderFolderAssignment,
 	hasProfileAsset,
 	normalizeSettings,
-	sanitizeFolderSegment,
 	settingsChanged,
 } from './defaults'
 import {
@@ -12,6 +12,7 @@ import {
 	isMessageAllowed,
 	messageContext,
 	messageFromEvent,
+	profileFolderSegments,
 	seenKey,
 } from './media'
 import { getNativeCapabilities, streamDownload } from './native'
@@ -67,6 +68,48 @@ function currentUserId(): string | undefined {
 	} catch {
 		return undefined
 	}
+}
+
+function currentGuildName(guildId: string): string | undefined {
+	if (!guildId) return undefined
+	try {
+		const stores = revenge.discord.flux.Stores as any
+		const name = stores.GuildStore?.getGuild?.(guildId)?.name
+		return typeof name === 'string' && name.trim() ? name.trim() : undefined
+	} catch {
+		return undefined
+	}
+}
+
+function currentUsername(userId: string, fallback: string): string {
+	try {
+		const stores = revenge.discord.flux.Stores as any
+		const username = stores.UserStore?.getUser?.(userId)?.username
+		return typeof username === 'string' && username.trim()
+			? username.trim()
+			: fallback
+	} catch {
+		return fallback
+	}
+}
+
+async function senderFolderAssignment(
+	api: SmsPluginApi,
+	userId: string,
+	username: string,
+): Promise<string> {
+	const settings = normalizeSettings(api.jsonStorage.cache)
+	const assignment = addSenderFolderAssignment(
+		settings.senderFolderAssignments,
+		userId,
+		username,
+	)
+	if (assignment.changed) {
+		await api.jsonStorage.set({
+			senderFolderAssignments: assignment.assignments,
+		})
+	}
+	return assignment.segment
 }
 
 function describeFailure(result: NativeDownloadResult): string | undefined {
@@ -174,12 +217,23 @@ async function processProfileAsset(
 		? Math.min(configuredMaxBytes, capabilities.maxBytes)
 		: configuredMaxBytes
 	try {
+		const assignedSenderFolder = settings.organizeProfileMediaBySender
+			? await senderFolderAssignment(
+					api,
+					candidate.userId,
+					currentUsername(candidate.userId, candidate.userUsername),
+				)
+			: undefined
 		const result = await streamDownload({
 			url: candidate.url,
 			fileName: `${candidate.kind}-${candidate.userId}-${candidate.assetHash}${candidate.extension}`,
 			mimeType: candidate.mimeType,
-			folder: sanitizeFolderSegment(
-				`${settings.albumName} ${candidate.kind === 'avatar' ? 'Avatars' : 'Banners'}`,
+			folderSegments: profileFolderSegments(
+				settings,
+				candidate.kind,
+				candidate.userUsername,
+				candidate.userId,
+				assignedSenderFolder,
 			),
 			maxBytes,
 		})
@@ -276,6 +330,14 @@ async function processMessageCreate(
 		})
 		return
 	}
+	const assignedSenderFolder =
+		settings.folderOrganization !== 'flat'
+			? await senderFolderAssignment(
+					api,
+					context.authorId,
+					currentUsername(context.authorId, context.authorUsername),
+				)
+			: undefined
 
 	let saved = 0
 	let failed = 0
@@ -323,7 +385,14 @@ async function processMessageCreate(
 		}
 
 		try {
-			const request = buildDownloadRequest(context, item, index, settings)
+			const request = buildDownloadRequest(
+				context,
+				item,
+				index,
+				settings,
+				currentGuildName(context.guildId),
+				assignedSenderFolder,
+			)
 			request.maxBytes = maxBytes
 			const result = await streamDownload(request)
 			if (result.ok) {

@@ -1,6 +1,8 @@
-export const SETTINGS_SCHEMA_VERSION = 2 as const
+export const SETTINGS_SCHEMA_VERSION = 3 as const
 
 export type MediaKind = 'image' | 'video'
+
+export type FolderOrganizationMode = 'flat' | 'sender' | 'location_sender'
 
 export type MediaSource =
 	| 'attachment'
@@ -32,6 +34,9 @@ export interface SelectiveMediaSaverSettings {
 	showErrorToasts: boolean
 	albumName: string
 	separateFoldersByType: boolean
+	folderOrganization: FolderOrganizationMode
+	organizeProfileMediaBySender: boolean
+	senderFolderAssignments: Record<string, string>
 	maxDownloadMiB: number
 }
 
@@ -47,6 +52,7 @@ export interface ProfileAssetCandidate {
 	kind: 'avatar' | 'banner'
 	userId: string
 	userName: string
+	userUsername: string
 	userIsBot: boolean
 	assetHash: string
 	url: string
@@ -79,6 +85,7 @@ export interface MessageContext {
 	guildId: string
 	authorId: string
 	authorName: string
+	authorUsername: string
 	authorIsBot: boolean
 }
 
@@ -127,7 +134,8 @@ export interface NativeDownloadRequest {
 	url: string
 	fileName?: string
 	mimeType?: string
-	folder?: string
+	/** Individual path components; the native bridge validates every segment. */
+	folderSegments?: string[]
 	maxBytes?: number
 }
 
