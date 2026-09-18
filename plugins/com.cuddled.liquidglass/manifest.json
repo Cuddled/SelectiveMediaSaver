@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "com.cuddled.liquidglass",
+	"name": "Liquid Glass",
+	"description": "A customizable glass appearance with live presets, colors, opacity, and performance controls.",
+	"icon": "ic_theme_24px",
+	"author": "Cuddled",
+	"version": "1.0.0-beta1",
+	"dependencies": {
+		"revenge.api": {
+			"version": ">=1.0.0 <2.0.0"
+		},
+		"discord": {
+			"version": ">=347.0 <348.0"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}
