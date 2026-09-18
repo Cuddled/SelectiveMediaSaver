@@ -33,7 +33,7 @@
       "author": "Cuddled",
       "icon": "ic_theme_24px",
       "channels": {
-        "beta": "1.0.0-beta2"
+        "beta": "1.0.0-beta3"
       },
       "versions": {
         "1.0.0-beta1": {
@@ -53,6 +53,19 @@
           "url": "https://cuddled.github.io/SelectiveMediaSaver/pool/com.cuddled.liquidglass@1.0.0-beta2.zip",
           "sha256": "3394c822ea4e525d72d8f6d9318d79d6834aeed96a2ccf61946aa3f5aea25e85",
           "size": 9404,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        },
+        "1.0.0-beta3": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/pool/com.cuddled.liquidglass@1.0.0-beta3.zip",
+          "sha256": "8208cb0e65cfb4db629b4864ef6c26a0e76d470c6be83c37e6b686dcdcc5ad8c",
+          "size": 11821,
           "dependencies": {
             "revenge.api": {
               "version": ">=1.0.0 <2.0.0"
