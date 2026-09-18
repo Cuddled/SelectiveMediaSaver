@@ -103,8 +103,9 @@ Selective Media Saver Next build.
 ## Liquid Glass for Revenge Next
 
 **Liquid Glass** is a separate appearance plugin in the same Next repository. It uses Discord's own
-full-app gradient renderer plus a narrow set of translucent surface colors, avoiding an unstable
-system-wide Android blur patch. The first release is `1.0.0-beta1` for Discord 347.x. Its visual
+full-app gradient renderer plus translucent surface colors encoded in Discord-compatible hex,
+avoiding an unstable system-wide Android blur patch. The current release is `1.0.0-beta2` for
+Discord 347.x. Its visual
 settings include:
 
 - Midnight, Frost, Ocean, Rose, Aurora, and AMOLED one-tap presets.
@@ -256,7 +257,7 @@ The distributables are written to:
 ```text
 build/classic/manifest.json
 build/classic/index.js
-build/dist/com.cuddled.liquidglass@1.0.0-beta1.zip
+build/dist/com.cuddled.liquidglass@1.0.0-beta2.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 

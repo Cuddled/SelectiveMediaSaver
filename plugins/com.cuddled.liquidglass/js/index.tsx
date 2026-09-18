@@ -3,6 +3,7 @@ import {
 	buildSemanticOverrides,
 	DEFAULT_SETTINGS,
 	normalizeSettings,
+	safeSemanticOverride,
 	semanticFingerprintFor,
 } from './core'
 import { deferLateRuntime, registerRuntimePreview } from './runtime'
@@ -468,7 +469,7 @@ function installSemanticPatch(api: any): void {
 						return Reflect.apply(original, this, args)
 					}
 					return (
-						(name && semanticOverrides[name]) ||
+						safeSemanticOverride(name, semanticOverrides) ??
 						Reflect.apply(original, this, args)
 					)
 				},
