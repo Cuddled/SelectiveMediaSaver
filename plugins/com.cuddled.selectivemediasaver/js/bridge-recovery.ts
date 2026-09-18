@@ -13,6 +13,7 @@ export interface NativeCapabilityProbeResult {
 interface ProbeOptions {
 	retryDelaysMs?: readonly number[]
 	wait?: (milliseconds: number) => Promise<void>
+	beforeProbe?: () => Promise<unknown>
 }
 
 function defaultWait(milliseconds: number): Promise<void> {
@@ -64,6 +65,17 @@ export async function probeNativeCapabilities(
 	const wait = options.wait ?? defaultWait
 	let attempts = 0
 	let lastError = 'Native companion could not be reached.'
+
+	// Revenge can occasionally start the JavaScript lifecycle while its native
+	// counterpart remains stopped. Give the loader one idempotent opportunity to
+	// repair that split state before probing the plugin-specific bridge.
+	if (options.beforeProbe) {
+		try {
+			await options.beforeProbe()
+		} catch (error) {
+			lastError = nativeBridgeErrorMessage(error)
+		}
+	}
 
 	for (const delay of delays) {
 		if (delay > 0) await wait(delay)

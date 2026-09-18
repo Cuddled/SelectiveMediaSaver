@@ -55,6 +55,7 @@ test('native capability readiness requires streaming MediaStore support', () => 
 
 test('native capability probe recovers when registration finishes after JS starts', async () => {
 	let calls = 0
+	let starts = 0
 	const waits: number[] = []
 	const result = await probeNativeCapabilities(
 		async () => {
@@ -67,6 +68,9 @@ test('native capability probe recovers when registration finishes after JS start
 			return capabilities()
 		},
 		{
+			beforeProbe: async () => {
+				starts += 1
+			},
 			retryDelaysMs: [0, 250, 1_000],
 			wait: async milliseconds => {
 				waits.push(milliseconds)
@@ -76,6 +80,7 @@ test('native capability probe recovers when registration finishes after JS start
 
 	assert.equal(result.ready, true)
 	assert.equal(result.attempts, 3)
+	assert.equal(starts, 1)
 	assert.equal(calls, 3)
 	assert.deepEqual(waits, [250, 1_000])
 })
@@ -113,6 +118,53 @@ test('native capability probe does not retry an unsupported loaded bridge', asyn
 	assert.equal(result.attempts, 1)
 	assert.equal(calls, 1)
 	assert.match(result.error ?? '', /MediaStore support/i)
+})
+
+test('native capability probe restarts the companion before checking capabilities', async () => {
+	let starts = 0
+	let probes = 0
+	const order: string[] = []
+
+	const result = await probeNativeCapabilities(
+		async () => {
+			order.push('capabilities')
+			probes += 1
+			return capabilities()
+		},
+		{
+			beforeProbe: async () => {
+				order.push('startNative')
+				starts += 1
+			},
+			retryDelaysMs: [0, 1],
+			wait: async () => undefined,
+		},
+	)
+
+	assert.equal(starts, 1)
+	assert.equal(probes, 1)
+	assert.deepEqual(order, ['startNative', 'capabilities'])
+	assert.equal(result.ready, true)
+})
+
+test('native capability probe still checks the bridge when lifecycle recovery fails', async () => {
+	let probes = 0
+
+	const result = await probeNativeCapabilities(
+		async () => {
+			probes += 1
+			return capabilities()
+		},
+		{
+			beforeProbe: async () => {
+				throw new Error('Native lifecycle method unavailable')
+			},
+			retryDelaysMs: [0],
+		},
+	)
+
+	assert.equal(probes, 1)
+	assert.equal(result.ready, true)
 })
 
 test('native bridge error formatting tolerates non-Error values', () => {

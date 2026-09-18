@@ -9,6 +9,15 @@ import type {
 
 export const NATIVE_PREFIX = 'com.cuddled.selectivemediasaver' as const
 
+/**
+ * Ask Revenge to align the native plugin lifecycle with the running JavaScript
+ * plugin. This is a no-op when the native companion is already started, and
+ * restarts it when Revenge has left only the JavaScript half running.
+ */
+export function startNativeCompanion(): Promise<null> {
+	return callNativeMethod('revenge.plugins.startNative', [NATIVE_PREFIX])
+}
+
 export function getNativeCapabilities(): Promise<NativeCapabilities> {
 	return callNativeMethod(`${NATIVE_PREFIX}.capabilities`, [])
 }
@@ -40,6 +49,7 @@ export function deleteSavedMedia(uri: string): Promise<NativeDeleteResult> {
 
 declare module '@revenge-mod/modules/native' {
 	export interface NativeMethods {
+		'revenge.plugins.startNative': [args: [id: string], returnValue: null]
 		'com.cuddled.selectivemediasaver.capabilities': [
 			args: [],
 			returnValue: NativeCapabilities,

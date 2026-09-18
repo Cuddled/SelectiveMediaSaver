@@ -2,7 +2,7 @@ import {
 	ON_DEMAND_NATIVE_RETRY_DELAYS_MS,
 	probeNativeCapabilities,
 } from './bridge-recovery'
-import { getNativeCapabilities } from './native'
+import { getNativeCapabilities, startNativeCompanion } from './native'
 import { getRuntimeStatus, updateRuntimeStatus } from './runtime'
 
 const AUTOMATIC_PROBE_COOLDOWN_MS = 5_000
@@ -30,6 +30,11 @@ export function refreshNativeBridge(options?: {
 
 	const promise = probeNativeCapabilities(getNativeCapabilities, {
 		retryDelaysMs: options?.retryDelaysMs,
+		// Never revive a deliberately stopped plugin from a lingering settings
+		// screen. The foreground listener state proves the JS lifecycle is active.
+		beforeProbe: async () => {
+			if (getRuntimeStatus().listening) await startNativeCompanion()
+		},
 	})
 		.then(result => {
 			if (generation !== bridgeGeneration) return false
