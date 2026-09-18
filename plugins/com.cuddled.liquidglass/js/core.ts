@@ -11,6 +11,7 @@ import type {
 } from './types'
 
 const HEX_PATTERN = /^#?([a-f\d]{3}|[a-f\d]{6})$/i
+const DISCORD_HEX_PATTERN = /^#[A-F\d]{6}(?:[A-F\d]{2})?$/
 
 function definePreset(
 	id: BuiltInPresetId,
@@ -248,6 +249,30 @@ export function hexToRgba(value: unknown, opacity: unknown = 1): string {
 	const blue = Number.parseInt(hex.slice(5, 7), 16)
 	const alpha = roundedClamp(opacity, 1, 0, 1, 3)
 	return `rgba(${red}, ${green}, ${blue}, ${alpha})`
+}
+
+/** Discord-compatible #RRGGBBAA for semantic colors that need transparency. */
+export function hexWithAlpha(value: unknown, opacity: unknown = 1): HexColor {
+	const hex = normalizeHexColor(value)
+	const alpha = Math.floor(roundedClamp(opacity, 1, 0, 1, 3) * 255)
+		.toString(16)
+		.padStart(2, '0')
+		.toUpperCase()
+	return `${hex}${alpha}` as HexColor
+}
+
+export function isDiscordHexColor(value: unknown): value is HexColor {
+	return typeof value === 'string' && DISCORD_HEX_PATTERN.test(value)
+}
+
+/** Never lets a malformed plugin value escape into Discord's global resolver. */
+export function safeSemanticOverride(
+	name: string | undefined,
+	overrides: Readonly<Record<string, string>>,
+): string | undefined {
+	if (!name) return undefined
+	const candidate = overrides[name]
+	return isDiscordHexColor(candidate) ? candidate : undefined
 }
 
 function booleanOr(value: unknown, fallback: boolean): boolean {
@@ -577,13 +602,15 @@ export function isLiquidGlassSemanticKey(
 	)
 }
 
-function semanticColor(value: HexColor, opacity: number): string {
-	return hexToRgba(value, opacity)
+function semanticColor(value: HexColor, opacity: number): HexColor {
+	return hexWithAlpha(value, opacity)
 }
 
 /**
- * Builds only audited Discord 347 UPPER_SNAKE tokens. Values are React Native
- * colors suitable for resolveSemanticColor; theme descriptors never enter this map.
+ * Builds only audited Discord 347 UPPER_SNAKE tokens. The global semantic
+ * resolver must return hex because Discord passes some resolved values through
+ * hexWithOpacity. #RRGGBBAA preserves transparency and is supported by that
+ * helper; rgba() is not.
  */
 export function buildSemanticOverrides(value: unknown): Record<string, string> {
 	const settings = normalizeSettings(value)

@@ -9,9 +9,12 @@ import {
 	buildSemanticOverrides,
 	DEFAULT_SETTINGS,
 	hexToRgba,
+	hexWithAlpha,
 	normalizeHexColor,
 	normalizeSettings,
 	removeCustomProfile,
+	SEMANTIC_COLOR_KEYS,
+	safeSemanticOverride,
 	saveCustomProfile,
 	semanticFingerprintFor,
 } from './core'
@@ -23,11 +26,18 @@ test('normalizes short and long hex colors into canonical uppercase RGB', () => 
 	assert.equal(normalizeHexColor(null, 'invalid' as `#${string}`), '#000000')
 })
 
-test('composes clamped rgba colors', () => {
+test('composes clamped rgba colors for plugin-owned React Native styles', () => {
 	assert.equal(hexToRgba('#123', 0.5), 'rgba(17, 34, 51, 0.5)')
 	assert.equal(hexToRgba('#FF0080', 9), 'rgba(255, 0, 128, 1)')
 	assert.equal(hexToRgba('#000000', -2), 'rgba(0, 0, 0, 0)')
 	assert.equal(hexToRgba('invalid', Number.NaN), 'rgba(0, 0, 0, 1)')
+})
+
+test('composes Discord-compatible alpha hex colors', () => {
+	assert.equal(hexWithAlpha('#123', 0.5), '#1122337F')
+	assert.equal(hexWithAlpha('#FF0080', 9), '#FF0080FF')
+	assert.equal(hexWithAlpha('#000000', -2), '#00000000')
+	assert.equal(hexWithAlpha('invalid', Number.NaN), '#000000FF')
 })
 
 test('falls back safely for missing and invalid stored settings', () => {
@@ -121,7 +131,11 @@ test('custom edits normalize values and switch the preset to custom', () => {
 test('builds an audited semantic payload and honors feature toggles', () => {
 	assert.equal(
 		buildSemanticOverrides(DEFAULT_SETTINGS).BACKGROUND_SURFACE_HIGH,
-		'rgba(23, 27, 39, 0.55)',
+		'#171B278C',
+	)
+	assert.equal(
+		buildSemanticOverrides(DEFAULT_SETTINGS).BACKGROUND_BASE_LOW,
+		'#171B2773',
 	)
 
 	const off = normalizeSettings({
@@ -129,6 +143,69 @@ test('builds an audited semantic payload and honors feature toggles', () => {
 		enabled: false,
 	})
 	assert.deepEqual(buildSemanticOverrides(off), {})
+})
+
+test('semantic overrides satisfy Discord hexWithOpacity for every preset', () => {
+	for (const presetId of Object.keys(BUILT_IN_PRESETS)) {
+		const settings = applyPreset(
+			DEFAULT_SETTINGS,
+			presetId as keyof typeof BUILT_IN_PRESETS,
+		)
+		const overrides = buildSemanticOverrides(settings)
+		assert.deepEqual(Object.keys(overrides), [...SEMANTIC_COLOR_KEYS])
+		for (const [name, color] of Object.entries(overrides)) {
+			assert.match(color, /^#[0-9A-F]{8}$/, `${presetId}.${name}`)
+		}
+	}
+
+	for (const panelOpacity of [0, 1]) {
+		const overrides = buildSemanticOverrides(
+			normalizeSettings({
+				...DEFAULT_SETTINGS,
+				panelColor: '#123456',
+				tintColor: '#ABCDEF',
+				panelOpacity,
+				raisedOpacity: 1 - panelOpacity,
+			}),
+		)
+		for (const color of Object.values(overrides)) {
+			assert.match(color, /^#[0-9A-F]{8}$/)
+		}
+	}
+})
+
+test('semantic override guard rejects formats that can crash Discord', () => {
+	const invalid = [
+		'rgba(23, 27, 39, 0.55)',
+		'#1234',
+		'transparent',
+		'not-a-color',
+	]
+	for (const value of invalid) {
+		assert.equal(safeSemanticOverride('TOKEN', { TOKEN: value }), undefined)
+	}
+	assert.equal(safeSemanticOverride('TOKEN', { TOKEN: '#112233' }), '#112233')
+	assert.equal(
+		safeSemanticOverride('TOKEN', { TOKEN: '#1122337F' }),
+		'#1122337F',
+	)
+	assert.equal(safeSemanticOverride('MISSING', {}), undefined)
+})
+
+test('surface opacity still changes semantic colors and fingerprints', () => {
+	const faint = normalizeSettings({ ...DEFAULT_SETTINGS, panelOpacity: 0.2 })
+	const strong = normalizeSettings({ ...DEFAULT_SETTINGS, panelOpacity: 0.9 })
+	const faintOverrides = buildSemanticOverrides(faint)
+	const strongOverrides = buildSemanticOverrides(strong)
+
+	assert.notEqual(
+		faintOverrides.BACKGROUND_SURFACE_HIGH,
+		strongOverrides.BACKGROUND_SURFACE_HIGH,
+	)
+	assert.notEqual(
+		semanticFingerprintFor(faint, faintOverrides),
+		semanticFingerprintFor(strong, strongOverrides),
+	)
 })
 
 test('semantic fingerprints change only when rendered surface colors change', () => {
