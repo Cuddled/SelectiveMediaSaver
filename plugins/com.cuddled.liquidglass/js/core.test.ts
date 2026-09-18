@@ -4,15 +4,21 @@ import {
 	applyCustomProfile,
 	applyCustomSettings,
 	applyPreset,
+	applyProfileGlassToColors,
+	applyProfileGlassToGradient,
 	BUILT_IN_PRESETS,
 	backgroundFingerprintFor,
 	buildSemanticOverrides,
+	CONTROL_SEMANTIC_COLOR_KEYS,
 	DEFAULT_SETTINGS,
 	hexToRgba,
 	hexWithAlpha,
 	normalizeHexColor,
 	normalizeSettings,
+	OVERLAY_SEMANTIC_COLOR_KEYS,
+	PROFILE_SEMANTIC_COLOR_KEYS,
 	removeCustomProfile,
+	replaceDiscordHexAlpha,
 	SEMANTIC_COLOR_KEYS,
 	safeSemanticOverride,
 	saveCustomProfile,
@@ -78,6 +84,41 @@ test('migrates aliases, expands colors, and clamps visual values', () => {
 	assert.equal(settings.raisedOpacity, 1)
 	assert.equal(settings.backgroundSoftness, 0)
 	assert.equal(settings.angle, 360)
+})
+
+test('migrates beta2 settings without resetting saved appearance data', () => {
+	const settings = normalizeSettings({
+		schemaVersion: 1,
+		selectedPreset: 'custom',
+		panelColor: '#123456',
+		panelOpacity: 0.33,
+		raisedOpacity: 0.61,
+		customProfiles: [
+			{
+				id: 'old-look',
+				name: 'Old Look',
+				panelColor: '#654321',
+				panelOpacity: 0.4,
+			},
+		],
+	})
+
+	assert.equal(settings.schemaVersion, 2)
+	assert.equal(settings.panelColor, '#123456')
+	assert.equal(settings.panelOpacity, 0.33)
+	assert.equal(settings.raisedOpacity, 0.61)
+	assert.equal(settings.profileGlassEnabled, true)
+	assert.equal(settings.overlayGlassEnabled, true)
+	assert.equal(settings.controlGlassEnabled, true)
+	assert.equal(
+		settings.profileOpacity,
+		BUILT_IN_PRESETS.midnight.values.profileOpacity,
+	)
+	assert.equal(settings.customProfiles[0].panelColor, '#654321')
+	assert.equal(
+		settings.customProfiles[0].overlayOpacity,
+		BUILT_IN_PRESETS.midnight.values.overlayOpacity,
+	)
 })
 
 test('uses a selected preset as the fallback for partial saved settings', () => {
@@ -172,6 +213,84 @@ test('semantic overrides satisfy Discord hexWithOpacity for every preset', () =>
 			assert.match(color, /^#[0-9A-F]{8}$/)
 		}
 	}
+})
+
+test('surface-group switches remove only their own semantic colors', () => {
+	const all = buildSemanticOverrides(DEFAULT_SETTINGS)
+	const cases = [
+		['profileGlassEnabled', PROFILE_SEMANTIC_COLOR_KEYS],
+		['overlayGlassEnabled', OVERLAY_SEMANTIC_COLOR_KEYS],
+		['controlGlassEnabled', CONTROL_SEMANTIC_COLOR_KEYS],
+	] as const
+
+	for (const [toggle, keys] of cases) {
+		const overrides = buildSemanticOverrides({
+			...DEFAULT_SETTINGS,
+			[toggle]: false,
+		})
+		for (const key of keys)
+			assert.equal(key in overrides, false, `${toggle}.${key}`)
+		for (const key of Object.keys(all)) {
+			if (!(keys as readonly string[]).includes(key)) {
+				assert.equal(overrides[key], all[key], `${toggle}.${key}`)
+			}
+		}
+	}
+})
+
+test('profile alpha replacement preserves RGB and rejects unfamiliar formats', () => {
+	assert.equal(replaceDiscordHexAlpha('#123456', 0.5), '#1234567F')
+	assert.equal(replaceDiscordHexAlpha('#123456AA', 0.25), '#1234563F')
+	assert.equal(replaceDiscordHexAlpha('#abc', 1), '#AABBCCFF')
+	assert.equal(replaceDiscordHexAlpha('#abcd', 0), '#AABBCC00')
+	assert.equal(replaceDiscordHexAlpha('rgba(1, 2, 3, 1)', 0.5), '#0102037F')
+	assert.equal(replaceDiscordHexAlpha('rgb(10, 20, 30)', 0.25), '#0A141E3F')
+	assert.equal(
+		replaceDiscordHexAlpha('rgba(999, 2, 3, 1)', 0.5),
+		'rgba(999, 2, 3, 1)',
+	)
+	assert.equal(replaceDiscordHexAlpha('hsl(1, 2%, 3%)', 0.5), 'hsl(1, 2%, 3%)')
+	assert.equal(replaceDiscordHexAlpha(123, 0.5), 123)
+})
+
+test('profile glass transforms own/member profile results without mutation', () => {
+	const settings = normalizeSettings({
+		...DEFAULT_SETTINGS,
+		profileOpacity: 0.4,
+	})
+	const colors = Object.freeze({
+		gradientFallbackBackground: '#112233',
+		gradientSecondaryBackground: '#223344FF',
+		containerBackground: '#334455',
+		containerBorderColor: '#445566',
+		avatarBackground: '#556677',
+		statusBackground: '#667788',
+		untouched: 'keep-me',
+	})
+	const gradient = Object.freeze(['#010203', 'rgba(170, 187, 204, 1)'])
+	const transformedColors = applyProfileGlassToColors(
+		settings,
+		colors,
+	) as Record<string, unknown>
+	const transformedGradient = applyProfileGlassToGradient(
+		settings,
+		gradient,
+	) as unknown[]
+
+	assert.notEqual(transformedColors, colors)
+	assert.equal(transformedColors.containerBackground, '#33445566')
+	assert.equal(transformedColors.containerBorderColor, '#44556647')
+	assert.equal(transformedColors.untouched, 'keep-me')
+	assert.equal(colors.containerBackground, '#334455')
+	assert.deepEqual(transformedGradient, ['#01020366', '#AABBCC66'])
+	assert.deepEqual(gradient, ['#010203', 'rgba(170, 187, 204, 1)'])
+
+	const disabled = normalizeSettings({
+		...settings,
+		profileGlassEnabled: false,
+	})
+	assert.equal(applyProfileGlassToColors(disabled, colors), colors)
+	assert.equal(applyProfileGlassToGradient(disabled, gradient), gradient)
 })
 
 test('semantic override guard rejects formats that can crash Discord', () => {
@@ -287,11 +406,14 @@ test('saves, applies, and removes independent custom profile snapshots', () => {
 		'backgroundEnabled',
 		'backgroundSoftness',
 		'borderColor',
+		'controlOpacity',
 		'gradientColors',
 		'id',
 		'name',
+		'overlayOpacity',
 		'panelColor',
 		'panelOpacity',
+		'profileOpacity',
 		'raisedOpacity',
 		'textColor',
 		'tintColor',

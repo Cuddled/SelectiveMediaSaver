@@ -1,4 +1,4 @@
-export const SETTINGS_SCHEMA_VERSION = 1 as const
+export const SETTINGS_SCHEMA_VERSION = 2 as const
 
 export const BUILT_IN_PRESET_IDS = [
 	'midnight',
@@ -25,6 +25,12 @@ export interface LiquidGlassVisualSettings {
 	panelOpacity: number
 	/** Normalized from 0 (transparent) through 1 (opaque). */
 	raisedOpacity: number
+	/** Normalized opacity for own-profile and member-profile surfaces. */
+	profileOpacity: number
+	/** Normalized opacity for modals, menus, sheets, and floating surfaces. */
+	overlayOpacity: number
+	/** Normalized opacity for controls, list rows, tabs, and inputs. */
+	controlOpacity: number
 	/** Normalized background diffusion/dimming from 0 through 1. */
 	backgroundSoftness: number
 	/** Gradient angle in degrees, clamped from 0 through 360. */
@@ -43,6 +49,9 @@ export interface LiquidGlassSettings extends LiquidGlassVisualSettings {
 	selectedPreset: PresetSelection
 	backgroundEnabled: boolean
 	semanticEnabled: boolean
+	profileGlassEnabled: boolean
+	overlayGlassEnabled: boolean
+	controlGlassEnabled: boolean
 	lowPowerMode: boolean
 	customProfiles: LiquidGlassCustomProfile[]
 	activeProfileId: string | null

@@ -37,13 +37,16 @@ function GlassPreview({ settings }: { settings: LiquidGlassSettings }) {
 	const { View } = revenge.react.ReactNative
 	const { Stack, Text } = revenge.discord.design.Design
 	const panel = hexToRgba(settings.panelColor, settings.panelOpacity)
-	const raised = hexToRgba(settings.tintColor, settings.raisedOpacity)
+	const profile = hexToRgba(settings.panelColor, settings.profileOpacity)
+	const overlay = hexToRgba(settings.tintColor, settings.overlayOpacity)
+	const control = hexToRgba(settings.tintColor, settings.controlOpacity)
 	const border = hexToRgba(settings.borderColor, 0.22)
+	const surfacesEnabled = settings.enabled && settings.semanticEnabled
 
 	return (
 		<View
 			style={{
-				height: 220,
+				height: 242,
 				overflow: 'hidden',
 				borderRadius: 24,
 				backgroundColor: settings.gradientColors[0],
@@ -79,7 +82,10 @@ function GlassPreview({ settings }: { settings: LiquidGlassSettings }) {
 						style={{
 							padding: 12,
 							borderRadius: 18,
-							backgroundColor: panel,
+							backgroundColor:
+								surfacesEnabled && settings.profileGlassEnabled
+									? profile
+									: panel,
 							borderWidth: 1,
 							borderColor: border,
 						}}
@@ -88,13 +94,13 @@ function GlassPreview({ settings }: { settings: LiquidGlassSettings }) {
 							variant="heading-md/semibold"
 							style={{ color: settings.textColor }}
 						>
-							Midnight Glass
+							Profile glass
 						</Text>
 						<Text
 							variant="text-sm/normal"
 							style={{ color: hexToRgba(settings.textColor, 0.72) }}
 						>
-							A live preview of your panels and accent color.
+							Your profile and every member profile keep their own colors.
 						</Text>
 					</View>
 					<View
@@ -104,7 +110,10 @@ function GlassPreview({ settings }: { settings: LiquidGlassSettings }) {
 							paddingHorizontal: 12,
 							paddingVertical: 9,
 							borderRadius: 16,
-							backgroundColor: raised,
+							backgroundColor:
+								surfacesEnabled && settings.overlayGlassEnabled
+									? overlay
+									: panel,
 							borderWidth: 1,
 							borderColor: hexToRgba(settings.accentColor, 0.42),
 						}}
@@ -113,7 +122,7 @@ function GlassPreview({ settings }: { settings: LiquidGlassSettings }) {
 							variant="text-sm/medium"
 							style={{ color: settings.textColor }}
 						>
-							Colors apply as soon as you change them ✨
+							Menus, sheets, popups ✨
 						</Text>
 					</View>
 					<View
@@ -122,14 +131,17 @@ function GlassPreview({ settings }: { settings: LiquidGlassSettings }) {
 							paddingHorizontal: 13,
 							paddingVertical: 10,
 							borderRadius: 18,
-							backgroundColor: raised,
+							backgroundColor:
+								surfacesEnabled && settings.controlGlassEnabled
+									? control
+									: panel,
 						}}
 					>
 						<Text
 							variant="text-sm/normal"
 							style={{ color: hexToRgba(settings.textColor, 0.64) }}
 						>
-							Message #general
+							Buttons • inputs • lists
 						</Text>
 					</View>
 				</Stack>
@@ -510,9 +522,33 @@ export default function Settings({ api }: { api: GlassApi }) {
 						/>
 						<TableSwitchRow
 							label="Transparent surfaces"
-							subLabel="Glass panels, cards, inputs, menus, and profile surfaces"
+							subLabel="Master switch for transparent Discord surfaces"
 							value={settings.semanticEnabled}
 							onValueChange={semanticEnabled => patch({ semanticEnabled })}
+						/>
+						<TableSwitchRow
+							label="Profile glass"
+							subLabel="Your profile, member profiles, cards, roles, and statuses"
+							value={settings.profileGlassEnabled}
+							onValueChange={profileGlassEnabled =>
+								patch({ profileGlassEnabled })
+							}
+						/>
+						<TableSwitchRow
+							label="Menus & overlays"
+							subLabel="Sheets, modals, search, pickers, popups, and floating bars"
+							value={settings.overlayGlassEnabled}
+							onValueChange={overlayGlassEnabled =>
+								patch({ overlayGlassEnabled })
+							}
+						/>
+						<TableSwitchRow
+							label="Controls & lists"
+							subLabel="Buttons, inputs, tabs, selected rows, and interactive cards"
+							value={settings.controlGlassEnabled}
+							onValueChange={controlGlassEnabled =>
+								patch({ controlGlassEnabled })
+							}
 						/>
 						<TableSwitchRow
 							label="Low-power mode"
@@ -583,7 +619,7 @@ export default function Settings({ api }: { api: GlassApi }) {
 						<SliderField
 							label="Panel opacity"
 							value={settings.panelOpacity}
-							minimumValue={0.15}
+							minimumValue={0.05}
 							maximumValue={0.95}
 							step={0.05}
 							format={value => `${Math.round(value * 100)}%`}
@@ -593,12 +629,42 @@ export default function Settings({ api }: { api: GlassApi }) {
 						<SliderField
 							label="Raised surface opacity"
 							value={settings.raisedOpacity}
-							minimumValue={0.2}
+							minimumValue={0.1}
 							maximumValue={0.98}
 							step={0.05}
 							format={value => `${Math.round(value * 100)}%`}
 							onCommit={raisedOpacity => commitCustom({ raisedOpacity })}
 							onPreview={raisedOpacity => previewCustom({ raisedOpacity })}
+						/>
+						<SliderField
+							label="Profile opacity"
+							value={settings.profileOpacity}
+							minimumValue={0.05}
+							maximumValue={0.95}
+							step={0.05}
+							format={value => `${Math.round(value * 100)}%`}
+							onCommit={profileOpacity => commitCustom({ profileOpacity })}
+							onPreview={profileOpacity => previewCustom({ profileOpacity })}
+						/>
+						<SliderField
+							label="Menu & overlay opacity"
+							value={settings.overlayOpacity}
+							minimumValue={0.15}
+							maximumValue={0.98}
+							step={0.05}
+							format={value => `${Math.round(value * 100)}%`}
+							onCommit={overlayOpacity => commitCustom({ overlayOpacity })}
+							onPreview={overlayOpacity => previewCustom({ overlayOpacity })}
+						/>
+						<SliderField
+							label="Control & list opacity"
+							value={settings.controlOpacity}
+							minimumValue={0.1}
+							maximumValue={0.98}
+							step={0.05}
+							format={value => `${Math.round(value * 100)}%`}
+							onCommit={controlOpacity => commitCustom({ controlOpacity })}
+							onPreview={controlOpacity => previewCustom({ controlOpacity })}
 						/>
 						<SliderField
 							label="Background softness"
@@ -763,9 +829,10 @@ export default function Settings({ api }: { api: GlassApi }) {
 						/>
 					</View>
 					<Text variant="text-xs/normal" color="text-muted">
-						Liquid Glass uses Discord's own gradient renderer. Background
-						softness is a color blend—not iOS-style optical refraction. The
-						hosted Classic theme is installed separately.
+						Liquid Glass now reaches profiles, cards, menus, sheets, inputs,
+						buttons, lists, voice panels, embeds, and navigation surfaces.
+						Profile banners, avatars, media, and important warning colors stay
+						crisp. The hosted Classic theme is installed separately.
 					</Text>
 				</Stack>
 			</ScrollView>

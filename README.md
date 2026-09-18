@@ -104,15 +104,19 @@ Selective Media Saver Next build.
 
 **Liquid Glass** is a separate appearance plugin in the same Next repository. It uses Discord's own
 full-app gradient renderer plus translucent surface colors encoded in Discord-compatible hex,
-avoiding an unstable system-wide Android blur patch. The current release is `1.0.0-beta2` for
+avoiding an unstable system-wide Android blur patch. The current release is `1.0.0-beta3` for
 Discord 347.x. Its visual
 settings include:
 
 - Midnight, Frost, Ocean, Rose, Aurora, and AMOLED one-tap presets.
 - Editable gradient, panel, raised-surface, accent, text, and border colors using hex values.
-- Live panel opacity, raised-surface opacity, background softness, and gradient-angle sliders.
+- Separate live opacity controls for base panels, raised surfaces, profiles, menus/overlays, and
+  controls/lists, plus background softness and gradient-angle sliders.
 - Up to 20 named custom profiles with one-tap apply, rename, update, and delete controls.
-- Separate full-app gradient and transparent-surface switches, plus a low-power mode.
+- Dedicated glass switches for own/member profiles, menus/overlays, and controls/lists, plus a
+  master transparent-surface switch and low-power mode.
+- Targeted profile rendering for custom-colored and Nitro profiles while keeping each profile's
+  original hues, banners, avatars, and media intact.
 
 Install and enable **Liquid Glass** from the existing Revenge Next repository, reload Discord once,
 then open its settings to customize the look. The controls are live, but saved values remain
@@ -257,7 +261,7 @@ The distributables are written to:
 ```text
 build/classic/manifest.json
 build/classic/index.js
-build/dist/com.cuddled.liquidglass@1.0.0-beta2.zip
+build/dist/com.cuddled.liquidglass@1.0.0-beta3.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 

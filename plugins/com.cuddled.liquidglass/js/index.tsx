@@ -1,4 +1,6 @@
 import {
+	applyProfileGlassToColors,
+	applyProfileGlassToGradient,
 	backgroundFingerprintFor,
 	buildSemanticOverrides,
 	DEFAULT_SETTINGS,
@@ -27,6 +29,9 @@ const PATHS = {
 		'../discord_common/js/packages/design/components/ThemeContextProvider/ThemeContextProvider.tsx',
 	commonDesignNative: '../discord_common/js/packages/design/native.tsx',
 	outerDesignNative: 'design/native.tsx',
+	profileColors: 'modules/user_profile/hooks/native/useUserProfileColors.tsx',
+	profileGradientColors:
+		'modules/user_profile/hooks/native/useUserProfileGradientColors.tsx',
 } as const
 
 let liveSettings: LiquidGlassSettings = DEFAULT_SETTINGS
@@ -480,6 +485,30 @@ function installSemanticPatch(api: any): void {
 	}
 }
 
+function installProfileGlassPatches(api: any): void {
+	watchModule(api, PATHS.profileColors, exports => {
+		if (typeof exports?.useUserProfileColors !== 'function') return
+		api.cleanup(
+			revenge.patcher.after(
+				exports as any,
+				'useUserProfileColors',
+				(result: unknown) => applyProfileGlassToColors(liveSettings, result),
+			),
+		)
+	})
+
+	watchModule(api, PATHS.profileGradientColors, exports => {
+		if (typeof exports?.useUserProfileGradientColors !== 'function') return
+		api.cleanup(
+			revenge.patcher.after(
+				exports as any,
+				'useUserProfileGradientColors',
+				(result: unknown) => applyProfileGlassToGradient(liveSettings, result),
+			),
+		)
+	})
+}
+
 export default plugin<{ jsonStorage: LiquidGlassSettings }>({
 	jsonStorage: {
 		load: true,
@@ -516,6 +545,7 @@ export default plugin<{ jsonStorage: LiquidGlassSettings }>({
 		)
 		installBackgroundPatches(api)
 		installSemanticPatch(api)
+		installProfileGlassPatches(api)
 		installSemanticRevisionBoundary(api)
 		api.cleanup(
 			api.jsonStorage.subscribe(() => {
