@@ -285,7 +285,10 @@ val selectiveMediaSaverPlugin = plugin {
                     }
                 }
                 if (!recorded) return@withAppContext
-                errors.tryEmit(error)
+                // Keep initialization failures available through capabilities/status instead of
+                // publishing them to Revenge's fatal plugin-error stream. A fatal error causes
+                // Revenge to disable the whole plugin and persist its main toggle as OFF, even
+                // when the Android context was only temporarily unavailable during startup.
                 log.e("Failed to initialize Selective Media Saver Android service", error)
             }
         }

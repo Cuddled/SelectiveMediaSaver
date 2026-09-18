@@ -597,7 +597,9 @@ export default plugin<{ jsonStorage: SelectiveMediaSaverSettings }>({
 				listening: false,
 				lastError: message,
 			})
-			api.plugin.reportError(error)
+			// Do not pass recoverable startup failures to reportError. Revenge treats a
+			// reported plugin error as fatal, disables the plugin, and persists its main
+			// toggle as OFF. Keep the failure visible here so the next launch can retry.
 			console.error(`${TAG} startup failed:`, error)
 		})
 	},
