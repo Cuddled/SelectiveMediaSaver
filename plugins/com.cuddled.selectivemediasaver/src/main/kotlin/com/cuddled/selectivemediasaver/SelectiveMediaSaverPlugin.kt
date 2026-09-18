@@ -262,8 +262,12 @@ val selectiveMediaSaverPlugin = plugin {
             if (generation != lifecycleGeneration.get()) return@withAppContext
 
             try {
+                // Revenge may capture Discord's base Context from attachBaseContext before
+                // Context#getApplicationContext is populated. The Context supplied by Revenge
+                // still supports the resolver/storage APIs this service needs.
+                val serviceContext = context.applicationContext ?: context
                 val service = SelectiveMediaSaverService(
-                    context = context.applicationContext,
+                    context = serviceContext,
                     managedUrisFile = File(storageDir, "managed-media-uris.txt"),
                     isActive = { generation == lifecycleGeneration.get() },
                 )
