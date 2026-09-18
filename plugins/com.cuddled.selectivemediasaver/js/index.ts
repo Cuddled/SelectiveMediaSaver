@@ -1,3 +1,4 @@
+import { STARTUP_NATIVE_RETRY_DELAYS_MS } from './bridge-recovery'
 import {
 	addProfileHistoryEntry,
 	addSenderFolderAssignment,
@@ -15,7 +16,12 @@ import {
 	profileFolderSegments,
 	seenKey,
 } from './media'
-import { getNativeCapabilities, streamDownload } from './native'
+import { streamDownload } from './native'
+import {
+	ensureNativeBridge,
+	refreshNativeBridge,
+	resetNativeBridgeConnection,
+} from './native-status'
 import {
 	avatarCandidateFromUser,
 	bannerCandidateFromProfileEvent,
@@ -177,6 +183,18 @@ async function processProfileAsset(
 		hasProfileAsset(settings[historyKey], candidate.userId, candidate.assetHash)
 	)
 		return
+	updateRuntimeStatus({ lastEventAt: Date.now() })
+	if (!getRuntimeStatus().nativeReady && !(await ensureNativeBridge())) {
+		if (isDisposed()) return
+		const detail = getRuntimeStatus().lastError
+		const message = `Could not save ${candidate.userName}'s ${candidate.kind}: the native saver is unavailable.`
+		recordProfileFailure(detail ?? message)
+		if (settings.showErrorToasts) {
+			toast(`sms-${candidate.kind}-native-error`, message)
+		}
+		return
+	}
+	if (isDisposed()) return
 	if (
 		!seenKeys.addIfNew(
 			`profile:${candidate.kind}:${candidate.userId}:${candidate.assetHash}`,
@@ -184,17 +202,7 @@ async function processProfileAsset(
 	)
 		return
 
-	updateRuntimeStatus({ lastEventAt: Date.now() })
 	const runtime = getRuntimeStatus()
-	if (!runtime.nativeReady) {
-		const message = `Could not save ${candidate.userName}'s ${candidate.kind}: the native saver is unavailable.`
-		recordProfileFailure(message)
-		if (settings.showErrorToasts) {
-			toast(`sms-${candidate.kind}-native-error`, message)
-		}
-		return
-	}
-
 	const capabilities = runtime.capabilities
 	if (
 		(capabilities?.allowedHosts.length &&
@@ -322,14 +330,18 @@ async function processMessageCreate(
 	if (!media.length) return
 	updateRuntimeStatus({ lastEventAt: Date.now() })
 
-	if (!getRuntimeStatus().nativeReady) {
+	if (!getRuntimeStatus().nativeReady && !(await ensureNativeBridge())) {
+		if (isDisposed()) return
+		const detail = getRuntimeStatus().lastError
 		updateRuntimeStatus({
 			phase: 'error',
 			lastError:
+				detail ??
 				'A qualifying message was found, but the native MediaStore bridge is unavailable.',
 		})
 		return
 	}
+	if (isDisposed()) return
 	const assignedSenderFolder =
 		settings.folderOrganization !== 'flat'
 			? await senderFolderAssignment(
@@ -448,11 +460,13 @@ export default plugin<{ jsonStorage: SelectiveMediaSaverSettings }>({
 		let queueTail: Promise<void> = Promise.resolve()
 
 		seenKeys.clear()
+		resetNativeBridgeConnection()
 		resetRuntimeStatus()
 		updateRuntimeStatus({ phase: 'starting' })
 
 		api.cleanup(() => {
 			disposed = true
+			resetNativeBridgeConnection()
 			for (const unregister of unregisterFluxListeners.splice(0)) {
 				try {
 					unregister()
@@ -507,32 +521,6 @@ export default plugin<{ jsonStorage: SelectiveMediaSaverSettings }>({
 				await api.jsonStorage.set(migrated, true)
 			}
 
-			let nativeReady = false
-			try {
-				const capabilities = await getNativeCapabilities()
-				nativeReady =
-					capabilities.ok &&
-					capabilities.streamDownload &&
-					capabilities.mediaStore
-				updateRuntimeStatus({
-					capabilities,
-					nativeReady,
-					lastError: nativeReady
-						? undefined
-						: 'Native companion does not report streaming MediaStore support.',
-				})
-			} catch (error) {
-				const message = `Native companion unavailable: ${errorMessage(error)}`
-				updateRuntimeStatus({ nativeReady: false, lastError: message })
-				console.error(`${TAG} ${message}`)
-				if (migrated.showErrorToasts) {
-					toast(
-						'sms-native-start-error',
-						'Selective Media Saver native companion could not start.',
-					)
-				}
-			}
-
 			if (disposed) return
 			unregisterFluxListeners.push(
 				revenge.discord.flux.onFluxEventDispatched(
@@ -578,12 +566,22 @@ export default plugin<{ jsonStorage: SelectiveMediaSaverSettings }>({
 				)
 			}
 			updateRuntimeStatus({
-				phase: nativeReady ? 'listening' : 'error',
+				phase: 'starting',
 				listening: true,
-				nativeReady,
+				nativeReady: false,
 			})
+			const nativeReady = await refreshNativeBridge({
+				retryDelaysMs: STARTUP_NATIVE_RETRY_DELAYS_MS,
+			})
+			if (disposed) return
+			if (!nativeReady && migrated.showErrorToasts) {
+				toast(
+					'sms-native-start-error',
+					'Selective Media Saver could not connect to its native saver. Open plugin settings for details.',
+				)
+			}
 			console.log(
-				`${TAG} foreground message, user, and profile listeners started`,
+				`${TAG} foreground listeners started; native bridge ${nativeReady ? 'ready' : 'unavailable'}`,
 			)
 		})().catch(error => {
 			for (const unregister of unregisterFluxListeners.splice(0)) {
@@ -605,6 +603,7 @@ export default plugin<{ jsonStorage: SelectiveMediaSaverSettings }>({
 	},
 
 	stop() {
+		resetNativeBridgeConnection()
 		resetRuntimeStatus()
 		console.log(`${TAG} stopped`)
 	},
