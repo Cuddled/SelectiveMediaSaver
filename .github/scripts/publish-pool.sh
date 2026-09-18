@@ -10,6 +10,7 @@ set -euo pipefail
 base="$(pages_base_url)"
 echo "Serving Classic Revenge from ${base}"
 echo "Serving Revenge Next from ${base}/next (legacy repository URL remains ${base})"
+echo "Serving Midnight Glass from ${base}/themes/midnight-glass/theme.json"
 
 count="$(jq 'length' "$PLAN")"
 jq -r '.[] | [.zip, .file] | @tsv' "$PLAN" > plan.tsv
@@ -27,10 +28,11 @@ attempt_publish() {
     git -C "$POOL_CHECKOUT" add \
         manifest.json index.js \
         pool index.json \
-        next/pool next/index.json || return 1
+        next/pool next/index.json \
+        themes/midnight-glass || return 1
     commit_pool \
-        "Pages already hold the Classic bundle and this Next release plan." \
-        "Publish Classic bundle and ${count} Revenge Next release(s)"
+        "Pages already hold the Classic bundle, Midnight Glass, and this Next release plan." \
+        "Publish Classic bundle, Midnight Glass, and ${count} Revenge Next release(s)"
 }
 
 for attempt in 1 2 3; do

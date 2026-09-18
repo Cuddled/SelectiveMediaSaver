@@ -13,8 +13,8 @@
 		"plan-releases": "revenge-plugin plan-releases",
 		"serve": "revenge-plugin serve",
 		"test": "tsx --test \"plugins/*/js/*.test.ts\"",
-		"lint": "biome check classic plugins scripts package.json repo.config.json tsconfig.json biome.json",
-		"lint:fix": "biome check --write classic plugins scripts package.json repo.config.json tsconfig.json biome.json",
+		"lint": "biome check classic plugins scripts themes package.json repo.config.json tsconfig.json biome.json",
+		"lint:fix": "biome check --write classic plugins scripts themes package.json repo.config.json tsconfig.json biome.json",
 		"lint:types": "tsc --noEmit"
 	},
 	"dependencies": {

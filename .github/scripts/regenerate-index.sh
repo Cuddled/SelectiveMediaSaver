@@ -12,7 +12,8 @@ git -C "$POOL_CHECKOUT" add -f .nojekyll
 git -C "$POOL_CHECKOUT" add \
     manifest.json index.js \
     pool index.json \
-    next/pool next/index.json
+    next/pool next/index.json \
+    themes/midnight-glass
 commit_pool \
-    "${UNCHANGED_MESSAGE:-Pages already match the Classic bundle and Revenge Next pools.}" \
-    "${COMMIT_MESSAGE:-Regenerate Pages plugin layout}"
+    "${UNCHANGED_MESSAGE:-Pages already match the Classic bundle, Revenge Next pools, and hosted themes.}" \
+    "${COMMIT_MESSAGE:-Regenerate Pages plugin and theme layout}"

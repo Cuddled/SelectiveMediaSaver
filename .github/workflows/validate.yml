@@ -73,4 +73,6 @@ jobs:
             build/pages/index.js
             build/pages/index.json
             build/pages/next/index.json
+            build/pages/themes/midnight-glass/theme.json
+            build/pages/themes/midnight-glass/background-v1.png
           if-no-files-found: error

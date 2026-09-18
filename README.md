@@ -10,6 +10,9 @@ The two Revenge plugin systems use different loaders and are not interchangeable
   Classic port targets the `1b1d297-main` build shown as Revenge 1.11.6 in the app.
 - Revenge Next installs a compiled plugin ZIP from a repository index. Its beta repository lives at
   the explicit `/next` path so Classic never tries to execute a Next ZIP.
+- Midnight Glass installs separately through Revenge Classic's Themes screen. Its spec-2 manifest
+  and portrait background are published under `/themes/midnight-glass` so the existing plugin URLs
+  stay unchanged.
 
 The Revenge Next port is currently `2.4.0-next8`, a beta build for this tested client stack:
 
@@ -97,6 +100,23 @@ Each plugin's packaged `NOTICE.md` identifies the exact audited Classic artifact
 source revision, and license. These ports target the same Discord 347.x client range as the current
 Selective Media Saver Next build.
 
+## Liquid Glass for Revenge Next
+
+**Liquid Glass** is a separate appearance plugin in the same Next repository. It uses Discord's own
+full-app gradient renderer plus a narrow set of translucent surface colors, avoiding an unstable
+system-wide Android blur patch. The first release is `1.0.0-beta1` for Discord 347.x. Its visual
+settings include:
+
+- Midnight, Frost, Ocean, Rose, Aurora, and AMOLED one-tap presets.
+- Editable gradient, panel, raised-surface, accent, text, and border colors using hex values.
+- Live panel opacity, raised-surface opacity, background softness, and gradient-angle sliders.
+- Up to 20 named custom profiles with one-tap apply, rename, update, and delete controls.
+- Separate full-app gradient and transparent-surface switches, plus a low-power mode.
+
+Install and enable **Liquid Glass** from the existing Revenge Next repository, reload Discord once,
+then open its settings to customize the look. The controls are live, but saved values remain
+persistent across restarts.
+
 ## Install in Revenge Classic
 
 In **Settings → Plugins**, press the add button and enter this direct plugin URL:
@@ -137,6 +157,19 @@ The release workflow also attaches each compiled Next plugin ZIP to its matching
 Files are stored in Android's public Pictures or Movies collection under the configured album name.
 No broad storage permission is needed on Android 10 or newer.
 
+## Install the Midnight Glass companion theme in Classic
+
+In Revenge Classic, open **Settings → Themes**, press the add button, and enter this direct theme
+URL:
+
+```text
+https://cuddled.github.io/SelectiveMediaSaver/themes/midnight-glass/theme.json
+```
+
+Select **Midnight Glass** after it downloads. If the wallpaper is not visible in chat, make sure
+custom theme backgrounds are shown in Revenge's theme settings. The theme works by itself. Revenge
+Next uses the separate Liquid Glass plugin for live presets and color controls.
+
 ## Source provenance
 
 `SelectiveMediaSaver_v2_4_0_FIXED.zip` is the BetterDiscord source used for this port. Its contained
@@ -155,6 +188,14 @@ from the matching v2.4.0 source and verified by size, ZIP CRC, and SHA-256.
 ```text
 classic/
 └── ...                         # Revenge Classic source and build tooling
+
+themes/midnight-glass/
+├── theme.json                  # Revenge spec-2 color theme
+└── background-v1.png           # Hosted portrait chat background
+
+plugins/com.cuddled.liquidglass/
+├── manifest.json               # Revenge Next appearance plugin metadata
+└── js/                          # Live theme engine, settings UI, and tests
 
 plugins/com.cuddled.selectivemediasaver/
 ├── manifest.json
@@ -215,6 +256,7 @@ The distributables are written to:
 ```text
 build/classic/manifest.json
 build/classic/index.js
+build/dist/com.cuddled.liquidglass@1.0.0-beta1.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 
@@ -239,7 +281,8 @@ The Android plugin and the pinned Revenge API are compiled in CI with Android SD
 Pull requests run linting, type checks, unit tests, Classic bundling, native compilation, D8
 packaging, and a full Pages-layout validation. Merges to `main` publish Classic `manifest.json` and
 `index.js` at the site root, preserve the legacy Next `index.json` and `/pool`, and mirror the Next
-repository under `/next`.
+repository under `/next`. The same atomic Pages update publishes the validated Midnight Glass
+manifest and background under `/themes/midnight-glass`.
 
 `2.4.0-next8` remains on the beta channel. Promote only after testing installation, settings,
 capture, large-file cancellation, duplicates, and lifecycle reloads on the target phone. A stable
