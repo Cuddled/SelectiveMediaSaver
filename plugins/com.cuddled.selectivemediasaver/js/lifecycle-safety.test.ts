@@ -17,3 +17,16 @@ test('recoverable startup failures do not enter Revenge fatal error handling', a
 	assert.doesNotMatch(javascriptSource, /api\.plugin\.reportError\s*\(/)
 	assert.doesNotMatch(nativeSource, /\berrors\.tryEmit\s*\(/)
 })
+
+test('native startup falls back to Revenge supplied context', async () => {
+	const nativeSource = await readFile(nativeSourceUrl, 'utf8')
+
+	assert.match(
+		nativeSource,
+		/val serviceContext = context\.applicationContext \?: context/,
+	)
+	assert.doesNotMatch(
+		nativeSource,
+		/context\s*=\s*context\.applicationContext\s*[,)]/,
+	)
+})
