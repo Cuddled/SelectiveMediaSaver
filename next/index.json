@@ -27,6 +27,30 @@
         }
       }
     },
+    "com.cuddled.liquidglass": {
+      "name": "Liquid Glass",
+      "description": "A customizable glass appearance with live presets, colors, opacity, and performance controls.",
+      "author": "Cuddled",
+      "icon": "ic_theme_24px",
+      "channels": {
+        "beta": "1.0.0-beta1"
+      },
+      "versions": {
+        "1.0.0-beta1": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/com.cuddled.liquidglass@1.0.0-beta1.zip",
+          "sha256": "250041689a3dabd78d32469d912fb1440662331da5455026b63b6f9242360f7a",
+          "size": 9309,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        }
+      }
+    },
     "com.cuddled.nocompression": {
       "name": "NoCompression",
       "description": "Prevents Discord from compressing files when uploading",
