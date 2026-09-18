@@ -1,4 +1,5 @@
 import { callNativeMethod } from '@revenge-mod/modules/native'
+import type { NativeEnableFailure } from './bridge-recovery'
 import type {
 	NativeCapabilities,
 	NativeDeleteResult,
@@ -16,6 +17,16 @@ export const NATIVE_PREFIX = 'com.cuddled.selectivemediasaver' as const
  */
 export function startNativeCompanion(): Promise<null> {
 	return callNativeMethod('revenge.plugins.startNative', [NATIVE_PREFIX])
+}
+
+/** Persist the native half's enabled flag so Revenge loads it on the next boot. */
+export function setNativeCompanionEnabled(
+	enabled: boolean,
+): Promise<NativeEnableFailure | null> {
+	return callNativeMethod('revenge.plugins.setEnabled', [
+		NATIVE_PREFIX,
+		enabled,
+	])
 }
 
 export function getNativeCapabilities(): Promise<NativeCapabilities> {
@@ -50,6 +61,10 @@ export function deleteSavedMedia(uri: string): Promise<NativeDeleteResult> {
 declare module '@revenge-mod/modules/native' {
 	export interface NativeMethods {
 		'revenge.plugins.startNative': [args: [id: string], returnValue: null]
+		'revenge.plugins.setEnabled': [
+			args: [id: string, enabled: boolean],
+			returnValue: NativeEnableFailure | null,
+		]
 		'com.cuddled.selectivemediasaver.capabilities': [
 			args: [],
 			returnValue: NativeCapabilities,

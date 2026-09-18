@@ -4,6 +4,7 @@ import {
 	nativeBridgeErrorMessage,
 	nativeCapabilitiesReady,
 	probeNativeCapabilities,
+	synchronizeNativeLifecycle,
 } from './bridge-recovery'
 import type { NativeCapabilities } from './types'
 
@@ -145,6 +146,143 @@ test('native capability probe restarts the companion before checking capabilitie
 	assert.equal(probes, 1)
 	assert.deepEqual(order, ['startNative', 'capabilities'])
 	assert.equal(result.ready, true)
+})
+
+test('native lifecycle persistence follows Revenge enable, start, then probe order', async () => {
+	const order: string[] = []
+	const result = await probeNativeCapabilities(
+		async () => {
+			order.push('capabilities')
+			return capabilities()
+		},
+		{
+			beforeProbe: () =>
+				synchronizeNativeLifecycle(
+					() => true,
+					async () => {
+						order.push('setEnabled:true')
+						return null
+					},
+					async () => {
+						order.push('startNative')
+					},
+				),
+		},
+	)
+
+	assert.equal(result.ready, true)
+	assert.deepEqual(order, ['setEnabled:true', 'startNative', 'capabilities'])
+})
+
+test('native lifecycle synchronization does nothing after plugin cleanup', async () => {
+	const calls: string[] = []
+	await synchronizeNativeLifecycle(
+		() => false,
+		async () => {
+			calls.push('setEnabled')
+			return null
+		},
+		async () => {
+			calls.push('startNative')
+		},
+	)
+	assert.deepEqual(calls, [])
+})
+
+test('native lifecycle generation changes prevent a late native start', async () => {
+	let active = true
+	const calls: string[] = []
+	await synchronizeNativeLifecycle(
+		() => active,
+		async () => {
+			calls.push('setEnabled')
+			active = false
+			return null
+		},
+		async () => {
+			calls.push('startNative')
+		},
+	)
+	assert.deepEqual(calls, ['setEnabled'])
+})
+
+test('native lifecycle reports unsatisfied dependencies without starting', async () => {
+	let starts = 0
+	await assert.rejects(
+		() =>
+			synchronizeNativeLifecycle(
+				() => true,
+				async () => ({
+					code: 'DEPENDENCIES_UNSATISFIED',
+					problems: [
+						{
+							id: 'revenge.api',
+							required: '>=1.0.0 <2.0.0',
+							installed: '1.0.0',
+							enabled: false,
+						},
+					],
+				}),
+				async () => {
+					starts += 1
+				},
+			),
+		/required plugins are unavailable.*revenge\.api.*disabled/i,
+	)
+	assert.equal(starts, 0)
+})
+
+test('older loaders retain session recovery when enabled-state API is absent', async () => {
+	let starts = 0
+	let fallbacks = 0
+	await synchronizeNativeLifecycle(
+		() => true,
+		async () => {
+			throw new Error(
+				'Native bridge method not registered: revenge.plugins.setEnabled',
+			)
+		},
+		async () => {
+			starts += 1
+		},
+		() => {
+			fallbacks += 1
+		},
+	)
+	assert.equal(starts, 1)
+	assert.equal(fallbacks, 1)
+})
+
+test('native lifecycle errors remain actionable after capability retries fail', async () => {
+	const result = await probeNativeCapabilities(
+		async () => {
+			throw new Error('capabilities method missing')
+		},
+		{
+			beforeProbe: () =>
+				synchronizeNativeLifecycle(
+					() => true,
+					async () => ({
+						code: 'DEPENDENCIES_UNSATISFIED',
+						problems: [
+							{
+								id: 'discord',
+								required: '>=347.0 <348.0',
+								installed: null,
+								enabled: false,
+							},
+						],
+					}),
+					async () => undefined,
+				),
+			retryDelaysMs: [0, 1],
+			wait: async () => undefined,
+		},
+	)
+
+	assert.equal(result.ready, false)
+	assert.match(result.error ?? '', /required plugins are unavailable/i)
+	assert.match(result.error ?? '', /discord/i)
 })
 
 test('native capability probe still checks the bridge when lifecycle recovery fails', async () => {

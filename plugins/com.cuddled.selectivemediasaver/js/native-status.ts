@@ -1,8 +1,13 @@
 import {
 	ON_DEMAND_NATIVE_RETRY_DELAYS_MS,
 	probeNativeCapabilities,
+	synchronizeNativeLifecycle,
 } from './bridge-recovery'
-import { getNativeCapabilities, startNativeCompanion } from './native'
+import {
+	getNativeCapabilities,
+	setNativeCompanionEnabled,
+	startNativeCompanion,
+} from './native'
 import { getRuntimeStatus, updateRuntimeStatus } from './runtime'
 
 const AUTOMATIC_PROBE_COOLDOWN_MS = 5_000
@@ -31,10 +36,20 @@ export function refreshNativeBridge(options?: {
 	const promise = probeNativeCapabilities(getNativeCapabilities, {
 		retryDelaysMs: options?.retryDelaysMs,
 		// Never revive a deliberately stopped plugin from a lingering settings
-		// screen. The foreground listener state proves the JS lifecycle is active.
-		beforeProbe: async () => {
-			if (getRuntimeStatus().listening) await startNativeCompanion()
-		},
+		// screen. The foreground listener state and captured generation prove the
+		// JS lifecycle is still active before and after the persistence call.
+		beforeProbe: () =>
+			synchronizeNativeLifecycle(
+				() => generation === bridgeGeneration && getRuntimeStatus().listening,
+				() => setNativeCompanionEnabled(true),
+				startNativeCompanion,
+				error => {
+					console.warn(
+						'[SelectiveMediaSaver] Native enabled-state persistence is unavailable; using session-only recovery:',
+						error,
+					)
+				},
+			),
 	})
 		.then(result => {
 			if (generation !== bridgeGeneration) return false

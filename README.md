@@ -11,7 +11,7 @@ The two Revenge plugin systems use different loaders and are not interchangeable
 - Revenge Next installs a compiled plugin ZIP from a repository index. Its beta repository lives at
   the explicit `/next` path so Classic never tries to execute a Next ZIP.
 
-The Revenge Next port is currently `2.4.0-next5`, a beta build for this tested client stack:
+The Revenge Next port is currently `2.4.0-next6`, a beta build for this tested client stack:
 
 - RevengeXposed loader `1.6.2`
 - Discord Android `347.1` (`347201`)
@@ -59,6 +59,7 @@ in the Classic build.
   username change, with optional per-sender avatar and banner folders.
 - One summary toast per message instead of one notification per attachment.
 - Native Android MediaStore downloads that appear in gallery/files apps.
+- Native enabled-state synchronization that survives fully closing and reopening Discord.
 - Immediate native bridge registration plus automatic startup and on-demand retries, so a slow
   Android context does not leave the saver permanently unavailable.
 - Streamed downloads, so a large video is not buffered in JavaScript or loaded fully into memory.
@@ -210,7 +211,7 @@ The distributables are written to:
 ```text
 build/classic/manifest.json
 build/classic/index.js
-build/dist/com.cuddled.selectivemediasaver@2.4.0-next5.zip
+build/dist/com.cuddled.selectivemediasaver@2.4.0-next6.zip
 ```
 
 The Selective Media Saver ZIP must contain `manifest.json`, `index.js`, and `plugin.jar` at its
@@ -236,7 +237,7 @@ packaging, and a full Pages-layout validation. Merges to `main` publish Classic 
 `index.js` at the site root, preserve the legacy Next `index.json` and `/pool`, and mirror the Next
 repository under `/next`.
 
-`2.4.0-next5` remains on the beta channel. Promote only after testing installation, settings,
+`2.4.0-next6` remains on the beta channel. Promote only after testing installation, settings,
 capture, large-file cancellation, duplicates, and lifecycle reloads on the target phone. A stable
 release uses a newer version without a prerelease label.
 
