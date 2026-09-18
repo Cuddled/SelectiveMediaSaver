@@ -33,6 +33,7 @@ import java.text.Normalizer
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLException
 import kotlinx.coroutines.CancellationException
@@ -55,8 +56,15 @@ private const val MAX_FOLDER_DEPTH = 4
 private const val MAX_FOLDER_SEGMENT_CODE_POINTS = 64
 private const val MAX_FOLDER_SEGMENT_UTF8_BYTES = 240
 
+private data class ActiveService(
+    val generation: Long,
+    val service: SelectiveMediaSaverService,
+)
+
 private val lifecycleGeneration = AtomicLong(0)
 private val lifecycleLock = Any()
+private val activeService = AtomicReference<ActiveService?>(null)
+private val nativeInitializationFailure = AtomicReference<String?>(null)
 
 private val ALLOWED_HOSTS = setOf(
     "cdn.discordapp.com",
@@ -194,40 +202,91 @@ private class BridgeFailure(
 @Suppress("UNUSED")
 val selectiveMediaSaverPlugin = plugin {
     start {
-        val generation = synchronized(lifecycleLock) { lifecycleGeneration.incrementAndGet() }
-        val managedUrisFile = File(storageDir, "managed-media-uris.txt")
+        // Register every bridge method before waiting for an Android Context. Revenge can start
+        // the JavaScript half while Context capture is still completing; registering here keeps
+        // that normal startup race from looking like a missing native plugin.
+        val generation = synchronized(lifecycleLock) {
+            val currentGeneration = lifecycleGeneration.incrementAndGet()
+            activeService.set(null)
+            nativeInitializationFailure.set(null)
+            registerNativeAsyncMethod("$METHOD_PREFIX.capabilities") {
+                if (currentGeneration != lifecycleGeneration.get()) {
+                    error("Selective Media Saver is disabled.")
+                }
+                val service = activeServiceFor(currentGeneration)
+                if (service != null) {
+                    service.capabilities()
+                } else if (currentGeneration != lifecycleGeneration.get()) {
+                    error("Selective Media Saver is disabled.")
+                } else {
+                    error(nativeUnavailableMessage())
+                }
+            }
+            registerNativeAsyncMethod("$METHOD_PREFIX.download") { args ->
+                if (currentGeneration != lifecycleGeneration.get()) {
+                    stoppedFailure()
+                } else {
+                    activeServiceFor(currentGeneration)?.download(args)
+                        ?: unavailableOrStoppedFailure(currentGeneration)
+                }
+            }
+            registerNativeAsyncMethod("$METHOD_PREFIX.delete") { args ->
+                if (currentGeneration != lifecycleGeneration.get()) {
+                    stoppedFailure()
+                } else {
+                    activeServiceFor(currentGeneration)?.delete(args)
+                        ?: unavailableOrStoppedFailure(currentGeneration)
+                }
+            }
+            registerNativeAsyncMethod("$METHOD_PREFIX.open") { args ->
+                if (currentGeneration != lifecycleGeneration.get()) {
+                    stoppedFailure()
+                } else {
+                    activeServiceFor(currentGeneration)?.open(args)
+                        ?: unavailableOrStoppedFailure(currentGeneration)
+                }
+            }
+            registerNativeAsyncMethod("$METHOD_PREFIX.share") { args ->
+                if (currentGeneration != lifecycleGeneration.get()) {
+                    stoppedFailure()
+                } else {
+                    activeServiceFor(currentGeneration)?.share(args)
+                        ?: unavailableOrStoppedFailure(currentGeneration)
+                }
+            }
+            log.i("Registered Selective Media Saver native bridge methods")
+            currentGeneration
+        }
 
         withAppContext { context ->
-            val service = SelectiveMediaSaverService(
-                context = context.applicationContext,
-                managedUrisFile = managedUrisFile,
-                isActive = { generation == lifecycleGeneration.get() },
-            )
+            if (generation != lifecycleGeneration.get()) return@withAppContext
 
-            synchronized(lifecycleLock) {
-                if (generation != lifecycleGeneration.get()) return@withAppContext
-
-                registerNativeAsyncMethod("$METHOD_PREFIX.capabilities") {
-                    if (generation == lifecycleGeneration.get()) {
-                        service.capabilities()
+            try {
+                val service = SelectiveMediaSaverService(
+                    context = context.applicationContext,
+                    managedUrisFile = File(storageDir, "managed-media-uris.txt"),
+                    isActive = { generation == lifecycleGeneration.get() },
+                )
+                synchronized(lifecycleLock) {
+                    if (generation != lifecycleGeneration.get()) return@withAppContext
+                    activeService.set(ActiveService(generation, service))
+                    nativeInitializationFailure.set(null)
+                }
+                log.i("Initialized Selective Media Saver Android service")
+            } catch (error: Throwable) {
+                val recorded = synchronized(lifecycleLock) {
+                    if (generation != lifecycleGeneration.get()) {
+                        false
                     } else {
-                        error("Selective Media Saver is disabled.")
+                        nativeInitializationFailure.set(
+                            "${error.javaClass.simpleName}: ${error.message ?: "unknown initialization error"}",
+                        )
+                        true
                     }
                 }
-                registerNativeAsyncMethod("$METHOD_PREFIX.download") { args ->
-                    if (generation == lifecycleGeneration.get()) service.download(args) else stoppedFailure()
-                }
-                registerNativeAsyncMethod("$METHOD_PREFIX.delete") { args ->
-                    if (generation == lifecycleGeneration.get()) service.delete(args) else stoppedFailure()
-                }
-                registerNativeAsyncMethod("$METHOD_PREFIX.open") { args ->
-                    if (generation == lifecycleGeneration.get()) service.open(args) else stoppedFailure()
-                }
-                registerNativeAsyncMethod("$METHOD_PREFIX.share") { args ->
-                    if (generation == lifecycleGeneration.get()) service.share(args) else stoppedFailure()
-                }
-
-                log.i("Registered Selective Media Saver native bridge methods")
+                if (!recorded) return@withAppContext
+                errors.tryEmit(error)
+                log.e("Failed to initialize Selective Media Saver Android service", error)
             }
         }
     }
@@ -235,6 +294,8 @@ val selectiveMediaSaverPlugin = plugin {
     stop {
         synchronized(lifecycleLock) {
             lifecycleGeneration.incrementAndGet()
+            activeService.set(null)
+            nativeInitializationFailure.set("Selective Media Saver is disabled.")
             registerStoppedNativeMethods()
         }
         log.i("Stopped Selective Media Saver native component")
@@ -253,6 +314,28 @@ private fun HostScope.registerStoppedNativeMethods() {
 
 private fun stoppedFailure(): HashMap<String, Any?> =
     failure("PLUGIN_STOPPED", "Selective Media Saver is disabled.")
+
+private fun activeServiceFor(generation: Long): SelectiveMediaSaverService? {
+    val active = activeService.get() ?: return null
+    if (active.generation != generation || lifecycleGeneration.get() != generation) return null
+    return active.service
+}
+
+private fun unavailableOrStoppedFailure(generation: Long): HashMap<String, Any?> =
+    if (generation == lifecycleGeneration.get()) nativeUnavailableFailure() else stoppedFailure()
+
+private fun nativeUnavailableMessage(): String = nativeInitializationFailure.get()?.let {
+    "Selective Media Saver's Android service failed to initialize ($it)."
+} ?: "Selective Media Saver's Android service is still initializing."
+
+private fun nativeUnavailableFailure(): HashMap<String, Any?> {
+    val failed = nativeInitializationFailure.get() != null
+    return failure(
+        if (failed) "NATIVE_INITIALIZATION_FAILED" else "NATIVE_INITIALIZING",
+        nativeUnavailableMessage(),
+        retryable = !failed,
+    )
+}
 
 private class SelectiveMediaSaverService(
     private val context: Context,

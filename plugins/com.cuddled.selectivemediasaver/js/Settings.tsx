@@ -3,12 +3,8 @@ import {
 	DISCORD_ID_PATTERN,
 	normalizeSettings,
 } from './defaults'
-import { getNativeCapabilities } from './native'
-import {
-	getRuntimeStatus,
-	subscribeRuntimeStatus,
-	updateRuntimeStatus,
-} from './runtime'
+import { refreshNativeBridge } from './native-status'
+import { getRuntimeStatus, subscribeRuntimeStatus } from './runtime'
 import type { PluginApi } from '@revenge-mod/plugins/types'
 import type { RuntimeStatus, SelectiveMediaSaverSettings } from './types'
 
@@ -57,19 +53,8 @@ function StatusCard() {
 					: 'Stopped'
 
 	const refreshBridge = () => {
-		void getNativeCapabilities()
-			.then(capabilities => {
-				const nativeReady =
-					capabilities.ok &&
-					capabilities.streamDownload &&
-					capabilities.mediaStore
-				updateRuntimeStatus({
-					capabilities,
-					nativeReady,
-					lastError: nativeReady
-						? undefined
-						: 'Native bridge loaded without streaming MediaStore support.',
-				})
+		void refreshNativeBridge({ retryDelaysMs: [0, 300, 1_200] })
+			.then(nativeReady => {
 				toast(
 					'sms-native-check',
 					nativeReady
@@ -78,8 +63,7 @@ function StatusCard() {
 				)
 			})
 			.catch(error => {
-				const message = error instanceof Error ? error.message : String(error)
-				updateRuntimeStatus({ nativeReady: false, lastError: message })
+				console.error('[SelectiveMediaSaver] bridge refresh failed:', error)
 				toast('sms-native-check-error', 'Native saver could not be reached.')
 			})
 	}
