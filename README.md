@@ -196,6 +196,45 @@ loading, low-power mode, and toggling chat wallpaper off. Also check own/member 
 navigation for regressions. Desktop checks do not verify final Android appearance or whether a
 particular native build paints additional opaque layers over the wallpaper.
 
+## Full-App Glass (Experimental) for Revenge Next
+
+`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta1` plugin. It does not require
+Liquid Glass to be installed and has its own JSON storage. Liquid Glass's code, version, saved
+colors, and profiles are not changed by this experiment. A few audited pure helpers are bundled
+into the new ZIP; there is no runtime dependency on the other plugin.
+
+**Use only one appearance plugin at a time.** Turn Liquid Glass and any other appearance plugins
+off and reload Discord before enabling this experiment. The supported public plugin API does not
+expose a reliable registry for detecting or disabling other plugins, so this is a visible setup
+instruction, not an automatic conflict detector. Full-App Glass starts with its preview paused.
+
+In its settings, enable **Full-App Glass**, then use:
+
+- **Master transparency:** 0% solid through 100% clear; default 80%. The miniature preview changes
+  while dragging, and releasing applies/saves the value across supported surfaces.
+- **Wallpaper darkness:** default 28%, independent from transparency.
+- **Glass tint:** Midnight, Violet, Ocean, or Black swatches.
+- **Area switches:** main screens (shared list/navigation/settings surfaces), conversations,
+  own/member profiles, menus/overlays, and controls/cards. Shared Discord tokens mean groups are
+  not an exhaustive per-screen allowlist.
+- **Low-power mode:** on by default; optional static wallpaper blur up to 10 px when off.
+- **Pause** and **reset (paused):** restore Discord's colors without deleting another plugin's data.
+
+The Midnight Waves image sits underneath the inspected app-level theme/navigation tree, with a
+dark fallback while loading/offline. The plugin hides supported theme gradients only after the
+image loads in that scope. It also uses a separate noninteractive wallpaper behind the native
+chat viewport, and applies the master opacity to inspected chat headers and input scrims.
+Navigation identities, refs, media, interaction handlers, role/name-style colors, and native
+disabled states are retained. A temporary dark theme context is used while preview is active;
+the user's saved Discord appearance preference is not modified.
+
+This is **wallpaper-backed translucency inside Discord**, not a transparent Android window,
+screen capture, or live iOS Liquid Glass blur. Opaque native screens, media viewers, video surfaces,
+and some separately hosted modals may not reveal the root wallpaper. Highly transparent menus
+can show underlying content through them; reduce transparency if readability suffers. Android
+347.x phone verification is still required for full coverage, keyboard/navigation behavior,
+restart persistence, and interaction with other plugins. No new native saver or root access is used.
+
 ## Install in Revenge Classic
 
 In **Settings → Plugins**, press the add button and enter this direct plugin URL:
@@ -336,6 +375,7 @@ The distributables are written to:
 build/classic/manifest.json
 build/classic/index.js
 build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
+build/dist/com.cuddled.fullappglass@1.0.0-beta1.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 

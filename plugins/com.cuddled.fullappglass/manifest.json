@@ -1,0 +1,14 @@
+{
+	"format": 1,
+	"id": "com.cuddled.fullappglass",
+	"name": "Full-App Glass (Experimental)",
+	"description": "An independent Midnight Waves backdrop with adjustable transparency across supported Discord screens.",
+	"icon": "ic_theme_24px",
+	"author": "Cuddled",
+	"version": "1.0.0-beta1",
+	"dependencies": {
+		"revenge.api": { "version": ">=1.0.0 <2.0.0" },
+		"discord": { "version": ">=347.0 <348.0" }
+	},
+	"dist": { "script": "index.js" }
+}

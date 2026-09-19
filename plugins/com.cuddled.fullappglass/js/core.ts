@@ -1,0 +1,182 @@
+import {
+	BASE_SEMANTIC_COLOR_KEYS,
+	buildSemanticOverrides,
+	DEFAULT_SETTINGS as GLASS_DEFAULTS,
+	hexWithAlpha,
+	normalizeHexColor,
+	readableChatForeground,
+} from '../../com.cuddled.liquidglass/js/core'
+import type {
+	HexColor,
+	LiquidGlassSettings,
+} from '../../com.cuddled.liquidglass/js/types'
+
+export interface Settings {
+	schemaVersion: 1
+	enabled: boolean
+	transparency: number
+	darkness: number
+	blur: number
+	lowPower: boolean
+	panelColor: HexColor
+	textColor: HexColor
+	mainScreens: boolean
+	chats: boolean
+	profiles: boolean
+	menus: boolean
+	controls: boolean
+}
+
+// Start paused so the user can turn their other appearance plugin off first.
+export const DEFAULT_SETTINGS: Settings = {
+	schemaVersion: 1,
+	enabled: false,
+	transparency: 0.8,
+	darkness: 0.28,
+	blur: 0,
+	lowPower: true,
+	panelColor: '#171B2B',
+	textColor: '#F7F8FF',
+	mainScreens: true,
+	chats: true,
+	profiles: true,
+	menus: true,
+	controls: true,
+}
+
+const clamp = (value: unknown, fallback: number, max = 1) =>
+	typeof value === 'number' && Number.isFinite(value)
+		? Math.min(max, Math.max(0, value))
+		: fallback
+
+export function normalize(value: unknown): Settings {
+	const raw =
+		value && typeof value === 'object' ? (value as Partial<Settings>) : {}
+	const result = { ...DEFAULT_SETTINGS }
+	for (const key of [
+		'enabled',
+		'lowPower',
+		'mainScreens',
+		'chats',
+		'profiles',
+		'menus',
+		'controls',
+	] as const)
+		if (typeof raw[key] === 'boolean') result[key] = raw[key]
+	result.transparency = clamp(raw.transparency, result.transparency)
+	result.darkness = clamp(raw.darkness, result.darkness)
+	result.blur = clamp(raw.blur, result.blur, 10)
+	result.panelColor = normalizeHexColor(raw.panelColor, result.panelColor)
+	result.textColor = normalizeHexColor(raw.textColor, result.textColor)
+	return result
+}
+
+/** Bundled pure helpers only; no dependency on Liquid Glass installation/storage. */
+export function asGlass(value: Settings): LiquidGlassSettings {
+	const settings = normalize(value)
+	const opacity = 1 - settings.transparency
+	return {
+		...GLASS_DEFAULTS,
+		gradientColors: [...GLASS_DEFAULTS.gradientColors],
+		customProfiles: [],
+		enabled: settings.enabled,
+		backgroundEnabled: settings.mainScreens,
+		backgroundMode: 'midnight-waves',
+		semanticEnabled: true,
+		profileGlassEnabled: settings.profiles,
+		overlayGlassEnabled: settings.menus,
+		controlGlassEnabled: settings.controls,
+		chatWallpaperEnabled: settings.chats,
+		panelColor: settings.panelColor,
+		tintColor: settings.panelColor,
+		textColor: readableChatForeground(settings.textColor),
+		panelOpacity: opacity,
+		raisedOpacity: opacity,
+		profileOpacity: opacity,
+		overlayOpacity: opacity,
+		controlOpacity: opacity,
+		wallpaperOpacity: 1,
+		wallpaperDim: settings.darkness,
+		wallpaperTintOpacity: 0,
+		wallpaperBlur: settings.blur,
+		chatWallpaperOpacity: 1,
+		chatWallpaperDim: settings.darkness,
+		lowPowerMode: settings.lowPower,
+	}
+}
+
+const CHAT_BASE_KEYS = new Set<string>([
+	'CHANNEL_BACKGROUND_DEFAULT',
+	'STANDALONE_CHANNEL_CONTENT_BACKGROUND',
+	'CHAT_BANNER_BG',
+	'EMBED_BACKGROUND',
+	'EMBED_BACKGROUND_ALTERNATE',
+	'MOBILE_EMBED_BACKGROUND_DEFAULT',
+	'MOBILE_THREAD_EMBED_BACKGROUND',
+])
+
+export function palette(value: Settings): Record<string, string> {
+	const settings = normalize(value)
+	const result = buildSemanticOverrides(asGlass(settings))
+	// Shared base surfaces form the main lists/settings group; chat surfaces have
+	// their own switch. This never guesses or traverses arbitrary native Views.
+	for (const key of BASE_SEMANTIC_COLOR_KEYS) {
+		if (!(CHAT_BASE_KEYS.has(key) ? settings.chats : settings.mainScreens))
+			delete result[key]
+	}
+	return result
+}
+
+export const surfaceColor = (settings: Settings) =>
+	hexWithAlpha(settings.panelColor, 1 - settings.transparency)
+
+export function navigationTheme(
+	settings: Settings,
+	original: unknown,
+): unknown {
+	if (
+		!settings.enabled ||
+		!settings.mainScreens ||
+		!original ||
+		typeof original !== 'object'
+	)
+		return original
+	const theme = original as Record<string, any>
+	if (
+		!theme.colors ||
+		typeof theme.colors !== 'object' ||
+		Array.isArray(theme.colors)
+	)
+		return original
+	return {
+		...theme,
+		dark: true,
+		colors: { ...theme.colors, background: '#00000000', card: '#00000000' },
+	}
+}
+
+export function createState(initial: unknown = DEFAULT_SETTINGS) {
+	let settings = normalize(initial)
+	let revision = JSON.stringify(settings)
+	const listeners = new Set<() => void>()
+	return {
+		getSettings: () => settings,
+		getSnapshot: () => revision,
+		subscribe(listener: () => void) {
+			listeners.add(listener)
+			return () => {
+				listeners.delete(listener)
+			}
+		},
+		update(value: unknown) {
+			const next = normalize(value)
+			const key = JSON.stringify(next)
+			if (key === revision) return
+			settings = next
+			revision = key
+			for (const listener of listeners) listener()
+		},
+	}
+}
+
+export const runtime = createState()
