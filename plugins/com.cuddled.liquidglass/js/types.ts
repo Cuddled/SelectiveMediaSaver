@@ -1,4 +1,4 @@
-export const SETTINGS_SCHEMA_VERSION = 2 as const
+export const SETTINGS_SCHEMA_VERSION = 3 as const
 
 export const BUILT_IN_PRESET_IDS = [
 	'midnight',
@@ -11,6 +11,7 @@ export const BUILT_IN_PRESET_IDS = [
 
 export type BuiltInPresetId = (typeof BUILT_IN_PRESET_IDS)[number]
 export type PresetSelection = BuiltInPresetId | 'custom'
+export type BackgroundMode = 'gradient' | 'midnight-waves'
 export type HexColor = `#${string}`
 export type GradientColors = [HexColor, HexColor, HexColor]
 
@@ -37,13 +38,30 @@ export interface LiquidGlassVisualSettings {
 	angle: number
 }
 
-export interface LiquidGlassCustomProfile extends LiquidGlassVisualSettings {
+export interface LiquidGlassWallpaperSettings {
+	backgroundMode: BackgroundMode
+	/** Normalized image opacity from 0 (hidden) through 1 (opaque). */
+	wallpaperOpacity: number
+	/** Normalized black dim layer over the wallpaper. */
+	wallpaperDim: number
+	/** Normalized tint layer using the current raised-surface color. */
+	wallpaperTintOpacity: number
+	/** React Native image blur radius, clamped to a deliberately small range. */
+	wallpaperBlur: number
+}
+
+export interface LiquidGlassAppearanceSettings
+	extends LiquidGlassVisualSettings,
+		LiquidGlassWallpaperSettings {}
+
+export interface LiquidGlassCustomProfile
+	extends LiquidGlassAppearanceSettings {
 	id: string
 	name: string
 	backgroundEnabled: boolean
 }
 
-export interface LiquidGlassSettings extends LiquidGlassVisualSettings {
+export interface LiquidGlassSettings extends LiquidGlassAppearanceSettings {
 	schemaVersion: typeof SETTINGS_SCHEMA_VERSION
 	enabled: boolean
 	selectedPreset: PresetSelection

@@ -3,15 +3,86 @@ import type {
 	BuiltInPresetId,
 	GradientColors,
 	HexColor,
+	LiquidGlassAppearanceSettings,
 	LiquidGlassCustomProfile,
 	LiquidGlassPresetDefinition,
 	LiquidGlassSettings,
 	LiquidGlassVisualSettings,
+	LiquidGlassWallpaperSettings,
 	PresetSelection,
 } from './types'
 
 const HEX_PATTERN = /^#?([a-f\d]{3}|[a-f\d]{6})$/i
 const DISCORD_HEX_PATTERN = /^#[A-F\d]{6}(?:[A-F\d]{2})?$/
+
+export const MIDNIGHT_WAVES_URL =
+	'https://cuddled.github.io/SelectiveMediaSaver/themes/midnight-glass/background-v1.png'
+
+export const DEFAULT_WALLPAPER_SETTINGS: Readonly<LiquidGlassWallpaperSettings> =
+	Object.freeze({
+		backgroundMode: 'gradient',
+		wallpaperOpacity: 0.95,
+		wallpaperDim: 0.18,
+		wallpaperTintOpacity: 0.1,
+		wallpaperBlur: 0,
+	})
+
+function cloneWallpaperSettings(
+	values: Readonly<LiquidGlassWallpaperSettings>,
+): LiquidGlassWallpaperSettings {
+	return {
+		backgroundMode: values.backgroundMode,
+		wallpaperOpacity: values.wallpaperOpacity,
+		wallpaperDim: values.wallpaperDim,
+		wallpaperTintOpacity: values.wallpaperTintOpacity,
+		wallpaperBlur: values.wallpaperBlur,
+	}
+}
+
+function normalizeWallpaperSettings(
+	raw: Record<string, unknown>,
+): LiquidGlassWallpaperSettings {
+	const defaults = DEFAULT_WALLPAPER_SETTINGS
+	return {
+		backgroundMode:
+			raw.backgroundMode === 'midnight-waves' ? 'midnight-waves' : 'gradient',
+		wallpaperOpacity: clamp(
+			finiteNumberOr(raw.wallpaperOpacity, defaults.wallpaperOpacity),
+			0,
+			1,
+		),
+		wallpaperDim: clamp(
+			finiteNumberOr(raw.wallpaperDim, defaults.wallpaperDim),
+			0,
+			1,
+		),
+		wallpaperTintOpacity: clamp(
+			finiteNumberOr(raw.wallpaperTintOpacity, defaults.wallpaperTintOpacity),
+			0,
+			1,
+		),
+		wallpaperBlur: Math.round(
+			clamp(finiteNumberOr(raw.wallpaperBlur, defaults.wallpaperBlur), 0, 12),
+		),
+	}
+}
+
+export function isWallpaperBackground(settings: LiquidGlassSettings): boolean {
+	return (
+		settings.enabled &&
+		settings.backgroundEnabled &&
+		settings.backgroundMode === 'midnight-waves'
+	)
+}
+
+export function wallpaperLayersFor(settings: LiquidGlassSettings) {
+	return {
+		opacity: settings.wallpaperOpacity,
+		dimColor: hexToRgba('#000000', settings.wallpaperDim),
+		tintColor: hexToRgba(settings.tintColor, settings.wallpaperTintOpacity),
+		blurRadius: settings.lowPowerMode ? 0 : settings.wallpaperBlur,
+	}
+}
 
 function definePreset(
 	id: BuiltInPresetId,
@@ -190,6 +261,7 @@ export const DEFAULT_SETTINGS: Readonly<LiquidGlassSettings> = Object.freeze({
 	enabled: true,
 	selectedPreset: 'midnight',
 	...cloneVisualSettings(midnight.values),
+	...DEFAULT_WALLPAPER_SETTINGS,
 	gradientColors: Object.freeze([
 		...midnight.values.gradientColors,
 	]) as unknown as GradientColors,
@@ -428,6 +500,7 @@ export function normalizeCustomProfiles(
 			id,
 			name,
 			...visual,
+			...normalizeWallpaperSettings({ ...nested, ...raw }),
 			backgroundEnabled: booleanOr(raw.backgroundEnabled, true),
 		}
 		profiles.delete(id)
@@ -464,6 +537,7 @@ export function normalizeSettings(value: unknown): LiquidGlassSettings {
 		enabled: booleanOr(raw.enabled, DEFAULT_SETTINGS.enabled),
 		selectedPreset,
 		...visual,
+		...normalizeWallpaperSettings(raw),
 		backgroundEnabled: booleanOr(
 			raw.backgroundEnabled ?? raw.useBackground,
 			presetFallback.backgroundEnabled,
@@ -501,7 +575,10 @@ export function applyPreset(
 		...normalized,
 		selectedPreset: preset.id,
 		...cloneVisualSettings(preset.values),
-		backgroundEnabled: preset.backgroundEnabled,
+		backgroundEnabled:
+			normalized.backgroundMode === 'midnight-waves'
+				? normalized.backgroundEnabled
+				: preset.backgroundEnabled,
 		activeProfileId: null,
 	}
 }
@@ -509,7 +586,7 @@ export function applyPreset(
 /** Applies visual edits and marks the look as custom without mutating storage. */
 export function applyCustomSettings(
 	current: unknown,
-	changes: Partial<LiquidGlassVisualSettings> & {
+	changes: Partial<LiquidGlassAppearanceSettings> & {
 		backgroundEnabled?: boolean
 	},
 ): LiquidGlassSettings {
@@ -550,6 +627,7 @@ export function saveCustomProfile(
 		id,
 		name: safeName,
 		...cloneVisualSettings(settings),
+		...cloneWallpaperSettings(settings),
 		backgroundEnabled: settings.backgroundEnabled,
 	}
 	const customProfiles = settings.customProfiles
@@ -576,6 +654,7 @@ export function applyCustomProfile(
 		...settings,
 		selectedPreset: 'custom',
 		...cloneVisualSettings(profile),
+		...cloneWallpaperSettings(profile),
 		backgroundEnabled: profile.backgroundEnabled,
 		activeProfileId: profile.id,
 	}
@@ -1093,10 +1172,14 @@ export function backgroundFingerprintFor(
 	if (!settings.enabled || !settings.backgroundEnabled) return 'off'
 	return shortFingerprint(
 		JSON.stringify({
+			backgroundMode: settings.backgroundMode,
 			gradientColors: settings.gradientColors,
 			angle: settings.angle,
 			backgroundSoftness: settings.backgroundSoftness,
 			lowPowerMode: settings.lowPowerMode,
+			wallpaper: isWallpaperBackground(settings)
+				? wallpaperLayersFor(settings)
+				: undefined,
 		}),
 	)
 }

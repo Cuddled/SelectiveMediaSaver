@@ -5,19 +5,23 @@ import {
 	BUILT_IN_PRESETS,
 	DEFAULT_SETTINGS,
 	hexToRgba,
+	isWallpaperBackground,
 	MAX_CUSTOM_PROFILES,
 	normalizeHexColor,
 	normalizeSettings,
 	removeCustomProfile,
 	saveCustomProfile,
+	wallpaperLayersFor,
 } from './core'
 import { previewRuntimeSettings } from './runtime'
+import { ABSOLUTE_FILL, WALLPAPER_SOURCE } from './wallpaper'
 import type { PluginApi } from '@revenge-mod/plugins/types'
 import type {
+	BackgroundMode,
 	BuiltInPresetId,
 	HexColor,
+	LiquidGlassAppearanceSettings,
 	LiquidGlassSettings,
-	LiquidGlassVisualSettings,
 } from './types'
 
 type GlassApi = PluginApi<{ jsonStorage: LiquidGlassSettings }>
@@ -76,6 +80,9 @@ function GlassPreview({ settings }: { settings: LiquidGlassSettings }) {
 					backgroundColor: hexToRgba(settings.gradientColors[1], 0.78),
 				}}
 			/>
+			{isWallpaperBackground(settings) && (
+				<WallpaperPreview settings={settings} />
+			)}
 			<View style={{ flex: 1, padding: 14 }}>
 				<Stack spacing={10}>
 					<View
@@ -146,6 +153,104 @@ function GlassPreview({ settings }: { settings: LiquidGlassSettings }) {
 					</View>
 				</Stack>
 			</View>
+		</View>
+	)
+}
+
+function WallpaperPreview({ settings }: { settings: LiquidGlassSettings }) {
+	const { View, Image } = revenge.react.ReactNative
+	const [ready, setReady] = revenge.react.React.useState(false)
+	const layers = wallpaperLayersFor(settings)
+	return (
+		<View
+			style={ABSOLUTE_FILL}
+			pointerEvents="none"
+			accessible={false}
+			importantForAccessibility="no-hide-descendants"
+		>
+			<Image
+				source={WALLPAPER_SOURCE}
+				resizeMode="cover"
+				blurRadius={layers.blurRadius}
+				style={[ABSOLUTE_FILL, { opacity: ready ? layers.opacity : 0 }]}
+				onLoad={() => setReady(true)}
+				onError={() => setReady(false)}
+			/>
+			{ready && (
+				<View style={[ABSOLUTE_FILL, { backgroundColor: layers.tintColor }]} />
+			)}
+			{ready && (
+				<View style={[ABSOLUTE_FILL, { backgroundColor: layers.dimColor }]} />
+			)}
+		</View>
+	)
+}
+
+function BackgroundPicker({
+	settings,
+	onSelect,
+}: {
+	settings: LiquidGlassSettings
+	onSelect: (mode: BackgroundMode) => void
+}) {
+	const { View, Pressable, Image } = revenge.react.ReactNative
+	const { Text } = revenge.discord.design.Design
+	return (
+		<View style={{ flexDirection: 'row', gap: 10 }}>
+			{(['gradient', 'midnight-waves'] as const).map(mode => {
+				const selected = settings.backgroundMode === mode
+				return (
+					<Pressable
+						key={mode}
+						accessibilityRole="button"
+						accessibilityState={{ selected }}
+						onPress={() => onSelect(mode)}
+						style={{
+							flex: 1,
+							overflow: 'hidden',
+							borderRadius: 18,
+							borderWidth: 2,
+							borderColor: selected
+								? settings.accentColor
+								: hexToRgba(settings.borderColor, 0.18),
+							backgroundColor: settings.panelColor,
+						}}
+					>
+						<View
+							style={{
+								height: 90,
+								overflow: 'hidden',
+								backgroundColor: settings.gradientColors[0],
+							}}
+						>
+							<View style={{ ...ABSOLUTE_FILL, flexDirection: 'row' }}>
+								{settings.gradientColors.map((color, index) => (
+									<View
+										key={GRADIENT_STOPS[index]}
+										style={{ flex: 1, backgroundColor: color }}
+									/>
+								))}
+							</View>
+							{mode === 'midnight-waves' && (
+								<Image
+									source={WALLPAPER_SOURCE}
+									resizeMode="cover"
+									style={ABSOLUTE_FILL}
+								/>
+							)}
+						</View>
+						<View style={{ padding: 10 }}>
+							<Text
+								variant="text-sm/semibold"
+								style={{ color: settings.textColor }}
+							>
+								{selected ? '✓ ' : ''}
+								{mode === 'gradient' ? 'Gradient' : 'Midnight Waves'}
+							</Text>
+						</View>
+					</Pressable>
+				)
+			})}
 		</View>
 	)
 }
@@ -400,7 +505,7 @@ export default function Settings({ api }: { api: GlassApi }) {
 	}
 	const patch = (changes: Partial<LiquidGlassSettings>) =>
 		save(normalizeSettings({ ...settings, ...changes }))
-	const customize = (changes: Partial<LiquidGlassVisualSettings>) =>
+	const customize = (changes: Partial<LiquidGlassAppearanceSettings>) =>
 		save(applyCustomSettings(settings, changes))
 	const previewRuntimeThrottled = (next: LiquidGlassSettings) => {
 		if (settings.lowPowerMode) return
@@ -424,12 +529,12 @@ export default function Settings({ api }: { api: GlassApi }) {
 		pendingRuntimePreviewRef.current = null
 		previewRuntimeSettings(next)
 	}
-	const previewCustom = (changes: Partial<LiquidGlassVisualSettings>) => {
+	const previewCustom = (changes: Partial<LiquidGlassAppearanceSettings>) => {
 		const next = applyCustomSettings(settings, changes)
 		setPreviewSettings(next)
 		previewRuntimeThrottled(next)
 	}
-	const commitCustom = (changes: Partial<LiquidGlassVisualSettings>) => {
+	const commitCustom = (changes: Partial<LiquidGlassAppearanceSettings>) => {
 		const next = applyCustomSettings(settings, changes)
 		setPreviewSettings(next)
 		flushRuntimePreview(next)
@@ -493,7 +598,7 @@ export default function Settings({ api }: { api: GlassApi }) {
 									Liquid Glass • {settings.enabled ? 'Live' : 'Paused'}
 								</Text>
 								<Text variant="text-md/normal" color="text-muted">
-									Full-app gradients and translucent Discord surfaces, tuned for
+									Custom backgrounds and translucent Discord surfaces, tuned for
 									Android.
 								</Text>
 								<Text variant="text-sm/semibold" color="text-muted">
@@ -513,8 +618,8 @@ export default function Settings({ api }: { api: GlassApi }) {
 							onValueChange={enabled => patch({ enabled })}
 						/>
 						<TableSwitchRow
-							label="Full-app gradient"
-							subLabel="Use Discord's native custom gradient renderer"
+							label="Full-app background"
+							subLabel="Show your selected gradient or Midnight Waves wallpaper"
 							value={settings.backgroundEnabled}
 							onValueChange={backgroundEnabled =>
 								save(applyCustomSettings(settings, { backgroundEnabled }))
@@ -552,11 +657,83 @@ export default function Settings({ api }: { api: GlassApi }) {
 						/>
 						<TableSwitchRow
 							label="Low-power mode"
-							subLabel="Uses a flatter background blend for weaker devices"
+							subLabel="Disables wallpaper blur and live slider previews; keeps your settings"
 							value={settings.lowPowerMode}
 							onValueChange={lowPowerMode => patch({ lowPowerMode })}
 						/>
 					</TableRowGroup>
+
+					<Stack spacing={10}>
+						<Text variant="heading-md/semibold">Background style</Text>
+						<BackgroundPicker
+							settings={settings}
+							onSelect={backgroundMode =>
+								save(
+									applyCustomSettings(settings, {
+										backgroundMode,
+										backgroundEnabled: true,
+									}),
+								)
+							}
+						/>
+						{settings.backgroundMode === 'midnight-waves' && (
+							<Stack spacing={14}>
+								<SliderField
+									label="Wallpaper opacity"
+									value={settings.wallpaperOpacity}
+									minimumValue={0}
+									maximumValue={1}
+									step={0.01}
+									format={value => `${Math.round(value * 100)}%`}
+									onCommit={wallpaperOpacity =>
+										commitCustom({ wallpaperOpacity })
+									}
+									onPreview={wallpaperOpacity =>
+										previewCustom({ wallpaperOpacity })
+									}
+								/>
+								<SliderField
+									label="Darkness"
+									value={settings.wallpaperDim}
+									minimumValue={0}
+									maximumValue={1}
+									step={0.01}
+									format={value => `${Math.round(value * 100)}%`}
+									onCommit={wallpaperDim => commitCustom({ wallpaperDim })}
+									onPreview={wallpaperDim => previewCustom({ wallpaperDim })}
+								/>
+								<SliderField
+									label="Color tint"
+									value={settings.wallpaperTintOpacity}
+									minimumValue={0}
+									maximumValue={1}
+									step={0.01}
+									format={value => `${Math.round(value * 100)}%`}
+									onCommit={wallpaperTintOpacity =>
+										commitCustom({ wallpaperTintOpacity })
+									}
+									onPreview={wallpaperTintOpacity =>
+										previewCustom({ wallpaperTintOpacity })
+									}
+								/>
+								<SliderField
+									label="Soft blur"
+									value={settings.wallpaperBlur}
+									minimumValue={0}
+									maximumValue={12}
+									step={1}
+									format={value =>
+										`${value}${settings.lowPowerMode ? ' · paused in low-power mode' : ''}`
+									}
+									onCommit={wallpaperBlur => commitCustom({ wallpaperBlur })}
+								/>
+								<Text variant="text-xs/normal" color="text-muted">
+									Tint uses your Raised panel / input color. Blur applies when
+									you release the slider.
+								</Text>
+							</Stack>
+						)}
+					</Stack>
 
 					<Stack spacing={10}>
 						<Text variant="heading-md/semibold">Presets</Text>
@@ -667,7 +844,11 @@ export default function Settings({ api }: { api: GlassApi }) {
 							onPreview={controlOpacity => previewCustom({ controlOpacity })}
 						/>
 						<SliderField
-							label="Background softness"
+							label={
+								settings.backgroundMode === 'midnight-waves'
+									? 'Fallback gradient softness'
+									: 'Background softness'
+							}
 							value={settings.backgroundSoftness}
 							minimumValue={0}
 							maximumValue={1}
@@ -681,7 +862,11 @@ export default function Settings({ api }: { api: GlassApi }) {
 							}
 						/>
 						<SliderField
-							label="Gradient angle"
+							label={
+								settings.backgroundMode === 'midnight-waves'
+									? 'Fallback gradient angle'
+									: 'Gradient angle'
+							}
 							value={settings.angle}
 							minimumValue={0}
 							maximumValue={360}
@@ -832,7 +1017,9 @@ export default function Settings({ api }: { api: GlassApi }) {
 						Liquid Glass now reaches profiles, cards, menus, sheets, inputs,
 						buttons, lists, voice panels, embeds, and navigation surfaces.
 						Profile banners, avatars, media, and important warning colors stay
-						crisp. The hosted Classic theme is installed separately.
+						crisp. The hosted Classic theme is installed separately. Midnight
+						Waves loads from the plugin's website and uses the image cache. Your
+						gradient stays visible while loading or if the image is unavailable.
 					</Text>
 				</Stack>
 			</ScrollView>
