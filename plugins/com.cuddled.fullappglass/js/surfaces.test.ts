@@ -15,7 +15,10 @@ import {
 	recolorProfileToolbar,
 } from './surfaces'
 
-function harness(scope: 'app' | 'profile' = 'app', gradient = false) {
+function harness(
+	scope: 'app' | 'profile' | 'header' = 'app',
+	gradient = false,
+) {
 	const slots: any[] = []
 	const cleanups: Array<() => void> = []
 	let cursor = 0
@@ -59,33 +62,45 @@ function harness(scope: 'app' | 'profile' = 'app', gradient = false) {
 		{ ...state, isActive: () => alive },
 	)
 	const original: React.ReactElement<any> =
-		scope === 'profile'
-			? React.createElement(gradient ? 'Gradient' : 'View', {
-					style: [
-						{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-						{ borderRadius: 24 },
-					],
-					pointerEvents: 'none',
-					...(gradient ? { colors: ['#12345633', '#ABCDEF33'] } : {}),
-				})
-			: React.createElement(
-					'ThemeProvider',
+		scope === 'header'
+			? React.createElement(
+					'View',
 					{
-						theme: 'midnight',
+						style: { paddingTop: 16, zIndex: 1 },
 						ref: React.createRef(),
-						onEvent: () => {},
-						key: 'root',
+						onLayout: () => {},
 					},
-					React.createElement('Navigation', {
-						initialState: 'existing-navigation',
-					}),
+					[React.createElement('Button', { key: 'search', onPress: () => {} })],
 				)
+			: scope === 'profile'
+				? React.createElement(gradient ? 'Gradient' : 'View', {
+						style: [
+							{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+							{ borderRadius: 24 },
+						],
+						pointerEvents: 'none',
+						...(gradient ? { colors: ['#12345633', '#ABCDEF33'] } : {}),
+					})
+				: React.createElement(
+						'ThemeProvider',
+						{
+							theme: 'midnight',
+							ref: React.createRef(),
+							onEvent: () => {},
+							key: 'root',
+						},
+						React.createElement('Navigation', {
+							initialState: 'existing-navigation',
+						}),
+					)
 	const wrapped = (
 		scope === 'app'
 			? runtime.wrapRoot(original)
-			: runtime.wrapProfileBackdrop(original)
+			: scope === 'header'
+				? runtime.wrapListHeader(original)
+				: runtime.wrapProfileBackdrop(original)
 	) as any
-	const boundary = wrapped.props.children
+	const boundary = scope === 'header' ? wrapped : wrapped.props.children
 	return {
 		state,
 		original,
@@ -94,6 +109,17 @@ function harness(scope: 'app' | 'profile' = 'app', gradient = false) {
 		render() {
 			cursor = 0
 			const root = boundary.type(boundary.props)
+			if (scope === 'header') {
+				const wallpaper = root.props.children[0]
+				const layer = wallpaper.type(wallpaper.props)
+				return {
+					root,
+					container: root,
+					layer,
+					scope: root.props.children[1],
+					image: layer?.props.children[0],
+				}
+			}
 			if (scope === 'profile')
 				return {
 					root,
@@ -273,6 +299,116 @@ test('channel-list backing preserves scrolling, refs and header controls without
 		original,
 	)
 	assert.equal(recolorListHeader(React, child, settings), child)
+})
+
+test('wallpaper header slots preserve chat frames, controls and original styles across toggles', () => {
+	const settings = normalize({ enabled: true })
+	const content = React.createElement('Controls', {
+		onPress: () => {},
+		ref: React.createRef(),
+	})
+	const bar = React.createElement(
+		'NavTTIView',
+		{
+			style: { paddingTop: 26, flexDirection: 'row' },
+			onLayout: () => {},
+			ref: React.createRef(),
+			spanComponent: 'channel_header',
+		},
+		content,
+	)
+	const frame = React.createElement('Frame', { key: 'frame' })
+	const original = React.createElement(React.Fragment, {}, [bar, frame])
+	const background = React.createElement('HeaderWallpaper', {
+		key: 'header-wallpaper',
+	})
+	const next = recolorChrome(
+		React,
+		original,
+		'header',
+		settings,
+		background,
+	) as any
+	const header = next.props.children[0]
+	assert.equal(header.type, bar.type)
+	assert.equal(header.props.ref, bar.props.ref)
+	assert.equal(header.props.onLayout, bar.props.onLayout)
+	assert.equal(header.props.spanComponent, 'channel_header')
+	assert.equal(header.props.style[0], bar.props.style)
+	assert.equal(header.props.style[1].backgroundColor, '#0B0D17')
+	assert.equal(header.props.children[0], background)
+	assert.equal(header.props.children[1].props.children, content)
+	assert.equal(next.props.children[1], frame)
+	const off = recolorChrome(
+		React,
+		original,
+		'header',
+		{ ...settings, enabled: false },
+		background,
+	) as any
+	assert.equal(off.props.children[0].props.style, bar.props.style)
+	assert.equal(
+		off.props.children[0].props.children[1].key,
+		header.props.children[1].key,
+	)
+	assert.equal(
+		off.props.children[0].props.children[1].type,
+		header.props.children[1].type,
+	)
+	assert.equal(off.props.children[0].props.children[1].props.children, content)
+})
+
+test('header wallpaper blocks underlying text while loading/offline without changing header measurement', () => {
+	const h = harness('header')
+	const view = h.render()
+	assert.equal(view.root.props.ref, h.original.props.ref)
+	assert.equal(view.root.props.onLayout, h.original.props.onLayout)
+	assert.equal(view.scope.props.children, h.original.props.children)
+	assert.equal(view.layer.props.style[0].position, 'absolute')
+	assert.equal(view.layer.props.style[1].backgroundColor, '#0B0D17')
+	assert.equal(view.layer.props.pointerEvents, 'none')
+	assert.equal(
+		view.layer.props.importantForAccessibility,
+		'no-hide-descendants',
+	)
+	assert.equal(view.image.props.style[1].opacity, 0)
+	view.image.props.onLoad()
+	assert.equal(h.render().image.props.style[1].opacity, 1)
+	view.image.props.onError()
+	assert.equal(h.render().image.props.style[1].opacity, 0)
+	h.state.update({ ...h.state.getSettings(), transparency: 1, darkness: 0 })
+	assert.equal(h.render().layer.props.style[1].backgroundColor, '#0B0D17')
+	assert.equal(
+		h.render().layer.props.children[2].props.style[1].backgroundColor,
+		'#171B2B00',
+	)
+})
+
+test('header wallpaper respects low power, live toggles, stale callbacks and cleanup', () => {
+	const h = harness('header')
+	const old = h.render()
+	old.image.props.onLoad()
+	h.state.update({ ...h.state.getSettings(), mainScreens: false })
+	const off = h.render()
+	assert.equal(off.layer, null)
+	assert.equal(off.root.props.style, h.original.props.style)
+	assert.equal(off.scope.key, old.scope.key)
+	assert.equal(off.scope.props.children, old.scope.props.children)
+	old.image.props.onLoad()
+	h.state.update({ ...h.state.getSettings(), mainScreens: true, blur: 7 })
+	assert.equal(h.render().image.props.style[1].opacity, 0)
+	old.image.props.onLoad()
+	assert.equal(h.render().image.props.style[1].opacity, 0)
+	assert.equal(h.render().image.props.blurRadius, 0)
+	h.state.update({ ...h.state.getSettings(), lowPower: false })
+	assert.equal(h.render().image.props.blurRadius, 7)
+	const current = h.render().image
+	h.unmount()
+	current.props.onLoad()
+	assert.equal(h.render().image.props.style[1].opacity, 0)
+	h.stop()
+	assert.equal(h.render().layer, null)
+	assert.equal(h.runtime.wrapListHeader(h.original), h.original)
 })
 
 test('profile toolbar corrects the final gradient and fill without replacing buttons or refs', () => {

@@ -212,7 +212,7 @@ export default function SettingsPage({
 						}}
 					>
 						<Text variant="heading-lg/semibold" style={{ color: '#F7F8FF' }}>
-							Full-App Glass · beta2
+							Full-App Glass · beta3
 						</Text>
 						<Text variant="text-sm/normal" style={{ color: '#E5DFFF' }}>
 							Turn Liquid Glass and other appearance plugins OFF, then reload
@@ -250,8 +250,9 @@ export default function SettingsPage({
 					<Text variant="text-xs/normal" color="text-muted">
 						0% = solid panels · 100% = clear panels. Drag to preview above;
 						release to apply across the app. Recommended starting point: 80%.
-						Headers keep a stronger backing for readability. Profiles show their
-						own wallpaper—not the chat underneath.
+						Headers and profiles have their own wallpaper backing—not the text
+						underneath. Conversations temporarily use Discord's native dark
+						colors; your saved appearance choice stays unchanged.
 					</Text>
 					<Slider
 						label="Wallpaper darkness"

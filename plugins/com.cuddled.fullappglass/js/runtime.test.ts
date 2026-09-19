@@ -13,6 +13,7 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 		function setup(reverse = true) {
 			const cleanups: Array<() => void> = []
 			const paths: string[] = []
+			const nativeThemes: string[] = []
 			let storageListener: (() => void) | undefined
 			let resolveRead!: (value: unknown) => void
 			const read = new Promise(resolve => {
@@ -63,7 +64,12 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 						ThemeContext: React.createContext({ theme: 'dark', key: 'native' }),
 					},
 				'modules/user_settings/ThemeStore.tsx': {
-					default: { emitChange() {} },
+					default: { theme: 'light', emitChange() {} },
+				},
+				'modules/themes/native/updateTheme.tsx': {
+					updateTheme(theme: string) {
+						nativeThemes.push(theme)
+					},
 				},
 				'design/components/Navigator/native/useNavigationTheme.native.tsx': {
 					useNavigationTheme: () => ({
@@ -135,6 +141,7 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			return {
 				api,
 				paths,
+				nativeThemes,
 				modules,
 				pathsForBeta2,
 				header,
@@ -154,6 +161,18 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 		}
 		for (const reverse of [true, false]) {
 			const h = setup(reverse)
+			const nativeUpdater = h.modules['modules/themes/native/updateTheme.tsx']
+			assert.deepEqual(h.nativeThemes, ['dark'])
+			nativeUpdater.updateTheme('midnight')
+			assert.deepEqual(h.nativeThemes, ['dark', 'dark'])
+			assert.equal(
+				h.modules['modules/user_settings/ThemeStore.tsx'].default.theme,
+				'light',
+			)
+			runtime.update({ enabled: true, chats: false })
+			assert.equal(h.nativeThemes.at(-1), 'midnight')
+			runtime.update({ enabled: true, chats: true })
+			assert.equal(h.nativeThemes.at(-1), 'dark')
 			assert.ok(
 				h.paths.includes('modules/themes/RootThemeContextProvider.native.tsx'),
 			)
@@ -192,6 +211,7 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			)
 			h.api.jsonStorage.cache = normalize({ enabled: false })
 			h.storageChanged()
+			assert.equal(h.nativeThemes.at(-1), 'midnight')
 			assert.equal(h.modules[h.pathsForBeta2.replies].default(), h.reply)
 			assert.equal(
 				h.internal.resolveSemanticColor('dark', 'TEXT_STRONG'),
@@ -200,6 +220,9 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			runtime.update({ enabled: true })
 			const pending = definition.start(h.api)
 			h.stop()
+			assert.equal(h.nativeThemes.at(-1), 'midnight')
+			nativeUpdater.updateTheme('light')
+			assert.equal(h.nativeThemes.at(-1), 'light')
 			h.resolveRead({ enabled: true })
 			await pending
 			assert.equal(runtime.getSettings().enabled, false)

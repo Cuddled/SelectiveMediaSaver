@@ -14,6 +14,7 @@ import {
 	runtime,
 	surfaceColor,
 } from './core'
+import { createNativeThemeSync } from './nativeTheme'
 import { readableReplies } from './replies'
 import SettingsPage from './Settings'
 import { createSurfaces } from './surfaces'
@@ -32,8 +33,16 @@ export default plugin<{ jsonStorage: Settings }>({
 		let alive = true
 		let colors: Record<string, string> = {}
 		let themeStore: RecordAny | undefined
+		const nativeTheme = createNativeThemeSync({
+			isEnabled: () =>
+				alive && runtime.getSettings().enabled && runtime.getSettings().chats,
+			getTheme: () => themeStore?.theme,
+			onError: error =>
+				console.warn('[FullAppGlass] Native theme refresh skipped:', error),
+		})
 		const refresh = () => {
 			colors = palette(runtime.getSettings())
+			nativeTheme.refresh()
 			try {
 				themeStore?.emitChange?.()
 			} catch (error) {
@@ -43,6 +52,7 @@ export default plugin<{ jsonStorage: Settings }>({
 		const shutdown = () => {
 			if (!alive) return
 			alive = false
+			nativeTheme.stop()
 			if (activeGeneration === currentGeneration) activeGeneration = 0
 			runtime.update({ ...runtime.getSettings(), enabled: false })
 			colors = {}
@@ -98,6 +108,23 @@ export default plugin<{ jsonStorage: Settings }>({
 		}
 		watch('modules/user_settings/ThemeStore.tsx', exports => {
 			themeStore = exports.default
+			nativeTheme.refresh()
+		})
+		watch('modules/themes/native/updateTheme.tsx', exports => {
+			if (typeof exports.updateTheme !== 'function') return
+			const original = exports.updateTheme
+			api.cleanup(
+				revenge.patcher.instead(
+					exports as any,
+					'updateTheme',
+					function (this: any, args, next) {
+						return nativeTheme.request(args, (...values) =>
+							Reflect.apply(next, this, values),
+						)
+					},
+				),
+			)
+			nativeTheme.attach(theme => Reflect.apply(original, exports, [theme]))
 		})
 		watch('modules/themes/RootThemeContextProvider.native.tsx', exports =>
 			after(exports, 'RootThemeContextProvider', surfaces.wrapRoot),
