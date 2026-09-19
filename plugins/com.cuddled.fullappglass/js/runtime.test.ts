@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as React from 'react'
-import { DEFAULT_SETTINGS, normalize, runtime } from './core'
+import {
+	DEFAULT_SETTINGS,
+	normalize,
+	profileButtonTheme,
+	runtime,
+} from './core'
+import { PROFILE_ACCENT } from './profileAccents'
 
 test('standalone lifecycle installs/restores patches, honors late activation and rejects stale startup reads', async () => {
 	const globals = globalThis as any
@@ -19,7 +25,11 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			const read = new Promise(resolve => {
 				resolveRead = resolve
 			})
-			const originalResolve = (_theme: unknown, _token: unknown) => '#112233'
+			const originalResolve = (
+				_theme: unknown,
+				_token: unknown,
+				_context?: unknown,
+			) => '#112233'
 			const internal = {
 				getSemanticColorName: (token: string) => token,
 				resolveSemanticColor: originalResolve,
@@ -53,7 +63,30 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				buttons: 'modules/user_profile/native/UserProfileTextButtonGroup.tsx',
 				replies: 'modules/messages/native/renderer/createMessageContent.tsx',
 			}
+			const pathsForBeta4 = {
+				input: 'modules/chat_input/native/FloatingChatInputContainer.tsx',
+				account: 'modules/main_tabs_v2/native/you_bar/YouBarBackground.tsx',
+				contact: 'modules/user_profile/native/UserProfileContactButtons.tsx',
+				semantic: 'design/tokens/native/SemanticColorContext.native.tsx',
+			}
+			const account = React.createElement(() => backdrop, {
+				barWidth: 330,
+				backgroundColor: '#12345633',
+				avatarSize: 60,
+			})
+			const semanticContext = {
+				saturation: 1,
+				contrast: 1,
+				enabledExperiments: [],
+				gradient: null,
+			}
 			const modules: Record<string, any> = {
+				[pathsForBeta4.input]: { default: () => header },
+				[pathsForBeta4.account]: { default: { type: () => account } },
+				[pathsForBeta4.contact]: { default: () => buttons },
+				[pathsForBeta4.semantic]: {
+					getSemanticColorContextFromThemeContext: () => semanticContext,
+				},
 				[pathsForBeta2.header]: { default: () => header },
 				[pathsForBeta2.backdrop]: { default: { type: () => backdrop } },
 				[pathsForBeta2.toolbar]: { default: { type: () => header } },
@@ -144,6 +177,9 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				nativeThemes,
 				modules,
 				pathsForBeta2,
+				pathsForBeta4,
+				account,
+				semanticContext,
 				header,
 				backdrop,
 				buttons,
@@ -179,6 +215,58 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			assert.ok(h.paths.includes('modules/chat/native/Chat.android.tsx'))
 			for (const path of Object.values(h.pathsForBeta2))
 				assert.ok(h.paths.includes(path))
+			for (const path of Object.values(h.pathsForBeta4))
+				assert.ok(h.paths.includes(path))
+			assert.equal(
+				h.modules[h.pathsForBeta4.input].default().props.original,
+				h.header,
+			)
+			const account = h.modules[h.pathsForBeta4.account].default.type()
+			assert.notEqual(account.type, h.account.type)
+			assert.deepEqual(account.props, h.account.props)
+			assert.equal(
+				h.modules[h.pathsForBeta4.contact].default().props.original,
+				h.buttons,
+			)
+			const profile = profileButtonTheme(normalize({ enabled: true }), {
+				primaryColor: 0x6030ab,
+				key: 'member',
+			})
+			const semantic = h.modules[h.pathsForBeta4.semantic]
+			const tagged = semantic.getSemanticColorContextFromThemeContext(profile)
+			assert.equal(tagged[PROFILE_ACCENT], '#6030AB')
+			assert.equal(
+				tagged.enabledExperiments,
+				h.semanticContext.enabledExperiments,
+			)
+			assert.equal(
+				h.internal.resolveSemanticColor(
+					'dark',
+					'CONTROL_PRIMARY_BORDER_DEFAULT',
+					tagged,
+				),
+				'#6030AB7F',
+			)
+			assert.equal(
+				h.internal.resolveSemanticColor(
+					'dark',
+					'CONTROL_CRITICAL_PRIMARY_BACKGROUND_DEFAULT',
+					tagged,
+				),
+				'#112233',
+			)
+			assert.equal(
+				semantic.getSemanticColorContextFromThemeContext({ theme: 'dark' }),
+				h.semanticContext,
+			)
+			assert.equal(
+				h.internal.resolveSemanticColor(
+					'dark',
+					'CONTROL_PRIMARY_BORDER_DEFAULT',
+					h.semanticContext,
+				),
+				'#112233',
+			)
 			assert.equal(
 				h.modules[h.pathsForBeta2.header].default().props.original,
 				h.header,
@@ -211,6 +299,14 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			)
 			h.api.jsonStorage.cache = normalize({ enabled: false })
 			h.storageChanged()
+			assert.equal(
+				h.internal.resolveSemanticColor(
+					'dark',
+					'CONTROL_PRIMARY_BORDER_DEFAULT',
+					tagged,
+				),
+				'#112233',
+			)
 			assert.equal(h.nativeThemes.at(-1), 'midnight')
 			assert.equal(h.modules[h.pathsForBeta2.replies].default(), h.reply)
 			assert.equal(
@@ -236,6 +332,13 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			assert.equal(h.modules[h.pathsForBeta2.buttons].default(), h.buttons)
 			assert.equal(h.modules[h.pathsForBeta2.replies].default(), h.reply)
 			assert.ok(h.unpatched() >= 7)
+			assert.equal(h.modules[h.pathsForBeta4.input].default(), h.header)
+			assert.equal(h.modules[h.pathsForBeta4.account].default.type(), h.account)
+			assert.equal(h.modules[h.pathsForBeta4.contact].default(), h.buttons)
+			assert.equal(
+				semantic.getSemanticColorContextFromThemeContext(profile),
+				h.semanticContext,
+			)
 		}
 		const h = setup()
 		const pending = definition.start(h.api)

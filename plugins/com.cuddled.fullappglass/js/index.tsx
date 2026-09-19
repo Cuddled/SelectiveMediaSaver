@@ -15,6 +15,7 @@ import {
 	surfaceColor,
 } from './core'
 import { createNativeThemeSync } from './nativeTheme'
+import { profileControlColor, profileSemanticContext } from './profileAccents'
 import { readableReplies } from './replies'
 import SettingsPage from './Settings'
 import { createSurfaces } from './surfaces'
@@ -155,6 +156,12 @@ export default plugin<{ jsonStorage: Settings }>({
 		watch('modules/chat_input/native/ChatInputScrimGradient.tsx', exports =>
 			after(exports, 'ChatInputScrimGradient', surfaces.wrapScrim),
 		)
+		watch('modules/chat_input/native/FloatingChatInputContainer.tsx', exports =>
+			after(exports, 'default', surfaces.wrapFloatingInput),
+		)
+		watch('modules/main_tabs_v2/native/you_bar/YouBarBackground.tsx', exports =>
+			after(exports.default, 'type', surfaces.wrapAccountBackground),
+		)
 		watch(
 			'modules/channel_list_v2/native/components/ChannelListStickyHeader.tsx',
 			exports => after(exports, 'default', surfaces.wrapListHeader),
@@ -171,6 +178,24 @@ export default plugin<{ jsonStorage: Settings }>({
 			'modules/user_profile/native/UserProfileTextButtonGroup.tsx',
 			exports => after(exports, 'default', surfaces.wrapProfileButtons),
 		)
+		watch(
+			'modules/user_profile/native/UserProfileContactButtons.tsx',
+			exports => after(exports, 'default', surfaces.wrapProfileButtons),
+		)
+		watch('design/tokens/native/SemanticColorContext.native.tsx', exports => {
+			if (typeof exports.getSemanticColorContextFromThemeContext !== 'function')
+				return
+			api.cleanup(
+				revenge.patcher.instead(
+					exports as any,
+					'getSemanticColorContextFromThemeContext',
+					function (this: any, args, original) {
+						const result = Reflect.apply(original, this, args)
+						return alive ? profileSemanticContext(args[0], result) : result
+					},
+				),
+			)
+		})
 		watch(
 			'modules/main_tabs_v2/native/channel/useChannelSafeAreaBottomStyles.tsx',
 			exports =>
@@ -266,6 +291,12 @@ export default plugin<{ jsonStorage: Settings }>({
 						if (alive && runtime.getSettings().enabled) {
 							try {
 								const name = internal.getSemanticColorName(args[1])
+								const profileColor = profileControlColor(
+									runtime.getSettings(),
+									name,
+									args[2],
+								)
+								if (profileColor !== undefined) return profileColor
 								if (Object.hasOwn(colors, name)) return colors[name]
 							} catch {
 								/* Unknown tokens keep Discord's original value. */

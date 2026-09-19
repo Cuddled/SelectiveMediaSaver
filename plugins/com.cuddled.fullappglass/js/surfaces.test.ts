@@ -16,7 +16,13 @@ import {
 } from './surfaces'
 
 function harness(
-	scope: 'app' | 'profile' | 'header' = 'app',
+	scope:
+		| 'app'
+		| 'profile'
+		| 'header'
+		| 'input'
+		| 'account'
+		| 'masked-account' = 'app',
 	gradient = false,
 ) {
 	const slots: any[] = []
@@ -61,7 +67,7 @@ function harness(
 		{ View: 'View', Image: 'Image' },
 		{ ...state, isActive: () => alive },
 	)
-	const original: React.ReactElement<any> =
+	let original: React.ReactElement<any> =
 		scope === 'header'
 			? React.createElement(
 					'View',
@@ -93,14 +99,70 @@ function harness(
 							initialState: 'existing-navigation',
 						}),
 					)
+	if (scope === 'input') {
+		const box = React.createElement(
+			'View',
+			{
+				style: { borderRadius: 24 },
+				collapsable: false,
+				onLayout: () => {},
+				onStartShouldSetResponder: () => true,
+				onResponderRelease: () => {},
+			},
+			[
+				null,
+				null,
+				React.createElement('TextInput', {
+					key: 'input',
+					value: 'draft',
+					ref: React.createRef(),
+				}),
+			],
+		)
+		original = React.createElement(
+			'AnimatedView',
+			{ style: { paddingBottom: 20 }, onLayout: () => {} },
+			React.createElement(React.Fragment, {}, [null, null, box, null]),
+		)
+	} else if (scope === 'account' || scope === 'masked-account') {
+		const fill = React.createElement('AnimatedView', {
+			style: [{ width: 330, height: 56 }, { animatedRadius: true }],
+		})
+		const output =
+			scope === 'account'
+				? fill
+				: React.createElement(
+						'MaskedView',
+						{
+							style: { position: 'absolute' },
+							maskElement: React.createElement('AvatarMask'),
+						},
+						fill,
+					)
+		original = React.createElement(() => output, {
+			key: 'original-background',
+			barWidth: 330,
+			backgroundColor: '#12345633',
+			avatarSize: 60,
+		})
+	}
 	const wrapped = (
 		scope === 'app'
 			? runtime.wrapRoot(original)
 			: scope === 'header'
 				? runtime.wrapListHeader(original)
-				: runtime.wrapProfileBackdrop(original)
+				: scope === 'input'
+					? runtime.wrapFloatingInput(original)
+					: scope === 'account' || scope === 'masked-account'
+						? runtime.wrapAccountBackground(original)
+						: runtime.wrapProfileBackdrop(original)
 	) as any
-	const boundary = scope === 'header' ? wrapped : wrapped.props.children
+	const boundary =
+		scope === 'header' || scope === 'input'
+			? wrapped
+			: scope === 'account' || scope === 'masked-account'
+				? wrapped.type(wrapped.props)
+				: wrapped.props.children
 	return {
 		state,
 		original,
@@ -109,6 +171,27 @@ function harness(
 		render() {
 			cursor = 0
 			const root = boundary.type(boundary.props)
+			if (
+				scope === 'input' ||
+				scope === 'account' ||
+				scope === 'masked-account'
+			) {
+				const container =
+					scope === 'input'
+						? root.props.children.props.children[2]
+						: scope === 'masked-account'
+							? root.props.children
+							: root
+				const wallpaper = container.props.children[0]
+				const layer = wallpaper.type(wallpaper.props)
+				return {
+					root,
+					container,
+					layer,
+					scope: container.props.children[1],
+					image: layer?.props.children[0],
+				}
+			}
 			if (scope === 'header') {
 				const wallpaper = root.props.children[0]
 				const layer = wallpaper.type(wallpaper.props)
@@ -493,6 +576,78 @@ test('profile background ignores stale callbacks and honors pause, area toggle, 
 	assert.equal(h.render().root, h.original)
 	h.stop()
 	assert.equal(h.runtime.wrapProfileBackdrop(h.original), h.original)
+})
+
+test('bottom wallpaper handles loading, failure, stale callbacks, area switches and cleanup for all three layouts', () => {
+	for (const kind of ['input', 'account', 'masked-account'] as const) {
+		const h = harness(kind)
+		const area = kind === 'input' ? 'chats' : 'mainScreens'
+		const initial = h.render()
+		assert.equal(initial.layer.props.pointerEvents, 'none')
+		assert.equal(
+			initial.layer.props.importantForAccessibility,
+			'no-hide-descendants',
+		)
+		assert.equal(initial.layer.props.style[1].backgroundColor, '#0B0D17')
+		assert.equal(initial.image.props.style[1].opacity, 0)
+		initial.image.props.onLoad()
+		assert.equal(h.render().image.props.style[1].opacity, 1)
+		initial.image.props.onError()
+		assert.equal(h.render().image.props.style[1].opacity, 0)
+		h.state.update({ ...h.state.getSettings(), [area]: false })
+		const off = h.render()
+		assert.equal(off.layer, null)
+		assert.equal(off.scope.key, initial.scope.key)
+		assert.equal(off.scope.props.children, initial.scope.props.children)
+		initial.image.props.onLoad()
+		h.state.update({
+			...h.state.getSettings(),
+			[area]: true,
+			blur: 8,
+			transparency: 1,
+		})
+		assert.equal(h.render().image.props.style[1].opacity, 0)
+		assert.equal(h.render().image.props.blurRadius, 0)
+		assert.equal(h.render().container.props.style[1].backgroundColor, '#0B0D17')
+		initial.image.props.onLoad()
+		assert.equal(h.render().image.props.style[1].opacity, 0)
+		h.state.update({ ...h.state.getSettings(), lowPower: false })
+		assert.equal(h.render().image.props.blurRadius, 8)
+		const latest = h.render().image
+		h.unmount()
+		latest.props.onLoad()
+		assert.equal(h.render().image.props.style[1].opacity, 0)
+		h.state.update({ ...h.state.getSettings(), enabled: false })
+		assert.equal(h.render().layer, null)
+		h.stop()
+		assert.equal(h.runtime.wrapFloatingInput(h.original), h.original)
+		assert.equal(h.runtime.wrapAccountBackground(h.original), h.original)
+	}
+})
+
+test('account background wrappers are stable and preserve props without wrapping unknown renderers', () => {
+	const h = harness('account')
+	const second = h.runtime.wrapAccountBackground(h.original) as any
+	assert.equal(second.type, h.wrapped.type)
+	assert.equal(second.key, h.original.key)
+	assert.equal(second.props.barWidth, h.original.props.barWidth)
+	assert.equal(second.props.avatarSize, h.original.props.avatarSize)
+	for (const props of [
+		{ barWidth: NaN },
+		{ barWidth: 0 },
+		{ barWidth: '330' },
+		{ backgroundColor: null },
+	]) {
+		const unknown = React.cloneElement(h.original, props)
+		assert.equal(h.runtime.wrapAccountBackground(unknown), unknown)
+	}
+	const unknown = React.createElement('View', {
+		barWidth: 330,
+		backgroundColor: '#000000',
+	})
+	assert.equal(h.runtime.wrapAccountBackground(unknown), unknown)
+	h.stop()
+	assert.equal(h.runtime.wrapAccountBackground(h.original), h.original)
 })
 
 test('profile-only button theme preserves the group and all descendant interaction props', () => {

@@ -3,6 +3,7 @@ import {
 	ABSOLUTE_FILL,
 	WALLPAPER_SOURCE,
 } from '../../com.cuddled.liquidglass/js/wallpaper'
+import { backAccountBar, backFloatingInput } from './bottomBars'
 import {
 	headerColor,
 	profileButtonTheme,
@@ -178,6 +179,10 @@ export function createSurfaces(
 	>()
 	const active = () =>
 		alive && access.isActive() && access.getSettings().enabled
+	const accountBackgrounds = new WeakMap<
+		ReactTypes.FunctionComponent<any>,
+		ReactTypes.FunctionComponent<any>
+	>()
 	function Wallpaper({ original }: { original: Element }) {
 		React.useSyncExternalStore(
 			access.subscribe,
@@ -350,6 +355,30 @@ export function createSurfaces(
 		const value = active() ? profileButtonTheme(settings, parent) : parent
 		return React.createElement(themeContext!.Provider, { value }, original)
 	}
+	function BottomBar({
+		original,
+		kind,
+	}: {
+		original: unknown
+		kind: 'input' | 'account'
+	}) {
+		React.useSyncExternalStore(
+			access.subscribe,
+			access.getSnapshot,
+			access.getSnapshot,
+		)
+		const settings = access.getSettings()
+		const enabled =
+			active() && (kind === 'input' ? settings.chats : settings.mainScreens)
+		const wallpaper = React.createElement(HeaderWallpaper, {
+			key: 'bottom-bar-wallpaper',
+			settings,
+			enabled,
+		})
+		return kind === 'input'
+			? backFloatingInput(React, original, enabled, wallpaper)
+			: backAccountBar(React, original, enabled, wallpaper)
+	}
 	function ProfileBackdrop({ original }: { original: Element }) {
 		React.useSyncExternalStore(
 			access.subscribe,
@@ -428,6 +457,43 @@ export function createSurfaces(
 		}
 	}
 	return {
+		wrapFloatingInput(original: unknown) {
+			return alive &&
+				native.View &&
+				native.Image &&
+				React.isValidElement(original)
+				? React.createElement(BottomBar as any, { original, kind: 'input' })
+				: original
+		},
+		wrapAccountBackground(original: unknown) {
+			if (
+				!alive ||
+				!native.View ||
+				!native.Image ||
+				!React.isValidElement<Record<string, any>>(original) ||
+				typeof original.type !== 'function' ||
+				original.type.prototype?.isReactComponent ||
+				typeof original.props.barWidth !== 'number' ||
+				!Number.isFinite(original.props.barWidth) ||
+				original.props.barWidth <= 0 ||
+				!['number', 'string'].includes(typeof original.props.backgroundColor)
+			)
+				return original
+			const Renderer = original.type as ReactTypes.FunctionComponent<any>
+			let Wrapper = accountBackgrounds.get(Renderer)
+			if (!Wrapper) {
+				Wrapper = props =>
+					React.createElement(BottomBar as any, {
+						original: Renderer(props),
+						kind: 'account',
+					})
+				accountBackgrounds.set(Renderer, Wrapper)
+			}
+			return React.createElement(Wrapper, {
+				...original.props,
+				key: original.key,
+			})
+		},
 		setThemeContext(value: ReactTypes.Context<any>) {
 			themeContext = value
 		},

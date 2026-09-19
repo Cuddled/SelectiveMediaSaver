@@ -6,6 +6,7 @@ import {
 	normalizeHexColor,
 	readableChatForeground,
 } from '../../com.cuddled.liquidglass/js/core'
+import { PROFILE_ACCENT, profileAccent } from './profileAccents'
 import type {
 	HexColor,
 	LiquidGlassSettings,
@@ -152,13 +153,17 @@ export function profileButtonTheme(
 	)
 		return parent
 	const original = parent as Record<string, unknown>
+	const accent = profileAccent(
+		original[PROFILE_ACCENT] ?? original.primaryColor,
+	)
 	return {
 		...original,
 		theme: 'dark',
 		primaryColor: null,
 		secondaryColor: null,
 		gradient: null,
-		key: `${original.key ?? ''}|fullapp-profile-controls:${JSON.stringify(settings)}`,
+		[PROFILE_ACCENT]: accent,
+		key: `${original.key ?? ''}|fullapp-profile-controls:${accent}:${JSON.stringify(settings)}`,
 	}
 }
 
