@@ -853,6 +853,11 @@ export const CONTENT_SEMANTIC_COLOR_KEYS = [
 	'ICON_STRONG',
 	'ICON_MUTED',
 	'ICON_SUBTLE',
+	'INTERACTIVE_ICON_DEFAULT',
+	'INTERACTIVE_ICON_HOVER',
+	'INTERACTIVE_ICON_ACTIVE',
+	'CHAT_INPUT_ICON_DEFAULT_TINT',
+	'CHAT_INPUT_ACTION_BUTTON_ICON_DEFAULT_TINT',
 ] as const
 
 export const SEMANTIC_COLOR_KEYS = [
@@ -876,6 +881,18 @@ export function isLiquidGlassSemanticKey(
 
 function semanticColor(value: HexColor, opacity: number): HexColor {
 	return hexWithAlpha(value, opacity)
+}
+
+/** Keep a custom light text hue; dark chat glass needs a light fallback. */
+export function readableChatForeground(value: unknown): HexColor {
+	const text = normalizeHexColor(value)
+	const channels = text
+		.slice(1)
+		.match(/../g)!
+		.map(channel => Number.parseInt(channel, 16))
+	const brightness =
+		channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+	return brightness >= 180 ? text : '#F7F8FF'
 }
 
 const PROFILE_COLOR_FIELDS = [
@@ -996,6 +1013,8 @@ export function buildSemanticOverrides(value: unknown): Record<string, string> {
 	const baseOpacity = settings.panelOpacity
 	const raisedOpacity = settings.raisedOpacity
 	const text = settings.textColor
+	const chatGlass = isChatWallpaperEnabled(settings)
+	const icon = chatGlass ? readableChatForeground(text) : text
 	const border = settings.borderColor
 	const accent = settings.accentColor
 
@@ -1187,10 +1206,18 @@ export function buildSemanticOverrides(value: unknown): Record<string, string> {
 		TEXT_BRAND: semanticColor(accent, 1),
 		CONTROL_BRAND_FOREGROUND: semanticColor(accent, 1),
 		CONTROL_BRAND_FOREGROUND_NEW: semanticColor(accent, 1),
-		ICON_DEFAULT: semanticColor(text, 0.86),
-		ICON_STRONG: semanticColor(text, 1),
-		ICON_MUTED: semanticColor(text, 0.62),
-		ICON_SUBTLE: semanticColor(text, 0.52),
+		ICON_DEFAULT: semanticColor(icon, chatGlass ? 0.94 : 0.86),
+		ICON_STRONG: semanticColor(icon, 1),
+		// Keep genuinely disabled actions dimmer than ordinary navigation icons.
+		ICON_MUTED: semanticColor(icon, 0.62),
+		ICON_SUBTLE: semanticColor(icon, chatGlass ? 0.88 : 0.52),
+		// Generated call/video/search icons and chat controls use these dedicated
+		// tokens rather than ICON_DEFAULT (audited against Discord 347 Android).
+		INTERACTIVE_ICON_DEFAULT: semanticColor(icon, 0.94),
+		INTERACTIVE_ICON_HOVER: semanticColor(icon, 1),
+		INTERACTIVE_ICON_ACTIVE: semanticColor(icon, 1),
+		CHAT_INPUT_ICON_DEFAULT_TINT: semanticColor(icon, 0.94),
+		CHAT_INPUT_ACTION_BUTTON_ICON_DEFAULT_TINT: semanticColor(icon, 0.94),
 	})
 
 	return overrides

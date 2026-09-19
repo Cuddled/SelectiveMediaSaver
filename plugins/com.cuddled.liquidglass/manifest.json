@@ -5,7 +5,7 @@
 	"description": "Customizable glass with Midnight Waves app and chat wallpapers, live presets, colors, and opacity controls.",
 	"icon": "ic_theme_24px",
 	"author": "Cuddled",
-	"version": "1.0.0-beta6",
+	"version": "1.0.0-beta7",
 	"dependencies": {
 		"revenge.api": {
 			"version": ">=1.0.0 <2.0.0"

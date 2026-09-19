@@ -1,4 +1,9 @@
-import { hexWithAlpha, isChatWallpaperEnabled, normalizeHexColor } from './core'
+import {
+	hexWithAlpha,
+	isChatWallpaperEnabled,
+	normalizeHexColor,
+	readableChatForeground,
+} from './core'
 import type * as ReactTypes from 'react'
 import type { HexColor, LiquidGlassSettings } from './types'
 
@@ -22,16 +27,7 @@ export function chatAppearanceColors(settings: LiquidGlassSettings) {
 				.padStart(2, '0'),
 		)
 		.join('')}`.toUpperCase() as HexColor
-	const text = normalizeHexColor(settings.textColor)
-	const textChannels = text
-		.slice(1)
-		.match(/../g)!
-		.map(value => Number.parseInt(value, 16))
-	const brightness =
-		textChannels[0] * 0.2126 +
-		textChannels[1] * 0.7152 +
-		textChannels[2] * 0.0722
-	const foreground = brightness >= 180 ? text : '#F7F8FF'
+	const foreground = readableChatForeground(settings.textColor)
 	return {
 		panel,
 		surface: hexWithAlpha(panel, 0.72 + settings.panelOpacity * 0.2),
