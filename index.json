@@ -27,6 +27,30 @@
         }
       }
     },
+    "com.cuddled.fullappglass": {
+      "name": "Full-App Glass (Experimental)",
+      "description": "An independent Midnight Waves backdrop with adjustable transparency across supported Discord screens.",
+      "author": "Cuddled",
+      "icon": "ic_theme_24px",
+      "channels": {
+        "beta": "1.0.0-beta1"
+      },
+      "versions": {
+        "1.0.0-beta1": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/pool/com.cuddled.fullappglass@1.0.0-beta1.zip",
+          "sha256": "efffc4db89a3791f79e956b3a872f55ba48bbdba5aef6328eb5ce428c0b76904",
+          "size": 12885,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        }
+      }
+    },
     "com.cuddled.liquidglass": {
       "name": "Liquid Glass",
       "description": "Customizable glass with Midnight Waves app and chat wallpapers, live presets, colors, and opacity controls.",
