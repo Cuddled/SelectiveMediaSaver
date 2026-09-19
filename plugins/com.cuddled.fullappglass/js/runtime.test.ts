@@ -23,7 +23,45 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				getSemanticColorName: (token: string) => token,
 				resolveSemanticColor: originalResolve,
 			}
+			const header = React.createElement(
+				'View',
+				{ style: { paddingTop: 16 } },
+				[React.createElement('Button', { key: 'search' })],
+			)
+			const backdrop = React.createElement('View', {
+				style: { position: 'absolute' },
+				pointerEvents: 'none',
+			})
+			const buttons = React.createElement('Buttons', {
+				onPress: () => {},
+				disabled: true,
+			})
+			const reply = {
+				id: 'parent',
+				referencedMessage: {
+					state: 0,
+					message: { id: 'reply', textColor: -16777216 },
+				},
+			}
+			const pathsForBeta2 = {
+				header:
+					'modules/channel_list_v2/native/components/ChannelListStickyHeader.tsx',
+				backdrop: 'modules/user_profile/native/UserProfileFixedBackground.tsx',
+				toolbar:
+					'modules/main_tabs_v2/native/tabs/you/YouBannerDecorations.tsx',
+				buttons: 'modules/user_profile/native/UserProfileTextButtonGroup.tsx',
+				replies: 'modules/messages/native/renderer/createMessageContent.tsx',
+			}
 			const modules: Record<string, any> = {
+				[pathsForBeta2.header]: { default: () => header },
+				[pathsForBeta2.backdrop]: { default: { type: () => backdrop } },
+				[pathsForBeta2.toolbar]: { default: { type: () => header } },
+				[pathsForBeta2.buttons]: { default: () => buttons },
+				[pathsForBeta2.replies]: { default: () => reply },
+				'../discord_common/js/packages/design/components/ThemeContextProvider/ThemeContext.tsx':
+					{
+						ThemeContext: React.createContext({ theme: 'dark', key: 'native' }),
+					},
 				'modules/user_settings/ThemeStore.tsx': {
 					default: { emitChange() {} },
 				},
@@ -97,6 +135,12 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			return {
 				api,
 				paths,
+				modules,
+				pathsForBeta2,
+				header,
+				backdrop,
+				buttons,
+				reply,
 				internal,
 				originalResolve,
 				resolveRead,
@@ -114,6 +158,30 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				h.paths.includes('modules/themes/RootThemeContextProvider.native.tsx'),
 			)
 			assert.ok(h.paths.includes('modules/chat/native/Chat.android.tsx'))
+			for (const path of Object.values(h.pathsForBeta2))
+				assert.ok(h.paths.includes(path))
+			assert.equal(
+				h.modules[h.pathsForBeta2.header].default().props.original,
+				h.header,
+			)
+			assert.equal(
+				h.modules[h.pathsForBeta2.backdrop].default.type().props.original,
+				h.backdrop,
+			)
+			assert.equal(
+				h.modules[h.pathsForBeta2.toolbar].default.type().props.original,
+				h.header,
+			)
+			assert.equal(
+				h.modules[h.pathsForBeta2.buttons].default().props.original,
+				h.buttons,
+			)
+			assert.equal(
+				h.modules[h.pathsForBeta2.replies].default().referencedMessage.message
+					.textColor,
+				-1,
+			)
+			assert.equal(h.reply.referencedMessage.message.textColor, -16777216)
 			assert.equal(
 				h.internal.resolveSemanticColor('dark', 'TEXT_STRONG'),
 				'#F7F8FFFF',
@@ -124,6 +192,7 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			)
 			h.api.jsonStorage.cache = normalize({ enabled: false })
 			h.storageChanged()
+			assert.equal(h.modules[h.pathsForBeta2.replies].default(), h.reply)
 			assert.equal(
 				h.internal.resolveSemanticColor('dark', 'TEXT_STRONG'),
 				'#112233',
@@ -135,7 +204,15 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			await pending
 			assert.equal(runtime.getSettings().enabled, false)
 			assert.equal(h.internal.resolveSemanticColor, h.originalResolve)
-			assert.ok(h.unpatched() >= 2)
+			assert.equal(h.modules[h.pathsForBeta2.header].default(), h.header)
+			assert.equal(
+				h.modules[h.pathsForBeta2.backdrop].default.type(),
+				h.backdrop,
+			)
+			assert.equal(h.modules[h.pathsForBeta2.toolbar].default.type(), h.header)
+			assert.equal(h.modules[h.pathsForBeta2.buttons].default(), h.buttons)
+			assert.equal(h.modules[h.pathsForBeta2.replies].default(), h.reply)
+			assert.ok(h.unpatched() >= 7)
 		}
 		const h = setup()
 		const pending = definition.start(h.api)

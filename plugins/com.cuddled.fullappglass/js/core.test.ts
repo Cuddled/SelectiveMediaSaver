@@ -10,10 +10,13 @@ import {
 	asGlass,
 	createState,
 	DEFAULT_SETTINGS,
+	headerColor,
 	navigationTheme,
 	normalize,
 	palette,
+	profileButtonTheme,
 	surfaceColor,
+	toolbarColor,
 } from './core'
 
 const active = normalize({ enabled: true })
@@ -161,4 +164,45 @@ test('runtime refreshes only on real changes and releases subscribers', () => {
 	state.update({ ...active, enabled: false })
 	assert.equal(notifications, 1)
 	assert.equal(state.getSettings().enabled, false)
+})
+
+test('overlapping headers and the profile toolbar retain readable backing at 100% transparency', () => {
+	const clear = { ...active, transparency: 1 }
+	assert.equal(headerColor(clear), '#171B2BF7')
+	assert.equal(toolbarColor(clear), '#171B2BD1')
+	assert.equal(surfaceColor(clear), '#171B2B00')
+	assert.equal(headerColor({ ...active, transparency: 0 }), '#171B2BFF')
+})
+
+test('profile button context removes only local profile tint and restores the exact parent when disabled', () => {
+	const parent = {
+		theme: 'light',
+		primaryColor: 0xffeeff,
+		secondaryColor: 0xcccddd,
+		gradient: { id: 42 },
+		key: 'profile',
+		contrast: 1.4,
+		saturation: 0.6,
+		flags: 12,
+		density: 'compact',
+		enabledExperiments: { x: true },
+	}
+	const original = structuredClone(parent)
+	const next = profileButtonTheme(active, parent) as any
+	assert.equal(next.theme, 'dark')
+	assert.equal(next.primaryColor, null)
+	assert.equal(next.secondaryColor, null)
+	assert.equal(next.gradient, null)
+	assert.equal(next.contrast, parent.contrast)
+	assert.equal(next.enabledExperiments, parent.enabledExperiments)
+	assert.notEqual(next.key, parent.key)
+	assert.deepEqual(parent, original)
+	for (const settings of [
+		DEFAULT_SETTINGS,
+		{ ...active, profiles: false },
+		{ ...active, controls: false },
+	])
+		assert.equal(profileButtonTheme(settings, parent), parent)
+	for (const unknown of [null, undefined, [], 'dark'])
+		assert.equal(profileButtonTheme(active, unknown), unknown)
 })

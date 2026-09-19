@@ -3,7 +3,12 @@ import {
 	ABSOLUTE_FILL,
 	WALLPAPER_SOURCE,
 } from '../../com.cuddled.liquidglass/js/wallpaper'
-import { surfaceColor } from './core'
+import {
+	headerColor,
+	profileButtonTheme,
+	surfaceColor,
+	toolbarColor,
+} from './core'
 import type * as ReactTypes from 'react'
 import type { Settings } from './core'
 
@@ -32,7 +37,8 @@ export function recolorChrome(
 	if (!Array.isArray(children) || children.length !== 2) return original
 	const [first, second] = children
 	if (!React.isValidElement<Record<string, any>>(first)) return original
-	const surface = surfaceColor(settings)
+	const surface =
+		kind === 'header' ? headerColor(settings) : surfaceColor(settings)
 	if (kind === 'header') {
 		if (
 			original.type !== React.Fragment ||
@@ -64,12 +70,68 @@ export function recolorChrome(
 	])
 }
 
+/** Exact ChannelListStickyHeader output: no traversal into channel rows/banners. */
+export function recolorListHeader(
+	React: ReactApi,
+	original: unknown,
+	settings: Settings,
+): unknown {
+	if (
+		!settings.enabled ||
+		!settings.mainScreens ||
+		!React.isValidElement<Record<string, any>>(original) ||
+		!Object.hasOwn(original.props, 'style') ||
+		!Array.isArray(original.props.children)
+	)
+		return original
+	return React.cloneElement(original, {
+		style: [original.props.style, { backgroundColor: headerColor(settings) }],
+	})
+}
+
+/** YouBannerDecorations paints both an opaque gradient and a mixed-RGB toolbar. */
+export function recolorProfileToolbar(
+	React: ReactApi,
+	original: unknown,
+	settings: Settings,
+): unknown {
+	if (
+		!settings.enabled ||
+		!settings.profiles ||
+		!settings.controls ||
+		!React.isValidElement<Record<string, any>>(original) ||
+		original.props.pointerEvents !== 'box-none'
+	)
+		return original
+	const children = original.props.children
+	if (!Array.isArray(children) || children.length !== 2) return original
+	const [gradient, toolbar] = children
+	if (
+		!React.isValidElement<Record<string, any>>(gradient) ||
+		gradient.props.pointerEvents !== 'none' ||
+		!Array.isArray(gradient.props.colors) ||
+		gradient.props.colors.length !== 2 ||
+		!React.isValidElement<Record<string, any>>(toolbar) ||
+		!Object.hasOwn(toolbar.props, 'style')
+	)
+		return original
+	return React.cloneElement(original, {}, [
+		React.cloneElement(gradient, {
+			colors: [hexWithAlpha(settings.panelColor, 0), toolbarColor(settings)],
+		}),
+		React.cloneElement(toolbar, {
+			style: [toolbar.props.style, { backgroundColor: toolbarColor(settings) }],
+		}),
+	])
+}
+
 export function createSurfaces(
 	React: ReactApi,
 	native: { View: any; Image: any },
 	access: Access,
 ) {
 	let alive = true
+	let themeContext: ReactTypes.Context<any> | undefined
 	const Visible = React.createContext(false)
 	const headers = new WeakMap<
 		ReactTypes.FunctionComponent<any>,
@@ -155,16 +217,93 @@ export function createSurfaces(
 		kind,
 	}: {
 		original: unknown
-		kind: 'header' | 'scrim'
+		kind: 'header' | 'scrim' | 'list-header' | 'profile-toolbar'
 	}) {
 		React.useSyncExternalStore(
 			access.subscribe,
 			access.getSnapshot,
 			access.getSnapshot,
 		)
-		return active()
-			? recolorChrome(React, original, kind, access.getSettings())
-			: original
+		if (!active()) return original
+		const settings = access.getSettings()
+		if (kind === 'list-header')
+			return recolorListHeader(React, original, settings)
+		if (kind === 'profile-toolbar')
+			return recolorProfileToolbar(React, original, settings)
+		return recolorChrome(React, original, kind, settings)
+	}
+	function ProfileButtons({ original }: { original: Element }) {
+		React.useSyncExternalStore(
+			access.subscribe,
+			access.getSnapshot,
+			access.getSnapshot,
+		)
+		const parent = React.useContext(themeContext!)
+		const settings = access.getSettings()
+		const value = active() ? profileButtonTheme(settings, parent) : parent
+		return React.createElement(themeContext!.Provider, { value }, original)
+	}
+	function ProfileBackdrop({ original }: { original: Element }) {
+		React.useSyncExternalStore(
+			access.subscribe,
+			access.getSnapshot,
+			access.getSnapshot,
+		)
+		const settings = access.getSettings()
+		const enabled = active() && settings.profiles
+		const request = React.useMemo(() => ({}), [enabled])
+		const current = React.useRef<object | null>(request)
+		current.current = request
+		const [loaded, setLoaded] = React.useState<object | null>(null)
+		React.useEffect(
+			() => () => {
+				current.current = null
+			},
+			[],
+		)
+		const ready = enabled && loaded === request
+		const mark = (ok: boolean) => {
+			if (
+				active() &&
+				access.getSettings().profiles &&
+				current.current === request
+			)
+				setLoaded(ok ? request : null)
+		}
+		if (!enabled) return original
+		// Replace only the decorative fixed background, behind banners/content/scrolling.
+		// This opaque base prevents the previous screen bleeding through even offline.
+		return React.createElement(
+			native.View,
+			{
+				style: [
+					original.props.style,
+					{ backgroundColor: '#0B0D17', overflow: 'hidden' },
+				],
+				pointerEvents: 'none',
+				accessible: false,
+				accessibilityElementsHidden: true,
+				importantForAccessibility: 'no-hide-descendants',
+			},
+			React.createElement(native.Image, {
+				source: WALLPAPER_SOURCE,
+				resizeMode: 'cover',
+				blurRadius: settings.lowPower ? 0 : settings.blur,
+				style: [ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }],
+				onLoadStart: () => mark(false),
+				onLoad: () => mark(true),
+				onError: () => mark(false),
+			}),
+			React.createElement(native.View, {
+				style: [
+					ABSOLUTE_FILL,
+					{ backgroundColor: hexWithAlpha('#000000', settings.darkness) },
+				],
+			}),
+			React.createElement(native.View, {
+				style: [ABSOLUTE_FILL, { backgroundColor: surfaceColor(settings) }],
+			}),
+		)
 	}
 	class Guard extends React.Component<
 		{ original: Element; children?: ReactTypes.ReactNode },
@@ -182,6 +321,44 @@ export function createSurfaces(
 		}
 	}
 	return {
+		setThemeContext(value: ReactTypes.Context<any>) {
+			themeContext = value
+		},
+		wrapProfileButtons(original: unknown) {
+			return alive && themeContext?.Provider && React.isValidElement(original)
+				? React.createElement(ProfileButtons, { original: original as Element })
+				: original
+		},
+		wrapListHeader(original: unknown) {
+			return alive && React.isValidElement(original)
+				? React.createElement(Chrome as any, { original, kind: 'list-header' })
+				: original
+		},
+		wrapProfileToolbar(original: unknown) {
+			return alive && React.isValidElement(original)
+				? React.createElement(Chrome as any, {
+						original,
+						kind: 'profile-toolbar',
+					})
+				: original
+		},
+		wrapProfileBackdrop(original: unknown) {
+			if (
+				!alive ||
+				!native.View ||
+				!native.Image ||
+				!React.isValidElement<Record<string, any>>(original) ||
+				original.props.pointerEvents !== 'none' ||
+				!Object.hasOwn(original.props, 'style') ||
+				original.props.children != null
+			)
+				return original
+			return React.createElement(
+				Guard,
+				{ original },
+				React.createElement(ProfileBackdrop, { original }),
+			)
+		},
 		wrapRoot(original: unknown) {
 			// The inspected outer theme module returns a theme provider with children.
 			if (
