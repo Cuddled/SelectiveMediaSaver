@@ -26,10 +26,10 @@ export function recolorChrome(
 	original: unknown,
 	kind: 'header' | 'scrim',
 	settings: Settings,
+	backdrop?: ReactTypes.ReactNode,
 ): unknown {
 	if (
-		!settings.enabled ||
-		!settings.chats ||
+		((!settings.enabled || !settings.chats) && !backdrop) ||
 		!React.isValidElement<Record<string, any>>(original)
 	)
 		return original
@@ -46,9 +46,13 @@ export function recolorChrome(
 		)
 			return original
 		return React.cloneElement(original, {}, [
-			React.cloneElement(first, {
-				style: [first.props.style, { backgroundColor: surface }],
-			}),
+			decorateHeader(
+				React,
+				first,
+				settings.enabled && settings.chats,
+				surface,
+				backdrop,
+			),
 			second,
 		])
 	}
@@ -75,17 +79,52 @@ export function recolorListHeader(
 	React: ReactApi,
 	original: unknown,
 	settings: Settings,
+	backdrop?: ReactTypes.ReactNode,
 ): unknown {
 	if (
-		!settings.enabled ||
-		!settings.mainScreens ||
+		((!settings.enabled || !settings.mainScreens) && !backdrop) ||
 		!React.isValidElement<Record<string, any>>(original) ||
 		!Object.hasOwn(original.props, 'style') ||
 		!Array.isArray(original.props.children)
 	)
 		return original
+	return decorateHeader(
+		React,
+		original,
+		settings.enabled && settings.mainScreens,
+		headerColor(settings),
+		backdrop,
+	)
+}
+
+function decorateHeader(
+	React: ReactApi,
+	original: Element,
+	enabled: boolean,
+	fallback: string,
+	backdrop?: ReactTypes.ReactNode,
+) {
 	return React.cloneElement(original, {
-		style: [original.props.style, { backgroundColor: headerColor(settings) }],
+		style: enabled
+			? [
+					original.props.style,
+					{ backgroundColor: backdrop ? '#0B0D17' : fallback },
+				]
+			: original.props.style,
+		...(backdrop
+			? {
+					// Stable keyed slots survive live toggles. No wrapper around the header,
+					// so its ref, layout measurement, safe-area padding and controls survive.
+					children: [
+						backdrop,
+						React.createElement(
+							React.Fragment,
+							{ key: 'header-content' },
+							original.props.children,
+						),
+					],
+				}
+			: {}),
 	})
 }
 
@@ -224,13 +263,81 @@ export function createSurfaces(
 			access.getSnapshot,
 			access.getSnapshot,
 		)
-		if (!active()) return original
-		const settings = access.getSettings()
+		const settings = active()
+			? access.getSettings()
+			: { ...access.getSettings(), enabled: false }
+		const backdrop =
+			native.View &&
+			native.Image &&
+			(kind === 'header' || kind === 'list-header')
+				? React.createElement(HeaderWallpaper, {
+						key: 'header-wallpaper',
+						settings,
+						enabled:
+							settings.enabled &&
+							(kind === 'header' ? settings.chats : settings.mainScreens),
+					})
+				: undefined
 		if (kind === 'list-header')
-			return recolorListHeader(React, original, settings)
+			return recolorListHeader(React, original, settings, backdrop)
 		if (kind === 'profile-toolbar')
 			return recolorProfileToolbar(React, original, settings)
-		return recolorChrome(React, original, kind, settings)
+		return recolorChrome(React, original, kind, settings, backdrop)
+	}
+	function HeaderWallpaper({
+		settings,
+		enabled,
+	}: {
+		settings: Settings
+		enabled: boolean
+	}) {
+		const request = React.useMemo(() => ({}), [enabled])
+		const current = React.useRef<object | null>(request)
+		current.current = request
+		const [loaded, setLoaded] = React.useState<object | null>(null)
+		React.useEffect(
+			() => () => {
+				current.current = null
+			},
+			[],
+		)
+		const ready = enabled && loaded === request
+		const mark = (ok: boolean) => {
+			if (active() && enabled && current.current === request)
+				setLoaded(ok ? request : null)
+		}
+		if (!enabled) return null
+		return React.createElement(
+			native.View,
+			{
+				style: [
+					ABSOLUTE_FILL,
+					{ backgroundColor: '#0B0D17', overflow: 'hidden' },
+				],
+				pointerEvents: 'none',
+				accessible: false,
+				accessibilityElementsHidden: true,
+				importantForAccessibility: 'no-hide-descendants',
+			},
+			React.createElement(native.Image, {
+				source: WALLPAPER_SOURCE,
+				resizeMode: 'cover',
+				blurRadius: settings.lowPower ? 0 : settings.blur,
+				style: [ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }],
+				onLoadStart: () => mark(false),
+				onLoad: () => mark(true),
+				onError: () => mark(false),
+			}),
+			React.createElement(native.View, {
+				style: [
+					ABSOLUTE_FILL,
+					{ backgroundColor: hexWithAlpha('#000000', settings.darkness) },
+				],
+			}),
+			React.createElement(native.View, {
+				style: [ABSOLUTE_FILL, { backgroundColor: surfaceColor(settings) }],
+			}),
+		)
 	}
 	function ProfileButtons({ original }: { original: Element }) {
 		React.useSyncExternalStore(

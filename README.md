@@ -198,7 +198,7 @@ particular native build paints additional opaque layers over the wallpaper.
 
 ## Full-App Glass (Experimental) for Revenge Next
 
-`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta2` plugin. It does not require
+`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta3` plugin. It does not require
 Liquid Glass to be installed and has its own JSON storage. Liquid Glass's code, version, saved
 colors, and profiles are not changed by this experiment. A few audited pure helpers are bundled
 into the new ZIP; there is no runtime dependency on the other plugin.
@@ -212,8 +212,9 @@ In its settings, enable **Full-App Glass**, then use:
 
 - **Master transparency:** 0% solid through 100% clear; default 80%. The miniature preview changes
   while dragging, and releasing applies/saves the value across supported surfaces. Chat and
-  channel-list headers keep at least 97% opacity, and the profile toolbar at least 82%, so text
-  scrolling behind them does not compete with the controls.
+  channel-list headers have their own opaque wallpaper-backed layer, with adjustable tint/dim,
+  so text scrolling underneath cannot overlap the controls. The profile toolbar retains an
+  opacity floor of 82%.
 - **Wallpaper darkness:** default 28%, independent from transparency.
 - **Glass tint:** Midnight, Violet, Ocean, or Black swatches.
 - **Area switches:** main screens (shared list/navigation/settings surfaces), conversations,
@@ -225,7 +226,7 @@ In its settings, enable **Full-App Glass**, then use:
 The Midnight Waves image sits underneath the inspected app-level theme/navigation tree, with a
 dark fallback while loading/offline. The plugin hides supported theme gradients only after the
 image loads in that scope. It also uses a separate noninteractive wallpaper behind the native
-chat viewport, with stronger chat headers and master-opacity input scrims.
+chat viewport, with independently wallpaper-backed headers and master-opacity input scrims.
 Beta2 gives own/member profiles their own fixed wallpaper with an opaque dark fallback, rather
 than exposing the previous screen underneath. Banners, profile effects, scroll containers, and
 touch handlers are left intact. The own-profile toolbar's final gradient/fill is retinted after
@@ -233,6 +234,15 @@ Discord mixes its colors. Profile action buttons use a scoped dark theme context
 primary/secondary colors, so their existing semantic glass colors and pressed states apply.
 Cached reply/thread-preview message text colors are normalized at the final native row boundary;
 role colors, links, markup, blocked/deleted placeholders, and message bodies remain unchanged.
+Beta3 also watches Discord 347's `modules/themes/native/updateTheme.tsx`: the React dark provider
+does not update this native theme by itself. While conversations are enabled, native theme updates
+are temporarily sent as `dark`; pausing, turning conversations off, or unloading restores the most
+recent requested theme (or ThemeStore's current theme if none was intercepted). This never dispatches
+an appearance-settings action or changes saved preferences. Missing modules safely skip the patch;
+bridge refresh failures are logged. Native reply-preview appearance still needs phone confirmation.
+Chat and server-list headers receive clipped, noninteractive wallpaper layers with an opaque dark
+offline fallback. Original header controls, layout/safe-area measurements, navigation frames, and
+refs stay in place; keyed content slots avoid remounting controls when toggling the preview.
 Navigation identities, refs, media, interaction handlers, role/name-style colors, and native
 disabled states are retained. A temporary dark theme context is used while preview is active;
 the user's saved Discord appearance preference is not modified.
@@ -384,7 +394,7 @@ The distributables are written to:
 build/classic/manifest.json
 build/classic/index.js
 build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
-build/dist/com.cuddled.fullappglass@1.0.0-beta2.zip
+build/dist/com.cuddled.fullappglass@1.0.0-beta3.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 
