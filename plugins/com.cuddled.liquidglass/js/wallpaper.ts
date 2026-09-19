@@ -1,4 +1,6 @@
 import {
+	chatWallpaperLayersFor,
+	isChatWallpaperEnabled,
 	isWallpaperBackground,
 	MIDNIGHT_WAVES_URL,
 	wallpaperLayersFor,
@@ -8,6 +10,22 @@ import type { LiquidGlassSettings } from './types'
 
 type Element = ReactTypes.ReactElement<Record<string, any>>
 type ReactApi = typeof ReactTypes
+
+/** Match the native chat viewport, not unrelated previews or arbitrary Views. */
+export function isNativeChat(
+	React: ReactApi,
+	original: unknown,
+	nativeChatType: unknown,
+): original is Element {
+	return (
+		!!nativeChatType &&
+		React.isValidElement<Record<string, any>>(original) &&
+		original.type === nativeChatType &&
+		typeof original.props.channelId === 'string' &&
+		/^\d{17,20}$/.test(original.props.channelId) &&
+		original.props.inverted === true
+	)
+}
 
 export const WALLPAPER_SOURCE = {
 	uri: MIDNIGHT_WAVES_URL,
@@ -60,16 +78,28 @@ export function createMainTabsWallpaper(
 	let alive = true
 	const { View, Image } = native
 
-	function WallpaperBoundary({ original }: { original: Element }) {
+	function WallpaperBoundary({
+		original,
+		scope = 'app',
+	}: {
+		original: Element
+		scope?: 'app' | 'chat'
+	}) {
 		React.useSyncExternalStore(
 			access.subscribe,
 			access.getSnapshot,
 			access.getSnapshot,
 		)
 		const settings = access.getSettings()
-		const active = alive && access.isActive() && isWallpaperBackground(settings)
+		const active =
+			alive &&
+			access.isActive() &&
+			(scope === 'chat'
+				? isChatWallpaperEnabled(settings)
+				: isWallpaperBackground(settings))
+		const channelId = scope === 'chat' ? original.props.channelId : undefined
 		// Changing mode invalidates callbacks from the previous image request.
-		const request = React.useMemo(() => ({}), [active])
+		const request = React.useMemo(() => ({}), [active, channelId])
 		const currentRequest = React.useRef<object | null>(request)
 		currentRequest.current = request
 		const [load, setLoad] = React.useState<{
@@ -98,8 +128,11 @@ export function createMainTabsWallpaper(
 		}
 		const ready = active && load?.request === request && load.ready
 		const parts = getMainTabsParts(React, original)
-		if (!parts || !View || !Image) return original
-		const layers = wallpaperLayersFor(settings)
+		if ((scope === 'app' && !parts) || !View || !Image) return original
+		const layers =
+			scope === 'chat'
+				? chatWallpaperLayersFor(settings)
+				: wallpaperLayersFor(settings)
 		const wallpaper = active
 			? React.createElement(
 					View,
@@ -112,6 +145,7 @@ export function createMainTabsWallpaper(
 						importantForAccessibility: 'no-hide-descendants',
 					},
 					React.createElement(Image, {
+						key: channelId ?? 'app',
 						source: WALLPAPER_SOURCE,
 						resizeMode: 'cover',
 						blurRadius: layers.blurRadius,
@@ -134,6 +168,31 @@ export function createMainTabsWallpaper(
 					}),
 				)
 			: null
+		if (scope === 'chat') {
+			// This layer sits inside the existing chat screen, above its opaque
+			// parent surfaces. Keep the native ref, children and handlers intact.
+			const chat = ready
+				? React.cloneElement(original, {
+						style: [original.props.style, { backgroundColor: '#00000000' }],
+					})
+				: original
+			return React.createElement(
+				View,
+				{
+					style: [
+						{ flex: 1, overflow: 'hidden' },
+						ready ? { backgroundColor: settings.panelColor } : undefined,
+					],
+				},
+				wallpaper,
+				React.createElement(
+					VisibleContext.Provider,
+					{ key: 'liquid-glass-chat-scope', value: !!ready },
+					chat,
+				),
+			)
+		}
+		if (!parts) return original
 		// Keep both the native gradient and navigator positions stable when toggling.
 		return React.cloneElement(
 			parts.root,
@@ -170,6 +229,20 @@ export function createMainTabsWallpaper(
 	}
 
 	return {
+		wrapChat(original: unknown, nativeChatType: unknown) {
+			if (
+				!alive ||
+				!Image ||
+				!View ||
+				!isNativeChat(React, original, nativeChatType)
+			)
+				return original
+			return React.createElement(
+				WallpaperErrorBoundary,
+				{ original },
+				React.createElement(WallpaperBoundary, { original, scope: 'chat' }),
+			)
+		},
 		wrap(original: unknown) {
 			if (!alive || !Image || !View || !getMainTabsParts(React, original))
 				return original

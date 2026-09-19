@@ -3,8 +3,10 @@ import {
 	applyCustomSettings,
 	applyPreset,
 	BUILT_IN_PRESETS,
+	chatWallpaperLayersFor,
 	DEFAULT_SETTINGS,
 	hexToRgba,
+	isChatWallpaperEnabled,
 	isWallpaperBackground,
 	MAX_CUSTOM_PROFILES,
 	normalizeHexColor,
@@ -157,10 +159,18 @@ function GlassPreview({ settings }: { settings: LiquidGlassSettings }) {
 	)
 }
 
-function WallpaperPreview({ settings }: { settings: LiquidGlassSettings }) {
+function WallpaperPreview({
+	settings,
+	chat = false,
+}: {
+	settings: LiquidGlassSettings
+	chat?: boolean
+}) {
 	const { View, Image } = revenge.react.ReactNative
 	const [ready, setReady] = revenge.react.React.useState(false)
-	const layers = wallpaperLayersFor(settings)
+	const layers = chat
+		? chatWallpaperLayersFor(settings)
+		: wallpaperLayersFor(settings)
 	return (
 		<View
 			style={ABSOLUTE_FILL}
@@ -182,6 +192,47 @@ function WallpaperPreview({ settings }: { settings: LiquidGlassSettings }) {
 			{ready && (
 				<View style={[ABSOLUTE_FILL, { backgroundColor: layers.dimColor }]} />
 			)}
+		</View>
+	)
+}
+
+function ChatPreview({ settings }: { settings: LiquidGlassSettings }) {
+	const { View } = revenge.react.ReactNative
+	const { Stack, Text } = revenge.discord.design.Design
+	return (
+		<View
+			style={{
+				minHeight: 166,
+				overflow: 'hidden',
+				borderRadius: 20,
+				backgroundColor: settings.panelColor,
+			}}
+		>
+			{isChatWallpaperEnabled(settings) && (
+				<WallpaperPreview settings={settings} chat />
+			)}
+			<View style={{ padding: 18 }}>
+				<Stack spacing={10}>
+					<Text
+						variant="text-sm/semibold"
+						style={{ color: settings.accentColor }}
+					>
+						Chat preview · only you see this
+					</Text>
+					<Text
+						variant="text-md/semibold"
+						style={{ color: settings.textColor }}
+					>
+						You
+					</Text>
+					<Text variant="text-md/normal" style={{ color: settings.textColor }}>
+						Purple waves behind your conversations ✨
+					</Text>
+					<Text variant="text-sm/normal" style={{ color: settings.textColor }}>
+						Increase darkness if messages are hard to read.
+					</Text>
+				</Stack>
+			</View>
 		</View>
 	)
 }
@@ -679,7 +730,7 @@ export default function Settings({ api }: { api: GlassApi }) {
 						{settings.backgroundMode === 'midnight-waves' && (
 							<Stack spacing={14}>
 								<SliderField
-									label="Wallpaper opacity"
+									label="App wallpaper opacity"
 									value={settings.wallpaperOpacity}
 									minimumValue={0}
 									maximumValue={1}
@@ -693,7 +744,7 @@ export default function Settings({ api }: { api: GlassApi }) {
 									}
 								/>
 								<SliderField
-									label="Darkness"
+									label="App wallpaper darkness"
 									value={settings.wallpaperDim}
 									minimumValue={0}
 									maximumValue={1}
@@ -702,6 +753,11 @@ export default function Settings({ api }: { api: GlassApi }) {
 									onCommit={wallpaperDim => commitCustom({ wallpaperDim })}
 									onPreview={wallpaperDim => previewCustom({ wallpaperDim })}
 								/>
+							</Stack>
+						)}
+						{(settings.backgroundMode === 'midnight-waves' ||
+							settings.chatWallpaperEnabled) && (
+							<Stack spacing={14}>
 								<SliderField
 									label="Color tint"
 									value={settings.wallpaperTintOpacity}
@@ -728,8 +784,59 @@ export default function Settings({ api }: { api: GlassApi }) {
 									onCommit={wallpaperBlur => commitCustom({ wallpaperBlur })}
 								/>
 								<Text variant="text-xs/normal" color="text-muted">
-									Tint uses your Raised panel / input color. Blur applies when
-									you release the slider.
+									Tint and blur apply to both app and chat wallpapers. Tint uses
+									your Raised panel / input color. Blur applies when you release
+									the slider.
+								</Text>
+							</Stack>
+						)}
+					</Stack>
+
+					<Stack spacing={14}>
+						<TableRowGroup title="Chat wallpaper">
+							<TableSwitchRow
+								label="Midnight Waves in chats"
+								subLabel="Behind messages in DMs and server channels · only visible to you"
+								value={settings.chatWallpaperEnabled}
+								onValueChange={chatWallpaperEnabled =>
+									customize({ chatWallpaperEnabled })
+								}
+							/>
+						</TableRowGroup>
+						{settings.chatWallpaperEnabled && (
+							<Stack spacing={14}>
+								<ChatPreview settings={previewSettings} />
+								<SliderField
+									label="Chat wallpaper opacity"
+									value={settings.chatWallpaperOpacity}
+									minimumValue={0}
+									maximumValue={1}
+									step={0.01}
+									format={value => `${Math.round(value * 100)}%`}
+									onCommit={chatWallpaperOpacity =>
+										commitCustom({ chatWallpaperOpacity })
+									}
+									onPreview={chatWallpaperOpacity =>
+										previewCustom({ chatWallpaperOpacity })
+									}
+								/>
+								<SliderField
+									label="Chat wallpaper darkness"
+									value={settings.chatWallpaperDim}
+									minimumValue={0}
+									maximumValue={1}
+									step={0.01}
+									format={value => `${Math.round(value * 100)}%`}
+									onCommit={chatWallpaperDim =>
+										commitCustom({ chatWallpaperDim })
+									}
+									onPreview={chatWallpaperDim =>
+										previewCustom({ chatWallpaperDim })
+									}
+								/>
+								<Text variant="text-xs/normal" color="text-muted">
+									Independent of the full-app background. Defaults: 95% opacity,
+									30% darkness.
 								</Text>
 							</Stack>
 						)}

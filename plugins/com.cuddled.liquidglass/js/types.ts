@@ -1,4 +1,4 @@
-export const SETTINGS_SCHEMA_VERSION = 3 as const
+export const SETTINGS_SCHEMA_VERSION = 4 as const
 
 export const BUILT_IN_PRESET_IDS = [
 	'midnight',
@@ -48,6 +48,10 @@ export interface LiquidGlassWallpaperSettings {
 	wallpaperTintOpacity: number
 	/** React Native image blur radius, clamped to a deliberately small range. */
 	wallpaperBlur: number
+	/** Independent wallpaper inside the native DM/server message viewport. */
+	chatWallpaperEnabled: boolean
+	chatWallpaperOpacity: number
+	chatWallpaperDim: number
 }
 
 export interface LiquidGlassAppearanceSettings

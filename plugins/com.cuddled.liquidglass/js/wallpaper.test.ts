@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, normalizeSettings } from './core'
 import {
 	createMainTabsWallpaper,
 	getMainTabsParts,
+	isNativeChat,
 	WALLPAPER_SOURCE,
 } from './wallpaper'
 
@@ -28,13 +29,14 @@ function mainTabs(): React.ReactElement<any> {
 }
 
 // Small hook driver for load-event/lifetime tests without a native renderer.
-function runtimeHarness() {
+function runtimeHarness(scope: 'app' | 'chat' = 'app') {
 	const slots: any[] = []
 	const cleanups: Array<() => void> = []
 	let cursor = 0
 	let settings = normalizeSettings({
 		...DEFAULT_SETTINGS,
 		backgroundMode: 'midnight-waves',
+		chatWallpaperEnabled: scope === 'chat',
 	})
 	let active = true
 	const hooks = {
@@ -83,9 +85,28 @@ function runtimeHarness() {
 			isActive: () => active,
 		},
 	)
-	const original = mainTabs()
-	const wrapper = runtime.wrap(original) as any
+	const original =
+		scope === 'app'
+			? mainTabs()
+			: React.createElement(
+					'DCDChat',
+					{
+						channelId: '123456789012345678',
+						inverted: true,
+						ref: React.createRef(),
+						style: { flex: 1, backgroundColor: '#202020' },
+						onScroll: () => {},
+					},
+					React.createElement('DCDChatList'),
+					React.createElement('ChatInput'),
+				)
+	const wrapper = (
+		scope === 'app'
+			? runtime.wrap(original)
+			: runtime.wrapChat(original, 'DCDChat')
+	) as any
 	const boundary = wrapper.props.children
+	let currentOriginal = original
 	return {
 		original,
 		runtime,
@@ -93,15 +114,24 @@ function runtimeHarness() {
 		setSettings(changes: any) {
 			settings = normalizeSettings({ ...settings, ...changes })
 		},
+		setChannel(channelId: string) {
+			currentOriginal = React.cloneElement(currentOriginal, { channelId })
+		},
 		render() {
 			cursor = 0
-			const root = boundary.type(boundary.props)
-			const [gradient, wallpaper, scope] = root.props.children.props.children
+			const root = boundary.type({
+				...boundary.props,
+				original: currentOriginal,
+			})
+			const [gradient, wallpaper, renderedScope] =
+				scope === 'app'
+					? root.props.children.props.children
+					: [null, ...root.props.children]
 			return {
 				root,
 				gradient,
 				wallpaper,
-				scope,
+				scope: renderedScope,
 				image: wallpaper?.props.children[0],
 			}
 		},
@@ -152,6 +182,83 @@ test('only the inspected MainTabs structure is eligible; originals are not mutat
 		rendered.wallpaper.props.importantForAccessibility,
 		'no-hide-descendants',
 	)
+})
+
+test('chat wrapping requires the inspected native type, channel ID and inverted list', () => {
+	const h = runtimeHarness('chat')
+	assert.equal(isNativeChat(React, h.original, 'DCDChat'), true)
+	for (const invalid of [
+		null,
+		mainTabs(),
+		React.cloneElement(h.original, { channelId: undefined }),
+		React.cloneElement(h.original, { inverted: false }),
+	]) {
+		assert.equal(h.runtime.wrapChat(invalid, 'DCDChat'), invalid)
+	}
+	assert.equal(h.runtime.wrapChat(h.original, undefined), h.original)
+	assert.equal(h.runtime.wrapChat(h.original, 'OtherChat'), h.original)
+})
+
+test('chat load keeps native handlers, ref, children and layout; failures restore its background', () => {
+	const h = runtimeHarness('chat')
+	h.setSettings({ backgroundEnabled: false, backgroundMode: 'gradient' })
+	let rendered = h.render()
+	assert.equal(rendered.scope.props.children, h.original)
+	assert.equal(rendered.image.props.style[1].opacity, 0)
+	rendered.image.props.onLoad()
+	rendered = h.render()
+	const chat = rendered.scope.props.children
+	assert.equal(chat.type, h.original.type)
+	assert.equal(chat.key, h.original.key)
+	assert.equal(chat.props.ref, h.original.props.ref)
+	assert.equal(chat.props.onScroll, h.original.props.onScroll)
+	assert.equal(chat.props.children, h.original.props.children)
+	assert.equal(chat.props.style[0], h.original.props.style)
+	assert.equal(chat.props.style[1].backgroundColor, '#00000000')
+	assert.equal(h.original.props.style.backgroundColor, '#202020')
+	assert.equal(rendered.image.props.style[1].opacity, 0.95)
+	assert.equal(rendered.wallpaper.props.pointerEvents, 'none')
+	assert.equal(
+		rendered.wallpaper.props.children[2].props.style[1].backgroundColor,
+		'rgba(0, 0, 0, 0.3)',
+	)
+	rendered.image.props.onError()
+	assert.equal(h.render().scope.props.children, h.original)
+	h.setSettings({ chatWallpaperEnabled: false })
+	const off = h.render()
+	assert.equal(off.wallpaper, null)
+	assert.equal(off.root.type, rendered.root.type)
+	assert.equal(off.scope.type, rendered.scope.type)
+	assert.equal(off.scope.key, rendered.scope.key)
+	assert.equal(off.scope.props.children, h.original)
+})
+
+test('chat switches, toggles and disposal ignore stale image callbacks', () => {
+	const h = runtimeHarness('chat')
+	let rendered = h.render()
+	const firstLoad = rendered.image.props.onLoad
+	h.setChannel('987654321098765432')
+	rendered = h.render()
+	assert.equal(rendered.image.key, '987654321098765432')
+	firstLoad()
+	assert.equal(h.render().scope.props.value, false)
+	rendered.image.props.onLoad()
+	assert.equal(h.render().scope.props.value, true)
+	h.setSettings({ chatWallpaperOpacity: 0.6, chatWallpaperDim: 0.5 })
+	assert.equal(h.render().image.props.style[1].opacity, 0.6)
+	const staleLoad = rendered.image.props.onLoad
+	h.setSettings({ chatWallpaperEnabled: false })
+	h.render()
+	h.setSettings({ chatWallpaperEnabled: true })
+	rendered = h.render()
+	staleLoad()
+	assert.equal(h.render().scope.props.value, false)
+	rendered.image.props.onLoad()
+	assert.equal(h.render().scope.props.value, true)
+	h.stop()
+	rendered.image.props.onLoad()
+	assert.equal(h.render().wallpaper, null)
+	assert.equal(h.runtime.wrapChat(h.original, 'DCDChat'), h.original)
 })
 
 test('loading and failures keep gradients; only a loaded wallpaper enables its nested scope', () => {
