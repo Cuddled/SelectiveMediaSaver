@@ -104,11 +104,15 @@ Selective Media Saver Next build.
 
 **Liquid Glass** is a separate appearance plugin in the same Next repository. It uses Discord's own
 full-app gradient renderer plus translucent surface colors encoded in Discord-compatible hex,
-avoiding an unstable system-wide Android blur patch. The current release is `1.0.0-beta3` for
+avoiding an unstable system-wide Android blur patch. The current release is `1.0.0-beta4` for
 Discord 347.x. Its visual
 settings include:
 
 - Midnight, Frost, Ocean, Rose, Aurora, and AMOLED one-tap presets.
+- Visual Gradient / Midnight Waves background cards with a live preview. Midnight Waves uses the
+  existing purple portrait wallpaper, centered and cropped to cover the main app background.
+- Wallpaper opacity, darkness, raised-panel color tint, and soft blur controls. Low-power mode
+  disables blur while preserving the saved value. Color presets preserve wallpaper choices.
 - Editable gradient, panel, raised-surface, accent, text, and border colors using hex values.
 - Separate live opacity controls for base panels, raised surfaces, profiles, menus/overlays, and
   controls/lists, plus background softness and gradient-angle sliders.
@@ -121,6 +125,24 @@ settings include:
 Install and enable **Liquid Glass** from the existing Revenge Next repository, reload Discord once,
 then open its settings to customize the look. The controls are live, but saved values remain
 persistent across restarts.
+
+### Liquid Glass beta4 release notes
+
+After updating, reload Discord once and choose **Liquid Glass settings → Background style →
+Midnight Waves**. Defaults are 95% image opacity, 18% darkness, 10% tint, and no blur. Existing
+beta3 settings and older saved profiles migrate to schema v3 without switching their gradient
+appearance. New saved profiles include all wallpaper controls.
+
+The wallpaper loads from the existing HTTPS GitHub Pages asset and uses React Native's image
+cache; the first load needs network access and cached availability is controlled by Android.
+The native gradient stays behind it during loading or failure. Only nested gradients inside the
+successfully loaded main-app wallpaper scope are hidden. Unsupported MainTabs structures keep
+the gradient. Profile media and avatars are unchanged. Wallpaper visibility on separate opaque
+screens depends on Discord's surface rendering; beta4 does not inject duplicate images into them.
+
+Phone verification on Discord 347.1 should check chats, own/member profiles, navigation,
+rotation, restart persistence, failed/offline image loading, and low-power mode. Desktop checks
+do not verify the final Android appearance.
 
 ## Install in Revenge Classic
 

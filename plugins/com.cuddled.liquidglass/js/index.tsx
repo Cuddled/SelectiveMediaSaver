@@ -10,6 +10,7 @@ import {
 } from './core'
 import { deferLateRuntime, registerRuntimePreview } from './runtime'
 import Settings from './Settings'
+import { createMainTabsWallpaper } from './wallpaper'
 import type { PluginApi } from '@revenge-mod/plugins/types'
 import type { LiquidGlassSettings } from './types'
 
@@ -17,6 +18,7 @@ type GlassApi = PluginApi<{ jsonStorage: LiquidGlassSettings }>
 type AnyRecord = Record<string, any>
 
 const PATHS = {
+	mainTabs: 'modules/main_tabs_v2/native/MainTabs.tsx',
 	backgroundHook: 'modules/client_themes/native/useColorThemeBackground.tsx',
 	backgroundStore: 'modules/client_themes/ClientThemesBackgroundStore.tsx',
 	themeStore: 'modules/user_settings/ThemeStore.tsx',
@@ -268,6 +270,28 @@ function installSemanticRevisionBoundary(api: any): void {
 }
 
 function installBackgroundPatches(api: any): void {
+	const wallpaper = createMainTabsWallpaper(
+		revenge.react.React,
+		revenge.react.ReactNative,
+		{
+			subscribe: subscribeBackgroundFingerprint,
+			getSnapshot: getBackgroundFingerprint,
+			getSettings: () => liveSettings,
+			isActive: () => runtimeActive,
+		},
+	)
+	api.cleanup(() => wallpaper.dispose())
+	watchModule(api, PATHS.mainTabs, exports => {
+		const memo = exports?.default
+		const target = typeof memo?.type === 'function' ? memo : exports
+		const key = target === memo ? 'type' : 'default'
+		if (typeof target?.[key] !== 'function') return
+		api.cleanup(
+			revenge.patcher.after(target as any, key, original =>
+				wallpaper.wrap(original),
+			),
+		)
+	})
 	watchModule(api, PATHS.backgroundStore, exports => {
 		const store = exports?.default as AnyRecord | undefined
 		if (!store) return
@@ -419,12 +443,14 @@ function installBackgroundPatches(api: any): void {
 			original: (...args: any[]) => any
 			props: AnyRecord
 		}) {
+			const wallpaperVisible = wallpaper.useVisible()
 			const fingerprint = React.useSyncExternalStore(
 				subscribeBackgroundFingerprint,
 				getBackgroundFingerprint,
 				getBackgroundFingerprint,
 			)
 			if (fingerprint === 'off') return React.createElement(original, props)
+			if (wallpaperVisible) return null
 			return React.createElement(CustomThemedGradient, {
 				...props,
 				customTheme: gradientPayload(),

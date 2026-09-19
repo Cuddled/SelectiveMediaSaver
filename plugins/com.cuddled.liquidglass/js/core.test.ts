@@ -11,6 +11,7 @@ import {
 	buildSemanticOverrides,
 	CONTROL_SEMANTIC_COLOR_KEYS,
 	DEFAULT_SETTINGS,
+	DEFAULT_WALLPAPER_SETTINGS,
 	hexToRgba,
 	hexWithAlpha,
 	normalizeHexColor,
@@ -23,6 +24,7 @@ import {
 	safeSemanticOverride,
 	saveCustomProfile,
 	semanticFingerprintFor,
+	wallpaperLayersFor,
 } from './core'
 
 test('normalizes short and long hex colors into canonical uppercase RGB', () => {
@@ -103,7 +105,7 @@ test('migrates beta2 settings without resetting saved appearance data', () => {
 		],
 	})
 
-	assert.equal(settings.schemaVersion, 2)
+	assert.equal(settings.schemaVersion, 3)
 	assert.equal(settings.panelColor, '#123456')
 	assert.equal(settings.panelOpacity, 0.33)
 	assert.equal(settings.raisedOpacity, 0.61)
@@ -404,6 +406,7 @@ test('saves, applies, and removes independent custom profile snapshots', () => {
 		'accentColor',
 		'angle',
 		'backgroundEnabled',
+		'backgroundMode',
 		'backgroundSoftness',
 		'borderColor',
 		'controlOpacity',
@@ -417,6 +420,10 @@ test('saves, applies, and removes independent custom profile snapshots', () => {
 		'raisedOpacity',
 		'textColor',
 		'tintColor',
+		'wallpaperBlur',
+		'wallpaperDim',
+		'wallpaperOpacity',
+		'wallpaperTintOpacity',
 	])
 
 	const changed = applyCustomSettings(saved, { accentColor: '#FFFFFF' })
@@ -447,4 +454,131 @@ test('duplicate profile names receive stable unique IDs and explicit IDs upsert'
 	assert.equal(updated.customProfiles.length, 2)
 	assert.equal(updated.customProfiles.at(-1)?.id, 'neon')
 	assert.equal(updated.customProfiles.at(-1)?.accentColor, '#010203')
+})
+
+test('beta3 and legacy profiles migrate to gradients with existing appearance intact', () => {
+	const stored = {
+		schemaVersion: 2,
+		selectedPreset: 'custom',
+		panelColor: '#123456',
+		profileOpacity: 0.27,
+		backgroundEnabled: false,
+		overlayGlassEnabled: false,
+		customProfiles: [
+			{
+				id: 'legacy',
+				name: 'Legacy',
+				gradientColors: ['#123456', '#456789', '#ABCDEF'],
+			},
+		],
+	}
+	const migrated = normalizeSettings(stored)
+	assert.equal(migrated.schemaVersion, 3)
+	assert.equal(migrated.backgroundEnabled, false)
+	assert.equal(migrated.overlayGlassEnabled, false)
+	assert.equal(migrated.panelColor, '#123456')
+	assert.equal(migrated.profileOpacity, 0.27)
+	for (const [key, value] of Object.entries(DEFAULT_WALLPAPER_SETTINGS)) {
+		assert.equal((migrated as any)[key], value)
+		assert.equal((migrated.customProfiles[0] as any)[key], value)
+	}
+	assert.deepEqual(
+		migrated.customProfiles[0].gradientColors,
+		stored.customProfiles[0].gradientColors,
+	)
+	assert.equal(stored.schemaVersion, 2)
+})
+
+test('wallpaper settings reject invalid modes and clamp opacity and blur', () => {
+	const invalid = normalizeSettings({
+		backgroundMode: 'unknown',
+		wallpaperOpacity: 9,
+		wallpaperDim: -4,
+		wallpaperTintOpacity: 'nope',
+		wallpaperBlur: 999,
+	})
+	assert.equal(invalid.backgroundMode, 'gradient')
+	assert.equal(invalid.wallpaperOpacity, 1)
+	assert.equal(invalid.wallpaperDim, 0)
+	assert.equal(invalid.wallpaperTintOpacity, 0.1)
+	assert.equal(invalid.wallpaperBlur, 12)
+	assert.equal(normalizeSettings({ wallpaperBlur: 2.8 }).wallpaperBlur, 3)
+	assert.equal(
+		normalizeSettings({ wallpaperOpacity: Number.NaN }).wallpaperOpacity,
+		0.95,
+	)
+})
+
+test('wallpaper selection survives every preset and saved profile round trips', () => {
+	const waves = applyCustomSettings(DEFAULT_SETTINGS, {
+		backgroundMode: 'midnight-waves',
+		wallpaperOpacity: 0.72,
+		wallpaperDim: 0.31,
+		wallpaperTintOpacity: 0.2,
+		wallpaperBlur: 4,
+	})
+	for (const preset of Object.values(BUILT_IN_PRESETS)) {
+		const applied = applyPreset(waves, preset.id)
+		for (const key of Object.keys(DEFAULT_WALLPAPER_SETTINGS))
+			assert.equal((applied as any)[key], (waves as any)[key])
+		assert.equal(applied.backgroundEnabled, true)
+	}
+	const saved = saveCustomProfile(waves, 'Waves')
+	const changed = applyCustomSettings(saved, {
+		backgroundMode: 'gradient',
+		wallpaperBlur: 0,
+	})
+	const restored = applyCustomProfile(
+		normalizeSettings(JSON.parse(JSON.stringify(changed))),
+		'waves',
+	)
+	assert.equal(restored.backgroundMode, 'midnight-waves')
+	assert.equal(restored.wallpaperBlur, 4)
+	assert.equal(restored.wallpaperDim, 0.31)
+	const updated = saveCustomProfile(
+		{ ...restored, wallpaperDim: 0.6 },
+		'Waves',
+		'waves',
+	)
+	assert.equal(updated.customProfiles.length, 1)
+	assert.equal(applyCustomProfile(updated, 'waves').wallpaperDim, 0.6)
+})
+
+test('wallpaper rendering refreshes for active controls and low power preserves stored blur', () => {
+	const waves = applyCustomSettings(DEFAULT_SETTINGS, {
+		backgroundMode: 'midnight-waves',
+		wallpaperBlur: 6,
+	})
+	const base = backgroundFingerprintFor(waves)
+	for (const changes of [
+		{ wallpaperOpacity: 0.5 },
+		{ wallpaperDim: 0.5 },
+		{ wallpaperTintOpacity: 0.5 },
+		{ wallpaperBlur: 2 },
+		{ tintColor: '#FF0000' },
+		{ backgroundMode: 'gradient' },
+		{ lowPowerMode: true },
+	]) {
+		assert.notEqual(
+			backgroundFingerprintFor(normalizeSettings({ ...waves, ...changes })),
+			base,
+		)
+	}
+	assert.equal(
+		backgroundFingerprintFor({ ...waves, backgroundEnabled: false }),
+		'off',
+	)
+	assert.equal(
+		backgroundFingerprintFor(DEFAULT_SETTINGS),
+		backgroundFingerprintFor({ ...DEFAULT_SETTINGS, wallpaperBlur: 5 }),
+	)
+	const lowPower = { ...waves, lowPowerMode: true }
+	assert.equal(wallpaperLayersFor(lowPower).blurRadius, 0)
+	assert.equal(lowPower.wallpaperBlur, 6)
+	assert.equal(
+		wallpaperLayersFor({ ...lowPower, lowPowerMode: false }).blurRadius,
+		6,
+	)
+	assert.equal(wallpaperLayersFor(waves).tintColor, 'rgba(52, 58, 101, 0.1)')
+	assert.equal(wallpaperLayersFor(waves).dimColor, 'rgba(0, 0, 0, 0.18)')
 })
