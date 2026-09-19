@@ -10,10 +10,12 @@ import {
 	backgroundFingerprintFor,
 	buildSemanticOverrides,
 	CONTROL_SEMANTIC_COLOR_KEYS,
+	chatWallpaperLayersFor,
 	DEFAULT_SETTINGS,
 	DEFAULT_WALLPAPER_SETTINGS,
 	hexToRgba,
 	hexWithAlpha,
+	isChatWallpaperEnabled,
 	normalizeHexColor,
 	normalizeSettings,
 	OVERLAY_SEMANTIC_COLOR_KEYS,
@@ -105,7 +107,7 @@ test('migrates beta2 settings without resetting saved appearance data', () => {
 		],
 	})
 
-	assert.equal(settings.schemaVersion, 3)
+	assert.equal(settings.schemaVersion, 4)
 	assert.equal(settings.panelColor, '#123456')
 	assert.equal(settings.panelOpacity, 0.33)
 	assert.equal(settings.raisedOpacity, 0.61)
@@ -409,6 +411,9 @@ test('saves, applies, and removes independent custom profile snapshots', () => {
 		'backgroundMode',
 		'backgroundSoftness',
 		'borderColor',
+		'chatWallpaperDim',
+		'chatWallpaperEnabled',
+		'chatWallpaperOpacity',
 		'controlOpacity',
 		'gradientColors',
 		'id',
@@ -473,7 +478,7 @@ test('beta3 and legacy profiles migrate to gradients with existing appearance in
 		],
 	}
 	const migrated = normalizeSettings(stored)
-	assert.equal(migrated.schemaVersion, 3)
+	assert.equal(migrated.schemaVersion, 4)
 	assert.equal(migrated.backgroundEnabled, false)
 	assert.equal(migrated.overlayGlassEnabled, false)
 	assert.equal(migrated.panelColor, '#123456')
@@ -516,6 +521,9 @@ test('wallpaper selection survives every preset and saved profile round trips', 
 		wallpaperDim: 0.31,
 		wallpaperTintOpacity: 0.2,
 		wallpaperBlur: 4,
+		chatWallpaperEnabled: true,
+		chatWallpaperOpacity: 0.81,
+		chatWallpaperDim: 0.47,
 	})
 	for (const preset of Object.values(BUILT_IN_PRESETS)) {
 		const applied = applyPreset(waves, preset.id)
@@ -527,6 +535,8 @@ test('wallpaper selection survives every preset and saved profile round trips', 
 	const changed = applyCustomSettings(saved, {
 		backgroundMode: 'gradient',
 		wallpaperBlur: 0,
+		chatWallpaperEnabled: false,
+		chatWallpaperDim: 0.2,
 	})
 	const restored = applyCustomProfile(
 		normalizeSettings(JSON.parse(JSON.stringify(changed))),
@@ -535,6 +545,9 @@ test('wallpaper selection survives every preset and saved profile round trips', 
 	assert.equal(restored.backgroundMode, 'midnight-waves')
 	assert.equal(restored.wallpaperBlur, 4)
 	assert.equal(restored.wallpaperDim, 0.31)
+	assert.equal(restored.chatWallpaperEnabled, true)
+	assert.equal(restored.chatWallpaperOpacity, 0.81)
+	assert.equal(restored.chatWallpaperDim, 0.47)
 	const updated = saveCustomProfile(
 		{ ...restored, wallpaperDim: 0.6 },
 		'Waves',
@@ -581,4 +594,81 @@ test('wallpaper rendering refreshes for active controls and low power preserves 
 	)
 	assert.equal(wallpaperLayersFor(waves).tintColor, 'rgba(52, 58, 101, 0.1)')
 	assert.equal(wallpaperLayersFor(waves).dimColor, 'rgba(0, 0, 0, 0.18)')
+})
+
+test('beta4 migrations preserve wallpaper settings and leave chat wallpaper opt-in', () => {
+	const migrated = normalizeSettings({
+		schemaVersion: 3,
+		backgroundMode: 'midnight-waves',
+		wallpaperOpacity: 0.68,
+		wallpaperDim: 0.42,
+	})
+	assert.equal(migrated.schemaVersion, 4)
+	assert.equal(migrated.backgroundMode, 'midnight-waves')
+	assert.equal(migrated.wallpaperOpacity, 0.68)
+	assert.equal(migrated.wallpaperDim, 0.42)
+	assert.equal(migrated.chatWallpaperEnabled, false)
+	assert.equal(migrated.chatWallpaperOpacity, 0.95)
+	assert.equal(migrated.chatWallpaperDim, 0.3)
+	const invalid = normalizeSettings({
+		chatWallpaperEnabled: 'yes',
+		chatWallpaperOpacity: 10,
+		chatWallpaperDim: -5,
+	})
+	assert.equal(invalid.chatWallpaperEnabled, false)
+	assert.equal(invalid.chatWallpaperOpacity, 1)
+	assert.equal(invalid.chatWallpaperDim, 0)
+	assert.equal(
+		normalizeSettings({ chatWallpaperDim: Number.NaN }).chatWallpaperDim,
+		0.3,
+	)
+})
+
+test('chat wallpaper works independently and only active chat controls refresh it', () => {
+	const chat = normalizeSettings({
+		backgroundEnabled: false,
+		chatWallpaperEnabled: true,
+		wallpaperBlur: 4,
+	})
+	assert.equal(isChatWallpaperEnabled(chat), true)
+	assert.equal(isChatWallpaperEnabled({ ...chat, enabled: false }), false)
+	assert.equal(
+		isChatWallpaperEnabled({ ...chat, chatWallpaperEnabled: false }),
+		false,
+	)
+	const base = backgroundFingerprintFor(chat)
+	assert.notEqual(base, 'off')
+	for (const changes of [
+		{ chatWallpaperOpacity: 0.4 },
+		{ chatWallpaperDim: 0.7 },
+		{ wallpaperBlur: 8 },
+		{ wallpaperTintOpacity: 0.8 },
+		{ tintColor: '#FF0000' },
+		{ panelColor: '#010203' },
+		{ lowPowerMode: true },
+	]) {
+		assert.notEqual(
+			backgroundFingerprintFor(normalizeSettings({ ...chat, ...changes })),
+			base,
+		)
+	}
+	assert.equal(
+		backgroundFingerprintFor({
+			...chat,
+			wallpaperOpacity: 0.2,
+			wallpaperDim: 0.6,
+		}),
+		base,
+	)
+	assert.equal(backgroundFingerprintFor({ ...chat, enabled: false }), 'off')
+	assert.equal(
+		backgroundFingerprintFor({ ...DEFAULT_SETTINGS, chatWallpaperDim: 0.7 }),
+		backgroundFingerprintFor(DEFAULT_SETTINGS),
+	)
+	assert.equal(chatWallpaperLayersFor(chat).opacity, 0.95)
+	assert.equal(chatWallpaperLayersFor(chat).dimColor, 'rgba(0, 0, 0, 0.3)')
+	assert.equal(
+		chatWallpaperLayersFor({ ...chat, lowPowerMode: true }).blurRadius,
+		0,
+	)
 })

@@ -18,6 +18,9 @@ type GlassApi = PluginApi<{ jsonStorage: LiquidGlassSettings }>
 type AnyRecord = Record<string, any>
 
 const PATHS = {
+	chatAndroid: 'modules/chat/native/Chat.android.tsx',
+	nativeChat:
+		'../discord_common/js/packages/rtn-codegen/js/ChatNativeComponent.tsx',
 	mainTabs: 'modules/main_tabs_v2/native/MainTabs.tsx',
 	backgroundHook: 'modules/client_themes/native/useColorThemeBackground.tsx',
 	backgroundStore: 'modules/client_themes/ClientThemesBackgroundStore.tsx',
@@ -281,6 +284,21 @@ function installBackgroundPatches(api: any): void {
 		},
 	)
 	api.cleanup(() => wallpaper.dispose())
+	let nativeChatType: unknown
+	watchModule(api, PATHS.nativeChat, exports => {
+		nativeChatType = exports?.default
+	})
+	watchModule(api, PATHS.chatAndroid, exports => {
+		const component = exports?.default
+		// Chat.android is a forwardRef; patch its render function while keeping
+		// the original forwardRef object and the imperative chat ref unchanged.
+		if (typeof component?.render !== 'function') return
+		api.cleanup(
+			revenge.patcher.after(component, 'render', original =>
+				wallpaper.wrapChat(original, nativeChatType),
+			),
+		)
+	})
 	watchModule(api, PATHS.mainTabs, exports => {
 		const memo = exports?.default
 		const target = typeof memo?.type === 'function' ? memo : exports
@@ -449,8 +467,9 @@ function installBackgroundPatches(api: any): void {
 				getBackgroundFingerprint,
 				getBackgroundFingerprint,
 			)
-			if (fingerprint === 'off') return React.createElement(original, props)
-			if (wallpaperVisible) return null
+			if (liveSettings.enabled && wallpaperVisible) return null
+			if (fingerprint === 'off' || !liveSettings.backgroundEnabled)
+				return React.createElement(original, props)
 			return React.createElement(CustomThemedGradient, {
 				...props,
 				customTheme: gradientPayload(),

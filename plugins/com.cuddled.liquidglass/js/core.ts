@@ -25,6 +25,9 @@ export const DEFAULT_WALLPAPER_SETTINGS: Readonly<LiquidGlassWallpaperSettings> 
 		wallpaperDim: 0.18,
 		wallpaperTintOpacity: 0.1,
 		wallpaperBlur: 0,
+		chatWallpaperEnabled: false,
+		chatWallpaperOpacity: 0.95,
+		chatWallpaperDim: 0.3,
 	})
 
 function cloneWallpaperSettings(
@@ -36,6 +39,9 @@ function cloneWallpaperSettings(
 		wallpaperDim: values.wallpaperDim,
 		wallpaperTintOpacity: values.wallpaperTintOpacity,
 		wallpaperBlur: values.wallpaperBlur,
+		chatWallpaperEnabled: values.chatWallpaperEnabled,
+		chatWallpaperOpacity: values.chatWallpaperOpacity,
+		chatWallpaperDim: values.chatWallpaperDim,
 	}
 }
 
@@ -64,6 +70,20 @@ function normalizeWallpaperSettings(
 		wallpaperBlur: Math.round(
 			clamp(finiteNumberOr(raw.wallpaperBlur, defaults.wallpaperBlur), 0, 12),
 		),
+		chatWallpaperEnabled: booleanOr(
+			raw.chatWallpaperEnabled,
+			defaults.chatWallpaperEnabled,
+		),
+		chatWallpaperOpacity: clamp(
+			finiteNumberOr(raw.chatWallpaperOpacity, defaults.chatWallpaperOpacity),
+			0,
+			1,
+		),
+		chatWallpaperDim: clamp(
+			finiteNumberOr(raw.chatWallpaperDim, defaults.chatWallpaperDim),
+			0,
+			1,
+		),
 	}
 }
 
@@ -81,6 +101,18 @@ export function wallpaperLayersFor(settings: LiquidGlassSettings) {
 		dimColor: hexToRgba('#000000', settings.wallpaperDim),
 		tintColor: hexToRgba(settings.tintColor, settings.wallpaperTintOpacity),
 		blurRadius: settings.lowPowerMode ? 0 : settings.wallpaperBlur,
+	}
+}
+
+export function isChatWallpaperEnabled(settings: LiquidGlassSettings): boolean {
+	return settings.enabled && settings.chatWallpaperEnabled
+}
+
+export function chatWallpaperLayersFor(settings: LiquidGlassSettings) {
+	return {
+		...wallpaperLayersFor(settings),
+		opacity: settings.chatWallpaperOpacity,
+		dimColor: hexToRgba('#000000', settings.chatWallpaperDim),
 	}
 }
 
@@ -1169,9 +1201,14 @@ export function semanticFingerprintFor(
 export function backgroundFingerprintFor(
 	settings: LiquidGlassSettings,
 ): string {
-	if (!settings.enabled || !settings.backgroundEnabled) return 'off'
+	if (
+		!settings.enabled ||
+		(!settings.backgroundEnabled && !settings.chatWallpaperEnabled)
+	)
+		return 'off'
 	return shortFingerprint(
 		JSON.stringify({
+			backgroundEnabled: settings.backgroundEnabled,
 			backgroundMode: settings.backgroundMode,
 			gradientColors: settings.gradientColors,
 			angle: settings.angle,
@@ -1179,6 +1216,12 @@ export function backgroundFingerprintFor(
 			lowPowerMode: settings.lowPowerMode,
 			wallpaper: isWallpaperBackground(settings)
 				? wallpaperLayersFor(settings)
+				: undefined,
+			chatWallpaper: isChatWallpaperEnabled(settings)
+				? {
+						...chatWallpaperLayersFor(settings),
+						baseColor: settings.panelColor,
+					}
 				: undefined,
 		}),
 	)

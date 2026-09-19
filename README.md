@@ -104,7 +104,7 @@ Selective Media Saver Next build.
 
 **Liquid Glass** is a separate appearance plugin in the same Next repository. It uses Discord's own
 full-app gradient renderer plus translucent surface colors encoded in Discord-compatible hex,
-avoiding an unstable system-wide Android blur patch. The current release is `1.0.0-beta4` for
+avoiding an unstable system-wide Android blur patch. This source targets `1.0.0-beta5` for
 Discord 347.x. Its visual
 settings include:
 
@@ -113,6 +113,8 @@ settings include:
   existing purple portrait wallpaper, centered and cropped to cover the main app background.
 - Wallpaper opacity, darkness, raised-panel color tint, and soft blur controls. Low-power mode
   disables blur while preserving the saved value. Color presets preserve wallpaper choices.
+- Optional chat wallpaper behind DM and server messages, with a chat preview and independent
+  opacity/darkness sliders. It also works with the full-app background disabled.
 - Editable gradient, panel, raised-surface, accent, text, and border colors using hex values.
 - Separate live opacity controls for base panels, raised surfaces, profiles, menus/overlays, and
   controls/lists, plus background softness and gradient-angle sliders.
@@ -126,7 +128,21 @@ Install and enable **Liquid Glass** from the existing Revenge Next repository, r
 then open its settings to customize the look. The controls are live, but saved values remain
 persistent across restarts.
 
-### Liquid Glass beta4 release notes
+### Liquid Glass beta5 release notes
+
+After updating, reload Discord once and open **Liquid Glass settings → Chat wallpaper →
+Midnight Waves in chats**. Chat wallpaper is opt-in; existing settings and custom profiles migrate
+to schema v4 without changing the current appearance. New profiles save chat settings too.
+Chat defaults are 95% opacity and 30% darkness. Chat uses the same wallpaper image, tint, and blur
+as the main app; opacity and darkness are separate. Pausing Liquid Glass disables both.
+
+The Android chat viewport receives a non-interactive image layer behind its original native chat
+component. The native background is cleared only after a successful image load; loading/failure
+keeps its original background. Native refs, event handlers, message children, and list identity
+are preserved. Only the inspected Discord 347 Android chat structure is patched; unsupported
+structures are left unchanged. These are local visual settings, not shared with other users.
+
+### Liquid Glass beta4 wallpaper foundation
 
 After updating, reload Discord once and choose **Liquid Glass settings → Background style →
 Midnight Waves**. Defaults are 95% image opacity, 18% darkness, 10% tint, and no blur. Existing
@@ -140,9 +156,11 @@ successfully loaded main-app wallpaper scope are hidden. Unsupported MainTabs st
 the gradient. Profile media and avatars are unchanged. Wallpaper visibility on separate opaque
 screens depends on Discord's surface rendering; beta4 does not inject duplicate images into them.
 
-Phone verification on Discord 347.1 should check chats, own/member profiles, navigation,
-rotation, restart persistence, failed/offline image loading, and low-power mode. Desktop checks
-do not verify the final Android appearance.
+Phone verification on Discord 347.1 should check DMs, server channels, threads, scrolling, message
+actions, keyboard/input, channel switching, rotation, restart persistence, failed/offline image
+loading, low-power mode, and toggling chat wallpaper off. Also check own/member profiles and main
+navigation for regressions. Desktop checks do not verify final Android appearance or whether a
+particular native build paints additional opaque layers over the wallpaper.
 
 ## Install in Revenge Classic
 
