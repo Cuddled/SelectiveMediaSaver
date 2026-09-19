@@ -20,6 +20,7 @@ import {
 	normalizeSettings,
 	OVERLAY_SEMANTIC_COLOR_KEYS,
 	PROFILE_SEMANTIC_COLOR_KEYS,
+	readableChatForeground,
 	removeCustomProfile,
 	replaceDiscordHexAlpha,
 	SEMANTIC_COLOR_KEYS,
@@ -217,6 +218,101 @@ test('semantic overrides satisfy Discord hexWithOpacity for every preset', () =>
 			assert.match(color, /^#[0-9A-F]{8}$/)
 		}
 	}
+})
+
+test('chat icon tokens use a bright foreground across every preset without changing saved settings', () => {
+	for (const id of Object.keys(BUILT_IN_PRESETS)) {
+		const settings = normalizeSettings({
+			...applyPreset(DEFAULT_SETTINGS, id as keyof typeof BUILT_IN_PRESETS),
+			chatWallpaperEnabled: true,
+		})
+		const before = structuredClone(settings)
+		const palette = buildSemanticOverrides(settings)
+		const foreground = readableChatForeground(settings.textColor)
+		for (const key of [
+			'ICON_DEFAULT',
+			'INTERACTIVE_ICON_DEFAULT',
+			'CHAT_INPUT_ICON_DEFAULT_TINT',
+			'CHAT_INPUT_ACTION_BUTTON_ICON_DEFAULT_TINT',
+		]) {
+			assert.equal(palette[key], hexWithAlpha(foreground, 0.94), `${id}.${key}`)
+		}
+		assert.equal(palette.ICON_SUBTLE, hexWithAlpha(foreground, 0.88))
+		assert.deepEqual(settings, before)
+	}
+})
+
+test('chat icons preserve the distinction between enabled, active and disabled colors', () => {
+	const palette = buildSemanticOverrides({
+		...DEFAULT_SETTINGS,
+		chatWallpaperEnabled: true,
+	})
+	const alpha = (key: string) => Number.parseInt(palette[key].slice(-2), 16)
+	assert.ok(alpha('ICON_MUTED') < alpha('ICON_SUBTLE'))
+	assert.ok(alpha('ICON_SUBTLE') < alpha('INTERACTIVE_ICON_DEFAULT'))
+	assert.ok(
+		alpha('INTERACTIVE_ICON_DEFAULT') < alpha('INTERACTIVE_ICON_ACTIVE'),
+	)
+	assert.equal(alpha('INTERACTIVE_ICON_HOVER'), 255)
+	assert.equal(alpha('ICON_MUTED'), Math.floor(255 * 0.62))
+	for (const name of [
+		'CHAT_INPUT_ACTION_ICON_ACTIVE_TINT',
+		'CHAT_INPUT_SEND_BUTTON_ICON_ACTIVE_TINT',
+		'CHAT_INPUT_SEND_BUTTON_ACTIVE_BACKGROUND',
+	]) {
+		assert.equal(palette[name], undefined)
+		assert.equal(safeSemanticOverride(name, palette), undefined)
+	}
+})
+
+test('chat icon safety shares the text fallback but retains a custom light hue', () => {
+	assert.equal(readableChatForeground('#010203'), '#F7F8FF')
+	assert.equal(readableChatForeground('invalid'), '#F7F8FF')
+	assert.equal(readableChatForeground('#fff0ff'), '#FFF0FF')
+	for (const textColor of ['#010203', '#FFF0FF']) {
+		const settings = normalizeSettings({
+			textColor,
+			chatWallpaperEnabled: true,
+			backgroundEnabled: false,
+		})
+		const palette = buildSemanticOverrides(settings)
+		assert.equal(
+			palette.INTERACTIVE_ICON_DEFAULT,
+			hexWithAlpha(readableChatForeground(textColor), 0.94),
+		)
+		assert.equal(settings.textColor, textColor)
+	}
+})
+
+test('icon colors restore via semantic switches and invalidate the existing live palette', () => {
+	const settings = normalizeSettings({ chatWallpaperEnabled: true })
+	const on = buildSemanticOverrides(settings)
+	for (const disabled of [
+		{ ...settings, enabled: false },
+		{ ...settings, semanticEnabled: false },
+	]) {
+		assert.deepEqual(buildSemanticOverrides(disabled), {})
+		assert.equal(semanticFingerprintFor(disabled, {}), 'off')
+	}
+	const noChat = { ...settings, chatWallpaperEnabled: false }
+	const originalStrength = buildSemanticOverrides(noChat)
+	assert.equal(
+		originalStrength.ICON_DEFAULT,
+		hexWithAlpha(settings.textColor, 0.86),
+	)
+	assert.equal(
+		originalStrength.ICON_SUBTLE,
+		hexWithAlpha(settings.textColor, 0.52),
+	)
+	assert.notEqual(
+		semanticFingerprintFor(settings, on),
+		semanticFingerprintFor(noChat, originalStrength),
+	)
+	const changed = { ...settings, textColor: '#FFF0FF' as const }
+	assert.notEqual(
+		semanticFingerprintFor(settings, on),
+		semanticFingerprintFor(changed, buildSemanticOverrides(changed)),
+	)
 })
 
 test('surface-group switches remove only their own semantic colors', () => {

@@ -104,7 +104,7 @@ Selective Media Saver Next build.
 
 **Liquid Glass** is a separate appearance plugin in the same Next repository. It uses Discord's own
 full-app gradient renderer plus translucent surface colors encoded in Discord-compatible hex,
-avoiding an unstable system-wide Android blur patch. This source targets `1.0.0-beta6` for
+avoiding an unstable system-wide Android blur patch. This source targets `1.0.0-beta7` for
 Discord 347.x. Its visual
 settings include:
 
@@ -127,6 +127,21 @@ settings include:
 Install and enable **Liquid Glass** from the existing Revenge Next repository, reload Discord once,
 then open its settings to customize the look. The controls are live, but saved values remain
 persistent across restarts.
+
+### Liquid Glass beta7 icon contrast fix
+
+Beta7 adds the dedicated semantic colors used by Discord's generated call/video/search icons
+and its attachment, gift, emoji, and microphone controls. With chat wallpaper enabled, default
+icons use 94% light foreground and subtle navigation icons use 88%; dark custom text colors get
+the same light fallback as the chat text. Hover/active interaction icons use full strength.
+Muted/disabled icon colors remain softer, and Discord's existing disabled state and opacity are
+preserved. Recording, call-status, destructive-action, and send-button accent colors are unchanged.
+
+The fix uses the existing semantic palette and refresh mechanism rather than replacing buttons
+or touching their handlers. Other controls sharing those semantic tokens receive the same palette.
+Wallpaper, translucent backgrounds, profiles, schema-v4 settings, and saved colors are unchanged.
+Disabling transparent surfaces or Liquid Glass restores Discord's own semantic colors. Reload
+Discord once after updating; phone QA should cover idle/active/disabled icons and keyboard changes.
 
 ### Liquid Glass beta6 chat contrast fix
 
@@ -320,7 +335,7 @@ The distributables are written to:
 ```text
 build/classic/manifest.json
 build/classic/index.js
-build/dist/com.cuddled.liquidglass@1.0.0-beta6.zip
+build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 
