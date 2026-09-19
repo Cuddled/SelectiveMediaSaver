@@ -104,7 +104,7 @@ Selective Media Saver Next build.
 
 **Liquid Glass** is a separate appearance plugin in the same Next repository. It uses Discord's own
 full-app gradient renderer plus translucent surface colors encoded in Discord-compatible hex,
-avoiding an unstable system-wide Android blur patch. This source targets `1.0.0-beta5` for
+avoiding an unstable system-wide Android blur patch. This source targets `1.0.0-beta6` for
 Discord 347.x. Its visual
 settings include:
 
@@ -128,7 +128,26 @@ Install and enable **Liquid Glass** from the existing Revenge Next repository, r
 then open its settings to customize the look. The controls are live, but saved values remain
 persistent across restarts.
 
-### Liquid Glass beta5 release notes
+### Liquid Glass beta6 chat contrast fix
+
+With chat wallpaper and transparent surfaces enabled, beta6 replaces the gray chat header,
+input scrim, and bottom safe-area fill with a dark translucent tint. The tint follows the panel
+hue and opacity but limits pale presets to a dark background. No saved colors are changed.
+The chat preview now includes the header, reply text, username, and input surroundings.
+
+Default native message names and message/reply text use a readable light foreground; timestamps
+and edited labels use a softer version. Explicit role/name-style colors, links, embeds, navigation
+controls, keyboard layout, and native chat refs are preserved. These overrides target the inspected
+Discord 347 Android modules, leave unknown render shapes alone, and restore the original outputs
+when chat wallpaper, transparent surfaces, or Liquid Glass are disabled. The semantic text palette
+also includes Discord's interactive text and mobile heading tokens.
+
+Reload Discord once after updating. Existing wallpaper choices, schema-v4 settings, and saved
+profiles remain unchanged. The preview is illustrative; final header, reply, keyboard-open/closed,
+and username rendering still needs verification on the phone with this Discord build. Dark custom
+role/name-style colors remain the user's/server's choice and are not force-brightened.
+
+### Liquid Glass beta5 chat wallpaper foundation
 
 After updating, reload Discord once and open **Liquid Glass settings → Chat wallpaper →
 Midnight Waves in chats**. Chat wallpaper is opt-in; existing settings and custom profiles migrate
@@ -301,7 +320,7 @@ The distributables are written to:
 ```text
 build/classic/manifest.json
 build/classic/index.js
-build/dist/com.cuddled.liquidglass@1.0.0-beta3.zip
+build/dist/com.cuddled.liquidglass@1.0.0-beta6.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 

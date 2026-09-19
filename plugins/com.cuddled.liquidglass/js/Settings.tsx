@@ -1,3 +1,4 @@
+import { chatAppearanceColors, chatAppearanceEnabled } from './chatAppearance'
 import {
 	applyCustomProfile,
 	applyCustomSettings,
@@ -199,10 +200,17 @@ function WallpaperPreview({
 function ChatPreview({ settings }: { settings: LiquidGlassSettings }) {
 	const { View } = revenge.react.ReactNative
 	const { Stack, Text } = revenge.discord.design.Design
+	const colors = chatAppearanceColors(settings)
+	const protectedChat = chatAppearanceEnabled(settings)
+	const foreground = protectedChat ? colors.foreground : settings.textColor
+	const muted = protectedChat ? colors.muted : settings.textColor
+	const surface = protectedChat
+		? colors.surface
+		: hexToRgba(settings.panelColor, settings.panelOpacity)
 	return (
 		<View
 			style={{
-				minHeight: 166,
+				minHeight: 230,
 				overflow: 'hidden',
 				borderRadius: 20,
 				backgroundColor: settings.panelColor,
@@ -211,27 +219,31 @@ function ChatPreview({ settings }: { settings: LiquidGlassSettings }) {
 			{isChatWallpaperEnabled(settings) && (
 				<WallpaperPreview settings={settings} chat />
 			)}
+			<View style={{ padding: 14, backgroundColor: surface }}>
+				<Text variant="text-sm/semibold" style={{ color: foreground }}>
+					‹ Chat preview · only you see this
+				</Text>
+			</View>
 			<View style={{ padding: 18 }}>
 				<Stack spacing={10}>
-					<Text
-						variant="text-sm/semibold"
-						style={{ color: settings.accentColor }}
-					>
-						Chat preview · only you see this
+					<Text variant="text-sm/normal" style={{ color: muted }}>
+						↳ Friend: Your reply preview stays readable.
 					</Text>
-					<Text
-						variant="text-md/semibold"
-						style={{ color: settings.textColor }}
-					>
+					<Text variant="text-md/semibold" style={{ color: foreground }}>
 						You
 					</Text>
-					<Text variant="text-md/normal" style={{ color: settings.textColor }}>
+					<Text variant="text-md/normal" style={{ color: foreground }}>
 						Purple waves behind your conversations ✨
 					</Text>
-					<Text variant="text-sm/normal" style={{ color: settings.textColor }}>
+					<Text variant="text-sm/normal" style={{ color: muted }}>
 						Increase darkness if messages are hard to read.
 					</Text>
 				</Stack>
+			</View>
+			<View style={{ padding: 14, backgroundColor: surface }}>
+				<Text variant="text-sm/normal" style={{ color: muted }}>
+					＋ Message…
+				</Text>
 			</View>
 		</View>
 	)
@@ -837,6 +849,13 @@ export default function Settings({ api }: { api: GlassApi }) {
 								<Text variant="text-xs/normal" color="text-muted">
 									Independent of the full-app background. Defaults: 95% opacity,
 									30% darkness.
+								</Text>
+								<Text variant="text-xs/normal" color="text-muted">
+									With transparent surfaces enabled, chat headers and input
+									backgrounds use a dark glass tint. Panel opacity adjusts its
+									strength; pale colors are darkened and dark text is brightened
+									for readability. Your saved colors and role colors stay
+									intact.
 								</Text>
 							</Stack>
 						)}

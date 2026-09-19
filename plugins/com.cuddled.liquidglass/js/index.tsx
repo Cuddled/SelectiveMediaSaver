@@ -1,4 +1,9 @@
 import {
+	applyChatGapStyle,
+	applyNativeChatColors,
+	createChatAppearanceRuntime,
+} from './chatAppearance'
+import {
 	applyProfileGlassToColors,
 	applyProfileGlassToGradient,
 	backgroundFingerprintFor,
@@ -18,6 +23,13 @@ type GlassApi = PluginApi<{ jsonStorage: LiquidGlassSettings }>
 type AnyRecord = Record<string, any>
 
 const PATHS = {
+	standaloneChannel:
+		'modules/main_tabs_v2/native/channel/StandaloneChannelScreen.tsx',
+	chatScrim: 'modules/chat_input/native/ChatInputScrimGradient.tsx',
+	chatSafeArea:
+		'modules/main_tabs_v2/native/channel/useChannelSafeAreaBottomStyles.tsx',
+	nativeMessageColors:
+		'modules/messages/native/renderer/resolveMessageContentColors.tsx',
 	chatAndroid: 'modules/chat/native/Chat.android.tsx',
 	nativeChat:
 		'../discord_common/js/packages/rtn-codegen/js/ChatNativeComponent.tsx',
@@ -530,6 +542,63 @@ function installSemanticPatch(api: any): void {
 	}
 }
 
+function installChatAppearancePatches(api: any): void {
+	const appearance = createChatAppearanceRuntime(revenge.react.React, {
+		subscribe(listener) {
+			const semantic = subscribeSemanticFingerprint(listener)
+			const background = subscribeBackgroundFingerprint(listener)
+			return () => {
+				semantic()
+				background()
+			}
+		},
+		getSnapshot: () => `${semanticFingerprint}|${backgroundFingerprint}`,
+		getSettings: () => liveSettings,
+		isActive: () => runtimeActive,
+	})
+	api.cleanup(() => appearance.dispose())
+	watchModule(api, PATHS.standaloneChannel, exports => {
+		const component = exports?.default
+		if (typeof component?.type !== 'function') return
+		api.cleanup(
+			revenge.patcher.after(component, 'type', original =>
+				appearance.wrapScreen(original),
+			),
+		)
+	})
+	watchModule(api, PATHS.chatScrim, exports => {
+		if (typeof exports?.ChatInputScrimGradient !== 'function') return
+		api.cleanup(
+			revenge.patcher.after(
+				exports as any,
+				'ChatInputScrimGradient',
+				original => appearance.wrapScrim(original),
+			),
+		)
+	})
+	watchModule(api, PATHS.chatSafeArea, exports => {
+		if (typeof exports?.default !== 'function') return
+		api.cleanup(
+			revenge.patcher.after(exports as any, 'default', original =>
+				applyChatGapStyle(liveSettings, original),
+			),
+		)
+	})
+	watchModule(api, PATHS.nativeMessageColors, exports => {
+		const processColor = revenge.react.ReactNative.processColor
+		if (
+			typeof exports?.default !== 'function' ||
+			typeof processColor !== 'function'
+		)
+			return
+		api.cleanup(
+			revenge.patcher.after(exports as any, 'default', original =>
+				applyNativeChatColors(liveSettings, original, processColor),
+			),
+		)
+	})
+}
+
 function installProfileGlassPatches(api: any): void {
 	watchModule(api, PATHS.profileColors, exports => {
 		if (typeof exports?.useUserProfileColors !== 'function') return
@@ -589,6 +658,7 @@ export default plugin<{ jsonStorage: LiquidGlassSettings }>({
 			}),
 		)
 		installBackgroundPatches(api)
+		installChatAppearancePatches(api)
 		installSemanticPatch(api)
 		installProfileGlassPatches(api)
 		installSemanticRevisionBoundary(api)
