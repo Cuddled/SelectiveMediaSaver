@@ -1,10 +1,21 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as React from 'react'
-import { createState, normalize, surfaceColor } from './core'
-import { createSurfaces, recolorChrome } from './surfaces'
+import {
+	createState,
+	headerColor,
+	normalize,
+	surfaceColor,
+	toolbarColor,
+} from './core'
+import {
+	createSurfaces,
+	recolorChrome,
+	recolorListHeader,
+	recolorProfileToolbar,
+} from './surfaces'
 
-function harness() {
+function harness(scope: 'app' | 'profile' = 'app', gradient = false) {
 	const slots: any[] = []
 	const cleanups: Array<() => void> = []
 	let cursor = 0
@@ -47,17 +58,33 @@ function harness() {
 		{ View: 'View', Image: 'Image' },
 		{ ...state, isActive: () => alive },
 	)
-	const original: React.ReactElement<any> = React.createElement(
-		'ThemeProvider',
-		{
-			theme: 'midnight',
-			ref: React.createRef(),
-			onEvent: () => {},
-			key: 'root',
-		},
-		React.createElement('Navigation', { initialState: 'existing-navigation' }),
-	)
-	const wrapped = runtime.wrapRoot(original) as any
+	const original: React.ReactElement<any> =
+		scope === 'profile'
+			? React.createElement(gradient ? 'Gradient' : 'View', {
+					style: [
+						{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+						{ borderRadius: 24 },
+					],
+					pointerEvents: 'none',
+					...(gradient ? { colors: ['#12345633', '#ABCDEF33'] } : {}),
+				})
+			: React.createElement(
+					'ThemeProvider',
+					{
+						theme: 'midnight',
+						ref: React.createRef(),
+						onEvent: () => {},
+						key: 'root',
+					},
+					React.createElement('Navigation', {
+						initialState: 'existing-navigation',
+					}),
+				)
+	const wrapped = (
+		scope === 'app'
+			? runtime.wrapRoot(original)
+			: runtime.wrapProfileBackdrop(original)
+	) as any
 	const boundary = wrapped.props.children
 	return {
 		state,
@@ -67,9 +94,23 @@ function harness() {
 		render() {
 			cursor = 0
 			const root = boundary.type(boundary.props)
+			if (scope === 'profile')
+				return {
+					root,
+					container: root,
+					layer: root,
+					scope: null,
+					image: root.props.children?.[0],
+				}
 			const container = root.props.children
-			const [layer, scope] = container.props.children
-			return { root, container, layer, scope, image: layer?.props.children[0] }
+			const [layer, visibleScope] = container.props.children
+			return {
+				root,
+				container,
+				layer,
+				scope: visibleScope,
+				image: layer?.props.children[0],
+			}
 		},
 		unmount() {
 			for (const stop of cleanups) stop()
@@ -159,7 +200,7 @@ test('unknown root structures are not changed and the render guard falls back', 
 	assert.equal(guard.render(), h.original)
 })
 
-test('chat chrome uses master transparency, preserves button properties and restores when off', () => {
+test('chat headers retain contrast, scrims follow the master slider, and original button properties survive', () => {
 	const settings = normalize({ enabled: true, transparency: 0.9 })
 	const bar = React.createElement('HeaderBar', {
 		key: 'bar',
@@ -175,7 +216,7 @@ test('chat chrome uses master transparency, preserves button properties and rest
 	assert.equal(result.props.children[0].props.style[0], bar.props.style)
 	assert.equal(
 		result.props.children[0].props.style[1].backgroundColor,
-		surfaceColor(settings),
+		headerColor(settings),
 	)
 	assert.equal(result.props.children[1], frame)
 	assert.equal(
@@ -200,4 +241,192 @@ test('chat chrome uses master transparency, preserves button properties and rest
 	assert.equal(next.props.children[0].props.colors[1], surfaceColor(settings))
 	assert.equal(next.props.children[0].props.locations, gradient.props.locations)
 	assert.deepEqual(gradient.props.colors, ['#00000000', '#000000FF'])
+})
+
+test('channel-list backing preserves scrolling, refs and header controls without recoloring list rows', () => {
+	const settings = normalize({ enabled: true, transparency: 1 })
+	const child = React.createElement('Button', {
+		onPress: () => {},
+		key: 'button',
+	})
+	const original = React.createElement(
+		'View',
+		{
+			style: { paddingTop: 16, zIndex: 1 },
+			ref: React.createRef(),
+			onLayout: () => {},
+		},
+		[child],
+	)
+	const next = recolorListHeader(React, original, settings) as any
+	assert.equal(next.props.children, (original.props as any).children)
+	assert.equal(next.props.ref, original.props.ref)
+	assert.equal(next.props.onLayout, original.props.onLayout)
+	assert.equal(next.props.style[0], original.props.style)
+	assert.equal(next.props.style[1].backgroundColor, headerColor(settings))
+	assert.equal(
+		recolorListHeader(React, original, { ...settings, mainScreens: false }),
+		original,
+	)
+	assert.equal(
+		recolorListHeader(React, original, { ...settings, enabled: false }),
+		original,
+	)
+	assert.equal(recolorListHeader(React, child, settings), child)
+})
+
+test('profile toolbar corrects the final gradient and fill without replacing buttons or refs', () => {
+	const settings = normalize({ enabled: true })
+	const buttons = React.createElement('Buttons', {
+		ref: React.createRef(),
+		onPress: () => {},
+		disabled: true,
+	})
+	const gradient = React.createElement('Gradient', {
+		key: 'gradient',
+		pointerEvents: 'none',
+		colors: ['#FFFFFF00', '#FFFFFFFF'],
+		locations: [0, 1],
+		style: { height: 90 },
+	})
+	const bar = React.createElement(
+		'View',
+		{ key: 'bar', style: { marginBottom: 20, borderRadius: 16 } },
+		buttons,
+	)
+	const original = React.createElement(
+		'View',
+		{ pointerEvents: 'box-none', style: { bottom: 0 } },
+		[gradient, bar],
+	)
+	const next = recolorProfileToolbar(React, original, settings) as any
+	assert.equal(next.props.style, original.props.style)
+	assert.equal(next.props.children[0].props.colors[1], toolbarColor(settings))
+	assert.equal(next.props.children[0].props.locations, gradient.props.locations)
+	assert.equal(next.props.children[1].props.style[0], bar.props.style)
+	assert.equal(next.props.children[1].props.children, buttons)
+	assert.equal(gradient.props.colors[1], '#FFFFFFFF')
+	for (const key of ['enabled', 'profiles', 'controls'])
+		assert.equal(
+			recolorProfileToolbar(React, original, { ...settings, [key]: false }),
+			original,
+		)
+	assert.equal(recolorProfileToolbar(React, bar, settings), bar)
+})
+
+test('both plain and custom profile backgrounds block underlying screens even when loading/offline', () => {
+	for (const gradient of [false, true]) {
+		const h = harness('profile', gradient)
+		const view = h.render()
+		assert.equal(view.root.props.style[0], h.original.props.style)
+		assert.equal(view.root.props.style[1].backgroundColor, '#0B0D17')
+		assert.equal(view.root.props.pointerEvents, 'none')
+		assert.equal(
+			view.root.props.importantForAccessibility,
+			'no-hide-descendants',
+		)
+		assert.equal(view.image.props.style[1].opacity, 0)
+		view.image.props.onLoad()
+		assert.equal(h.render().image.props.style[1].opacity, 1)
+		view.image.props.onError()
+		assert.equal(h.render().image.props.style[1].opacity, 0)
+		assert.equal(h.render().root.props.style[1].backgroundColor, '#0B0D17')
+		h.state.update({ ...h.state.getSettings(), profiles: false })
+		assert.equal(h.render().root, h.original)
+	}
+})
+
+test('profile background ignores stale callbacks and honors pause, area toggle, blur and disposal', () => {
+	const h = harness('profile')
+	const oldImage = h.render().image
+	h.state.update({ ...h.state.getSettings(), profiles: false })
+	h.render()
+	oldImage.props.onLoad()
+	h.state.update({ ...h.state.getSettings(), profiles: true, blur: 6 })
+	assert.equal(h.render().image.props.style[1].opacity, 0)
+	oldImage.props.onLoad()
+	assert.equal(h.render().image.props.style[1].opacity, 0)
+	assert.equal(h.render().image.props.blurRadius, 0)
+	h.state.update({ ...h.state.getSettings(), lowPower: false })
+	assert.equal(h.render().image.props.blurRadius, 6)
+	const latest = h.render().image
+	h.unmount()
+	latest.props.onLoad()
+	assert.equal(h.render().image.props.style[1].opacity, 0)
+	h.state.update({ ...h.state.getSettings(), enabled: false })
+	assert.equal(h.render().root, h.original)
+	h.stop()
+	assert.equal(h.runtime.wrapProfileBackdrop(h.original), h.original)
+})
+
+test('profile-only button theme preserves the group and all descendant interaction props', () => {
+	const parent = {
+		theme: 'light',
+		primaryColor: 123,
+		secondaryColor: 456,
+		key: 'user',
+		density: 'compact',
+	}
+	const state = createState({ enabled: true })
+	const hooks = {
+		...React,
+		useContext: () => parent,
+		useSyncExternalStore: (_: any, snapshot: any) => snapshot(),
+	} as typeof React
+	const surfaces = createSurfaces(
+		hooks,
+		{ View: 'View', Image: 'Image' },
+		{ ...state, isActive: () => true },
+	)
+	const group = React.createElement(
+		'View',
+		{},
+		React.createElement('Button', {
+			onPress: () => {},
+			ref: React.createRef(),
+			disabled: true,
+		}),
+	)
+	assert.equal(surfaces.wrapProfileButtons(group), group)
+	surfaces.setThemeContext(React.createContext(parent))
+	const wrapped = surfaces.wrapProfileButtons(group) as any
+	const value = wrapped.type(wrapped.props)
+	assert.equal(value.props.children, group)
+	assert.equal(value.props.value.primaryColor, null)
+	assert.equal(parent.primaryColor, 123)
+	state.update({ enabled: true, controls: false })
+	assert.equal(wrapped.type(wrapped.props).props.value, parent)
+	surfaces.dispose()
+	assert.equal(wrapped.type(wrapped.props).props.value, parent)
+})
+
+test('new boundaries ignore unknown background/toolbar layouts and restore after disposal', () => {
+	const h = harness('profile')
+	for (const value of [
+		null,
+		{},
+		React.createElement('View', { style: {} }),
+		React.createElement(
+			'View',
+			{ pointerEvents: 'none', style: {} },
+			React.createElement('Banner'),
+		),
+	])
+		assert.equal(h.runtime.wrapProfileBackdrop(value), value)
+	const mismatched = React.createElement(
+		'View',
+		{ pointerEvents: 'box-none' },
+		[
+			React.createElement('Image', { key: 'image' }),
+			React.createElement('Button', { key: 'button' }),
+		],
+	)
+	assert.equal(
+		recolorProfileToolbar(React, mismatched, h.state.getSettings()),
+		mismatched,
+	)
+	h.stop()
+	assert.equal(h.runtime.wrapProfileToolbar(mismatched), mismatched)
+	assert.equal(h.runtime.wrapListHeader(mismatched), mismatched)
+	assert.equal(h.runtime.wrapProfileButtons(mismatched), mismatched)
 })

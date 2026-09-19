@@ -14,6 +14,7 @@ import {
 	runtime,
 	surfaceColor,
 } from './core'
+import { readableReplies } from './replies'
 import SettingsPage from './Settings'
 import { createSurfaces } from './surfaces'
 import type { Settings } from './core'
@@ -128,6 +129,22 @@ export default plugin<{ jsonStorage: Settings }>({
 			after(exports, 'ChatInputScrimGradient', surfaces.wrapScrim),
 		)
 		watch(
+			'modules/channel_list_v2/native/components/ChannelListStickyHeader.tsx',
+			exports => after(exports, 'default', surfaces.wrapListHeader),
+		)
+		watch(
+			'modules/user_profile/native/UserProfileFixedBackground.tsx',
+			exports => after(exports.default, 'type', surfaces.wrapProfileBackdrop),
+		)
+		watch(
+			'modules/main_tabs_v2/native/tabs/you/YouBannerDecorations.tsx',
+			exports => after(exports.default, 'type', surfaces.wrapProfileToolbar),
+		)
+		watch(
+			'modules/user_profile/native/UserProfileTextButtonGroup.tsx',
+			exports => after(exports, 'default', surfaces.wrapProfileButtons),
+		)
+		watch(
 			'modules/main_tabs_v2/native/channel/useChannelSafeAreaBottomStyles.tsx',
 			exports =>
 				after(exports, 'default', original => {
@@ -153,6 +170,16 @@ export default plugin<{ jsonStorage: Settings }>({
 							original,
 							processColor,
 						),
+					)
+			},
+		)
+		watch(
+			'modules/messages/native/renderer/createMessageContent.tsx',
+			exports => {
+				const processColor = revenge.react.ReactNative.processColor
+				if (typeof processColor === 'function')
+					after(exports, 'default', original =>
+						readableReplies(runtime.getSettings(), original, processColor),
 					)
 			},
 		)
@@ -264,6 +291,7 @@ export default plugin<{ jsonStorage: Settings }>({
 			'../discord_common/js/packages/design/components/ThemeContextProvider/ThemeContext.tsx',
 			exports => {
 				context = exports.ThemeContext
+				if (context?.Provider) surfaces.setThemeContext(context as any)
 				for (const [target, key] of pending) patchContext(target, key)
 			},
 		)

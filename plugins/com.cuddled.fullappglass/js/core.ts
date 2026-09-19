@@ -130,6 +130,38 @@ export function palette(value: Settings): Record<string, string> {
 export const surfaceColor = (settings: Settings) =>
 	hexWithAlpha(settings.panelColor, 1 - settings.transparency)
 
+// Overlapping text needs a stronger backing than ordinary wallpaper-backed cards.
+export const headerColor = (settings: Settings) =>
+	hexWithAlpha(settings.panelColor, Math.max(0.97, 1 - settings.transparency))
+
+export const toolbarColor = (settings: Settings) =>
+	hexWithAlpha(settings.panelColor, Math.max(0.82, 1 - settings.transparency))
+
+/** Only used around profile button groups, never the profile/banner itself. */
+export function profileButtonTheme(
+	settings: Settings,
+	parent: unknown,
+): unknown {
+	if (
+		!settings.enabled ||
+		!settings.profiles ||
+		!settings.controls ||
+		!parent ||
+		typeof parent !== 'object' ||
+		Array.isArray(parent)
+	)
+		return parent
+	const original = parent as Record<string, unknown>
+	return {
+		...original,
+		theme: 'dark',
+		primaryColor: null,
+		secondaryColor: null,
+		gradient: null,
+		key: `${original.key ?? ''}|fullapp-profile-controls:${JSON.stringify(settings)}`,
+	}
+}
+
 export function navigationTheme(
 	settings: Settings,
 	original: unknown,
