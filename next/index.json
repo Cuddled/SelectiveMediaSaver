@@ -29,11 +29,11 @@
     },
     "com.cuddled.liquidglass": {
       "name": "Liquid Glass",
-      "description": "A customizable glass appearance with live presets, colors, opacity, and performance controls.",
+      "description": "Customizable glass with Midnight Waves wallpaper, live presets, colors, opacity, and performance controls.",
       "author": "Cuddled",
       "icon": "ic_theme_24px",
       "channels": {
-        "beta": "1.0.0-beta3"
+        "beta": "1.0.0-beta4"
       },
       "versions": {
         "1.0.0-beta1": {
@@ -66,6 +66,19 @@
           "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/com.cuddled.liquidglass@1.0.0-beta3.zip",
           "sha256": "8208cb0e65cfb4db629b4864ef6c26a0e76d470c6be83c37e6b686dcdcc5ad8c",
           "size": 11821,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        },
+        "1.0.0-beta4": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/com.cuddled.liquidglass@1.0.0-beta4.zip",
+          "sha256": "2c085a7ee547453198fc3d5098ee66698bf2d278e65bed25e04a53a6d14a96ab",
+          "size": 14232,
           "dependencies": {
             "revenge.api": {
               "version": ">=1.0.0 <2.0.0"
