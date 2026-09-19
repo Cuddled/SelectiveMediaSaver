@@ -198,7 +198,7 @@ particular native build paints additional opaque layers over the wallpaper.
 
 ## Full-App Glass (Experimental) for Revenge Next
 
-`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta3` plugin. It does not require
+`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta4` plugin. It does not require
 Liquid Glass to be installed and has its own JSON storage. Liquid Glass's code, version, saved
 colors, and profiles are not changed by this experiment. A few audited pure helpers are bundled
 into the new ZIP; there is no runtime dependency on the other plugin.
@@ -215,6 +215,10 @@ In its settings, enable **Full-App Glass**, then use:
   channel-list headers have their own opaque wallpaper-backed layer, with adjustable tint/dim,
   so text scrolling underneath cannot overlap the controls. The profile toolbar retains an
   opacity floor of 82%.
+- The message-entry pill and bottom account bar also have their own wallpaper backing. Their
+  tint follows the transparency slider, but the wallpaper base remains opaque to block scrolling
+  text behind them. **Conversations** controls the input backing; **main screens** controls the
+  account-bar backing.
 - **Wallpaper darkness:** default 28%, independent from transparency.
 - **Glass tint:** Midnight, Violet, Ocean, or Black swatches.
 - **Area switches:** main screens (shared list/navigation/settings surfaces), conversations,
@@ -243,6 +247,16 @@ bridge refresh failures are logged. Native reply-preview appearance still needs 
 Chat and server-list headers receive clipped, noninteractive wallpaper layers with an opaque dark
 offline fallback. Original header controls, layout/safe-area measurements, navigation frames, and
 refs stay in place; keyed content slots avoid remounting controls when toggling the preview.
+Beta4 extends that backing to the inner floating chat-input pill and to the account bar's
+decorative background. Keyboard-padding wrappers, draft-bearing input components, reply context,
+autocomplete/emoji siblings, responder callbacks and layout measurements remain in place. Both
+the large-avatar mask and small-avatar animated-radius background are preserved, with the animated
+nameplate and account controls left outside the patched background.
+The separate `UserProfileContactButtons` boundary now receives the same scoped dark context as
+own-profile action groups. Valid profile colors become subtle tinted fills and accent outlines,
+with a muted violet fallback. An exact semantic-context marker limits these accents to primary/
+secondary controls inside those groups; destructive, premium, and toggle tokens are excluded.
+Pressed-state colors are distinct, while Discord keeps its existing disabled/loading behavior.
 Navigation identities, refs, media, interaction handlers, role/name-style colors, and native
 disabled states are retained. A temporary dark theme context is used while preview is active;
 the user's saved Discord appearance preference is not modified.
@@ -394,7 +408,7 @@ The distributables are written to:
 build/classic/manifest.json
 build/classic/index.js
 build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
-build/dist/com.cuddled.fullappglass@1.0.0-beta3.zip
+build/dist/com.cuddled.fullappglass@1.0.0-beta4.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 
