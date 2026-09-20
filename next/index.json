@@ -29,17 +29,30 @@
     },
     "com.cuddled.fullappglass": {
       "name": "Full-App Glass (Experimental)",
-      "description": "Personal glass Home with avatar styles, redesigned profiles, mood presets, calls and search for Discord 347.",
+      "description": "Personal glass Home with signature motifs, polished lists, forum and invite cards, and matching chat details for Discord 347.",
       "author": "Cuddled",
       "icon": "ic_theme_24px",
       "channels": {
-        "beta": "1.0.0-beta9"
+        "beta": "1.0.0-beta10"
       },
       "versions": {
         "1.0.0-beta1": {
           "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/com.cuddled.fullappglass@1.0.0-beta1.zip",
           "sha256": "efffc4db89a3791f79e956b3a872f55ba48bbdba5aef6328eb5ce428c0b76904",
           "size": 12885,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        },
+        "1.0.0-beta10": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/com.cuddled.fullappglass@1.0.0-beta10.zip",
+          "sha256": "fa09e4950e1e94c119331f0a5c56899b209f9ecbcd3a80f017d01dc311d71c59",
+          "size": 58886,
           "dependencies": {
             "revenge.api": {
               "version": ">=1.0.0 <2.0.0"
