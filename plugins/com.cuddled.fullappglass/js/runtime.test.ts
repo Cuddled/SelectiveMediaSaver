@@ -69,6 +69,18 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				contact: 'modules/user_profile/native/UserProfileContactButtons.tsx',
 				semantic: 'design/tokens/native/SemanticColorContext.native.tsx',
 			}
+			const pathsForBeta5 = {
+				text: 'modules/channel_list_v2/native/items/TextChannel.tsx',
+				base: 'modules/guild_sidebar/native/BaseChannelItem.tsx',
+				sheet: 'design/components/Sheet/native/ActionSheet.native.tsx',
+				row: 'design/components/Sheet/native/ActionSheetRow.native.tsx',
+				handle:
+					'design/components/Sheet/native/ActionSheetHeaderBar.native.tsx',
+			}
+			const actionRow = Object.assign(() => header, {
+				Icon: () => null,
+				Group: () => null,
+			})
 			const account = React.createElement(() => backdrop, {
 				barWidth: 330,
 				backgroundColor: '#12345633',
@@ -81,6 +93,11 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				gradient: null,
 			}
 			const modules: Record<string, any> = {
+				[pathsForBeta5.text]: { default: { type: () => header } },
+				[pathsForBeta5.base]: { default: () => header },
+				[pathsForBeta5.sheet]: { ActionSheet: { render: () => header } },
+				[pathsForBeta5.row]: { ActionSheetRow: actionRow },
+				[pathsForBeta5.handle]: { ActionSheetHeaderBar: () => header },
 				[pathsForBeta4.input]: { default: () => header },
 				[pathsForBeta4.account]: { default: { type: () => account } },
 				[pathsForBeta4.contact]: { default: () => buttons },
@@ -119,13 +136,16 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				instead: boolean,
 			) => {
 				const original = target[key]
-				target[key] = function (this: any, ...args: any[]) {
-					return instead
-						? hook.call(this, args, (...next: any[]) =>
-								original.apply(this, next),
-							)
-						: hook(original.apply(this, args))
-				}
+				// Revenge's real patcher proxies the target and retains component statics.
+				target[key] = new Proxy(original, {
+					apply(fn, receiver, args) {
+						return instead
+							? hook.call(receiver, args, (...next: any[]) =>
+									Reflect.apply(fn, receiver, next),
+								)
+							: hook(Reflect.apply(fn, receiver, args))
+					},
+				})
 				return () => {
 					target[key] = original
 					unpatched++
@@ -178,6 +198,8 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				modules,
 				pathsForBeta2,
 				pathsForBeta4,
+				pathsForBeta5,
+				actionRow,
 				account,
 				semanticContext,
 				header,
@@ -217,6 +239,30 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				assert.ok(h.paths.includes(path))
 			for (const path of Object.values(h.pathsForBeta4))
 				assert.ok(h.paths.includes(path))
+			for (const path of Object.values(h.pathsForBeta5))
+				assert.ok(h.paths.includes(path))
+			for (const [path, exportName, key] of [
+				[h.pathsForBeta5.text, 'default', 'type'],
+				[h.pathsForBeta5.sheet, 'ActionSheet', 'render'],
+			] as const)
+				assert.equal(
+					h.modules[path][exportName][key]().props.original,
+					h.header,
+				)
+			for (const [path, key] of [
+				[h.pathsForBeta5.base, 'default'],
+				[h.pathsForBeta5.row, 'ActionSheetRow'],
+				[h.pathsForBeta5.handle, 'ActionSheetHeaderBar'],
+			] as const)
+				assert.equal(h.modules[path][key]().props.original, h.header)
+			assert.equal(
+				h.modules[h.pathsForBeta5.row].ActionSheetRow.Icon,
+				h.actionRow.Icon,
+			)
+			assert.equal(
+				h.modules[h.pathsForBeta5.row].ActionSheetRow.Group,
+				h.actionRow.Group,
+			)
 			assert.equal(
 				h.modules[h.pathsForBeta4.input].default().props.original,
 				h.header,
@@ -334,6 +380,17 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			assert.ok(h.unpatched() >= 7)
 			assert.equal(h.modules[h.pathsForBeta4.input].default(), h.header)
 			assert.equal(h.modules[h.pathsForBeta4.account].default.type(), h.account)
+			assert.equal(h.modules[h.pathsForBeta5.text].default.type(), h.header)
+			assert.equal(h.modules[h.pathsForBeta5.base].default(), h.header)
+			assert.equal(
+				h.modules[h.pathsForBeta5.sheet].ActionSheet.render(),
+				h.header,
+			)
+			assert.equal(h.modules[h.pathsForBeta5.row].ActionSheetRow, h.actionRow)
+			assert.equal(
+				h.modules[h.pathsForBeta5.handle].ActionSheetHeaderBar(),
+				h.header,
+			)
 			assert.equal(h.modules[h.pathsForBeta4.contact].default(), h.buttons)
 			assert.equal(
 				semantic.getSemanticColorContextFromThemeContext(profile),

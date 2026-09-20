@@ -10,6 +10,7 @@ import {
 	surfaceColor,
 	toolbarColor,
 } from './core'
+import { polishEnabled, polishStyles } from './polish'
 import type * as ReactTypes from 'react'
 import type { Settings } from './core'
 
@@ -292,9 +293,11 @@ export function createSurfaces(
 	function HeaderWallpaper({
 		settings,
 		enabled,
+		composer = false,
 	}: {
 		settings: Settings
 		enabled: boolean
+		composer?: boolean
 	}) {
 		const request = React.useMemo(() => ({}), [enabled])
 		const current = React.useRef<object | null>(request)
@@ -342,6 +345,14 @@ export function createSurfaces(
 			React.createElement(native.View, {
 				style: [ABSOLUTE_FILL, { backgroundColor: surfaceColor(settings) }],
 			}),
+			composer && polishEnabled(settings, 'Composer')
+				? React.createElement(native.View, {
+						style: polishStyles(settings).composer,
+						pointerEvents: 'none',
+						accessible: false,
+						importantForAccessibility: 'no-hide-descendants',
+					})
+				: null,
 		)
 	}
 	function ProfileButtons({ original }: { original: Element }) {
@@ -374,6 +385,7 @@ export function createSurfaces(
 			key: 'bottom-bar-wallpaper',
 			settings,
 			enabled,
+			composer: kind === 'input',
 		})
 		return kind === 'input'
 			? backFloatingInput(React, original, enabled, wallpaper)
