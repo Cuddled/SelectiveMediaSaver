@@ -29,11 +29,11 @@
     },
     "com.cuddled.fullappglass": {
       "name": "Full-App Glass (Experimental)",
-      "description": "An independent Midnight Waves backdrop with adjustable transparency across supported Discord screens.",
+      "description": "Midnight Waves glass with custom accent colors, clean channel highlights, a polished message box and matching menus.",
       "author": "Cuddled",
       "icon": "ic_theme_24px",
       "channels": {
-        "beta": "1.0.0-beta4"
+        "beta": "1.0.0-beta5"
       },
       "versions": {
         "1.0.0-beta1": {
@@ -79,6 +79,19 @@
           "url": "https://cuddled.github.io/SelectiveMediaSaver/pool/com.cuddled.fullappglass@1.0.0-beta4.zip",
           "sha256": "360adbc3c390ddab055eb6d331c6ecd03bfc0cb093895a4f8a733554d93a1f21",
           "size": 15228,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        },
+        "1.0.0-beta5": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/pool/com.cuddled.fullappglass@1.0.0-beta5.zip",
+          "sha256": "1f928c3bce204d1f5217cae5de2de36f641febd70189c52798235ef5fd1eae7b",
+          "size": 17325,
           "dependencies": {
             "revenge.api": {
               "version": ">=1.0.0 <2.0.0"
