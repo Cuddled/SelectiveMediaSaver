@@ -335,6 +335,7 @@ test('unsupported tabs fall back once to standard search and page past the first
 	})
 	assert.equal(f.history.snapshot().status, 'complete')
 	assert.equal(f.history.snapshot().messages.length, 26)
+	assert.equal(f.history.snapshot().total, 26)
 	assert.ok(
 		f.history
 			.snapshot()

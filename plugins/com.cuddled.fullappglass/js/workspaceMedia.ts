@@ -267,6 +267,13 @@ export function createMediaHistory(deps: Dependencies) {
 						: 'Media search could not finish. Resume to retry.',
 				)
 			const page = searchPage(response, mode, state.channelId)
+			// max_id changes the remaining-result count; keep the first standard page's total.
+			const total =
+				mode === 'messages' && cursor !== null
+					? state.total
+					: Number.isFinite(page.total) && page.total >= 0
+						? page.total
+						: null
 			const rows = page.rows.filter(deps.visible)
 			for (const m of messageRecords(rows, state.channelId)) {
 				if (m.attachments.some(a => a.kind !== 'audio'))
@@ -293,8 +300,7 @@ export function createMediaHistory(deps: Dependencies) {
 					(a, b) => b.id.length - a.id.length || b.id.localeCompare(a.id),
 				),
 				pages: state.pages + 1,
-				total:
-					Number.isFinite(page.total) && page.total >= 0 ? page.total : null,
+				total,
 				status: limited
 					? 'limited'
 					: cursor
