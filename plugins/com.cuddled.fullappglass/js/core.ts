@@ -6,6 +6,7 @@ import {
 	normalizeHexColor,
 	readableChatForeground,
 } from '../../com.cuddled.liquidglass/js/core'
+import { focusAppearance } from './experience'
 import { PROFILE_ACCENT, profileAccent } from './profileAccents'
 import { normalizeStudio, STUDIO_DEFAULTS } from './studioModel'
 import type {
@@ -143,7 +144,7 @@ const CHAT_BASE_KEYS = new Set<string>([
 ])
 
 export function palette(value: Settings): Record<string, string> {
-	const settings = normalize(value)
+	const settings = focusAppearance(normalize(value))
 	const result = buildSemanticOverrides(asGlass(settings))
 	// Shared base surfaces form the main lists/settings group; chat surfaces have
 	// their own switch. This never guesses or traverses arbitrary native Views.
@@ -163,6 +164,22 @@ export function palette(value: Settings): Record<string, string> {
 			REACTION_BORDER_REACTED_DEFAULT: hexWithAlpha(settings.accentColor, 0.75),
 			REACTION_TEXT_REACTED_DEFAULT: '#F7F8FFFF',
 		})
+	}
+	if (settings.enabled && settings.studio.calls) {
+		result.MOBILE_VOICE_PANEL_BACKGROUND = hexWithAlpha(
+			settings.panelColor,
+			0.97,
+		)
+		result.VOICE_VIDEO_VIDEO_TILE_BACKGROUND = hexWithAlpha(
+			settings.panelColor,
+			0.9,
+		)
+	} else {
+		for (const key of [
+			'MOBILE_VOICE_PANEL_BACKGROUND',
+			'VOICE_VIDEO_VIDEO_TILE_BACKGROUND',
+		])
+			delete result[key]
 	}
 	return result
 }

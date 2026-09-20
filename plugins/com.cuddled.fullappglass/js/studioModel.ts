@@ -7,6 +7,12 @@ export interface Scene {
 	accent: string
 }
 export interface StudioSettings {
+	mood: 'custom' | 'midnight' | 'ice' | 'rose' | 'oled'
+	ambient: boolean
+	softMotion: boolean
+	calls: boolean
+	search: boolean
+	focus: boolean
 	dashboard: boolean
 	floatingRail: boolean
 	lineIcons: boolean
@@ -27,6 +33,12 @@ export interface StudioSettings {
 	scenes: Record<string, Scene>
 }
 export const STUDIO_DEFAULTS: StudioSettings = {
+	mood: 'custom',
+	ambient: true,
+	softMotion: true,
+	calls: true,
+	search: true,
+	focus: false,
 	dashboard: true,
 	floatingRail: true,
 	lineIcons: true,
@@ -74,6 +86,11 @@ export function normalizeStudio(value: unknown): StudioSettings {
 		scenes: {} as StudioSettings['scenes'],
 	}
 	for (const key of [
+		'ambient',
+		'softMotion',
+		'calls',
+		'search',
+		'focus',
 		'dashboard',
 		'floatingRail',
 		'lineIcons',
@@ -86,6 +103,8 @@ export function normalizeStudio(value: unknown): StudioSettings {
 		'music',
 	] as const)
 		if (typeof raw[key] === 'boolean') result[key] = raw[key]
+	if (['custom', 'midnight', 'ice', 'rose', 'oled'].includes(raw.mood ?? ''))
+		result.mood = raw.mood!
 	for (const key of ['wallpaper', 'homeWallpaper', 'emptyImage'] as const)
 		result[key] = imageUri(raw[key])
 	if (['discord', 'rounded', 'serif', 'mono'].includes(raw.font ?? ''))

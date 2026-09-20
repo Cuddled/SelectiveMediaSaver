@@ -4,6 +4,8 @@ import {
 	isNativeChat,
 	WALLPAPER_SOURCE,
 } from '../../com.cuddled.liquidglass/js/wallpaper'
+import { Atmosphere } from './Atmosphere'
+import { generatedBackdrop } from './experience'
 import type * as ReactTypes from 'react'
 import type { Access } from './surfaces'
 
@@ -27,6 +29,7 @@ export function createChatWallpaper(
 			alive && access.isActive() && settings.enabled && settings.chats
 		const channelId = original.props.channelId
 		const uri = access.getWallpaper?.(channelId) ?? WALLPAPER_SOURCE.uri
+		const generated = generatedBackdrop(settings, uri)
 		const request = React.useMemo(() => ({}), [enabled, channelId, uri])
 		const latest = React.useRef<object | null>(request)
 		latest.current = request
@@ -37,7 +40,7 @@ export function createChatWallpaper(
 			},
 			[],
 		)
-		const ready = enabled && loaded === request
+		const ready = enabled && (generated || loaded === request)
 		const mark = (ok: boolean) => {
 			if (alive && access.isActive() && enabled && latest.current === request)
 				setLoaded(ok ? request : null)
@@ -60,16 +63,18 @@ export function createChatWallpaper(
 							importantForAccessibility: 'no-hide-descendants',
 							style: ABSOLUTE_FILL,
 						},
-						React.createElement(native.Image, {
-							key: `${channelId}:${uri}`,
-							source: { uri },
-							resizeMode: 'cover',
-							blurRadius: settings.lowPower ? 0 : settings.blur,
-							onLoadStart: () => mark(false),
-							onLoad: () => mark(true),
-							onError: () => mark(false),
-							style: [ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }],
-						}),
+						generated
+							? null
+							: React.createElement(native.Image, {
+									key: `${channelId}:${uri}`,
+									source: { uri },
+									resizeMode: 'cover',
+									blurRadius: settings.lowPower ? 0 : settings.blur,
+									onLoadStart: () => mark(false),
+									onLoad: () => mark(true),
+									onError: () => mark(false),
+									style: [ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }],
+								}),
 						React.createElement(native.View, {
 							style: [
 								ABSOLUTE_FILL,
@@ -79,6 +84,7 @@ export function createChatWallpaper(
 								},
 							],
 						}),
+						React.createElement(Atmosphere, { settings, backdrop: generated }),
 					)
 				: null,
 			React.createElement(

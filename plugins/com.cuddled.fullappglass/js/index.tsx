@@ -5,6 +5,7 @@ import {
 } from '../../com.cuddled.liquidglass/js/core'
 import { deferLateRuntime } from '../../com.cuddled.liquidglass/js/runtime'
 import { WALLPAPER_SOURCE } from '../../com.cuddled.liquidglass/js/wallpaper'
+import { setAtmosphereActive, setAtmosphereGradient } from './Atmosphere'
 import { createChatWallpaper } from './chatWallpaper'
 import {
 	asGlass,
@@ -15,6 +16,10 @@ import {
 	runtime,
 	surfaceColor,
 } from './core'
+import {
+	createExperienceSurfaces,
+	voiceButtonStyles,
+} from './experienceSurfaces'
 import { createNativeThemeSync } from './nativeTheme'
 import { createPolish } from './polish'
 import { profileControlColor, profileSemanticContext } from './profileAccents'
@@ -26,6 +31,7 @@ import { createStudioData, setStudioData } from './studioData'
 import { createStudioSurfaces, LINE_ICONS, mediaTheme } from './studioSurfaces'
 import { createSurfaces } from './surfaces'
 import type { Settings } from './core'
+import type { ExperienceKind } from './experienceSurfaces'
 import type { StudioKind } from './studioSurfaces'
 
 type RecordAny = Record<string, any>
@@ -61,7 +67,10 @@ export default plugin<{ jsonStorage: Settings }>({
 			if (!alive) return
 			alive = false
 			nativeTheme.stop()
-			if (activeGeneration === currentGeneration) activeGeneration = 0
+			if (activeGeneration === currentGeneration) {
+				setAtmosphereActive(false)
+				activeGeneration = 0
+			}
 			runtime.update({ ...runtime.getSettings(), enabled: false })
 			colors = {}
 			refresh()
@@ -82,6 +91,7 @@ export default plugin<{ jsonStorage: Settings }>({
 			}),
 		)
 		const React = revenge.react.React
+		setAtmosphereActive(true)
 		const data = createStudioData()
 		data.start()
 		setStudioData(data)
@@ -109,6 +119,11 @@ export default plugin<{ jsonStorage: Settings }>({
 			access,
 			StudioLauncher,
 		)
+		const experience = createExperienceSurfaces(
+			React,
+			revenge.react.ReactNative,
+			access,
+		)
 		api.cleanup(
 			data.subscribeAppearance(() => {
 				colors = palette(data.effectiveSettings())
@@ -124,6 +139,7 @@ export default plugin<{ jsonStorage: Settings }>({
 			polish.dispose()
 			chat.dispose()
 			studio.dispose()
+			experience.dispose()
 		})
 		const watch = (path: string, install: (exports: RecordAny) => void) => {
 			let installed = false
@@ -204,6 +220,75 @@ export default plugin<{ jsonStorage: Settings }>({
 					),
 				)
 			})
+		for (const [path, keys, kind] of [
+			[
+				'modules/voice_panel/native/card/VoicePanelCard.tsx',
+				['default', 'type'],
+				'call-card',
+			],
+			[
+				'modules/calls/native/VideoBackground.tsx',
+				['default', 'type'],
+				'call-legacy',
+			],
+			[
+				'modules/video_calls/native/components/CallBarAction.tsx',
+				['ToggledActionButton'],
+				'call-button',
+			],
+			[
+				'modules/search/native/components/layout/SearchBar.tsx',
+				['default', 'type', 'render'],
+				'search-bar',
+			],
+			[
+				'modules/search/native/components/list/SearchListRow.tsx',
+				['SearchListRow', 'type'],
+				'search-row',
+			],
+			[
+				'modules/search/native/components/list/SearchListCard.tsx',
+				['SearchListCardContainer'],
+				'search-card',
+			],
+			[
+				'modules/search/native/components/list/SearchListSection.tsx',
+				['default', 'type'],
+				'search-section',
+			],
+			[
+				'modules/search/native/components/navigator/SearchNavigatorScreen.tsx',
+				['default'],
+				'search-screen',
+			],
+		] as Array<[string, string[], ExperienceKind]>) {
+			watch(path, exports => {
+				let target = exports
+				for (const key of keys.slice(0, -1)) target = target?.[key]
+				const method = keys[keys.length - 1]
+				if (typeof target?.[method] !== 'function') return
+				api.cleanup(
+					revenge.patcher.instead(
+						target as any,
+						method,
+						function (this: any, args, original) {
+							return experience.wrap(
+								kind,
+								Reflect.apply(original, this, args),
+								args[0],
+							)
+						},
+					),
+				)
+			})
+		}
+		watch(
+			'modules/voice_panel/native/controls/buttons/VoicePanelStyles.tsx',
+			exports =>
+				after(exports, 'useVoicePanelButtonStyles', original =>
+					voiceButtonStyles(data.effectiveSettings(), original),
+				),
+		)
 		detail(
 			'modules/main_tabs_v2/native/tabs/messages/MessagesHeader.tsx',
 			'default',
@@ -470,6 +555,10 @@ export default plugin<{ jsonStorage: Settings }>({
 		)
 
 		watch('modules/client_themes/native/ThemedGradient.tsx', exports => {
+			if (typeof exports.CustomThemedGradient === 'function') {
+				setAtmosphereGradient(exports.CustomThemedGradient)
+				api.cleanup(() => setAtmosphereGradient(undefined))
+			}
 			if (typeof exports.default !== 'function') return
 			function Gradient({ original, props }: { original: any; props: any }) {
 				const appVisible = surfaces.useVisible()

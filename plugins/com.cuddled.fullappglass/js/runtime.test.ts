@@ -94,6 +94,15 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				gradient: null,
 			}
 			const modules: Record<string, any> = {
+				'modules/voice_panel/native/card/VoicePanelCard.tsx': {
+					default: { type: () => header },
+				},
+				'modules/search/native/components/layout/SearchBar.tsx': {
+					default: { type: { render: () => header } },
+				},
+				'modules/search/native/components/list/SearchListRow.tsx': {
+					SearchListRow: { type: () => header },
+				},
 				'modules/main_tabs_v2/native/tabs/messages/MessagesHeader.tsx': {
 					default: { type: () => header },
 				},
@@ -251,6 +260,27 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				h.paths.includes('modules/themes/RootThemeContextProvider.native.tsx'),
 			)
 			assert.ok(h.paths.includes('modules/chat/native/Chat.android.tsx'))
+			for (const [path, keys] of [
+				[
+					'modules/voice_panel/native/card/VoicePanelCard.tsx',
+					['default', 'type'],
+				],
+				[
+					'modules/search/native/components/layout/SearchBar.tsx',
+					['default', 'type', 'render'],
+				],
+				[
+					'modules/search/native/components/list/SearchListRow.tsx',
+					['SearchListRow', 'type'],
+				],
+			] as Array<[string, string[]]>) {
+				let target = h.modules[path]
+				for (const key of keys.slice(0, -1)) target = target[key]
+				const props = { searchContext: {}, item: {}, ref: React.createRef() }
+				const result = target[keys.at(-1)!](props)
+				assert.equal(result.props.original, h.header)
+				assert.equal(result.props.children.props.props, props)
+			}
 			for (const path of Object.values(h.pathsForBeta2))
 				assert.ok(h.paths.includes(path))
 			for (const path of Object.values(h.pathsForBeta4))
@@ -409,6 +439,24 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			runtime.update({ enabled: true })
 			const pending = definition.start(h.api)
 			h.stop()
+			assert.equal(
+				h.modules[
+					'modules/voice_panel/native/card/VoicePanelCard.tsx'
+				].default.type(),
+				h.header,
+			)
+			assert.equal(
+				h.modules[
+					'modules/search/native/components/layout/SearchBar.tsx'
+				].default.type.render(),
+				h.header,
+			)
+			assert.equal(
+				h.modules[
+					'modules/search/native/components/list/SearchListRow.tsx'
+				].SearchListRow.type(),
+				h.header,
+			)
 			assert.equal(
 				h.modules[
 					'modules/main_tabs_v2/native/tabs/messages/MessagesHeader.tsx'

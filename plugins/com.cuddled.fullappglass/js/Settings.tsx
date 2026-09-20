@@ -3,7 +3,9 @@ import {
 	ABSOLUTE_FILL,
 	WALLPAPER_SOURCE,
 } from '../../com.cuddled.liquidglass/js/wallpaper'
+import { Atmosphere } from './Atmosphere'
 import { DEFAULT_SETTINGS, runtime, surfaceColor } from './core'
+import { generatedBackdrop } from './experience'
 import { polishEnabled, polishStyles } from './polish'
 import { StudioLauncher } from './Studio'
 import { saveSettings } from './settingsWriter'
@@ -47,6 +49,7 @@ function Preview({ settings }: { settings: Settings }) {
 	const surface = surfaceColor(settings)
 	// The miniature preview works while the app-wide appearance is paused.
 	const preview = { ...settings, enabled: true }
+	const generated = generatedBackdrop(preview, uri)
 	const styles = polishStyles(preview)
 	const channels = polishEnabled(preview, 'Channels')
 	const composer = polishEnabled(preview, 'Composer')
@@ -62,15 +65,17 @@ function Preview({ settings }: { settings: Settings }) {
 				borderColor: '#FFFFFF30',
 			}}
 		>
-			<Image
-				key={uri}
-				source={{ uri }}
-				resizeMode="cover"
-				blurRadius={settings.lowPower ? 0 : settings.blur}
-				onLoad={() => setLoaded(uri)}
-				onError={() => setLoaded('')}
-				style={[ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }]}
-			/>
+			{!generated ? (
+				<Image
+					key={uri}
+					source={{ uri }}
+					resizeMode="cover"
+					blurRadius={settings.lowPower ? 0 : settings.blur}
+					onLoad={() => setLoaded(uri)}
+					onError={() => setLoaded('')}
+					style={[ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }]}
+				/>
+			) : null}
 			<View
 				pointerEvents="none"
 				style={[
@@ -78,6 +83,7 @@ function Preview({ settings }: { settings: Settings }) {
 					{ backgroundColor: hexWithAlpha('#000000', settings.darkness) },
 				]}
 			/>
+			<Atmosphere settings={preview} backdrop={generated} />
 			<View
 				style={{
 					padding: 14,
