@@ -1,7 +1,7 @@
-# Workspace beta15
+# Workspace beta16
 
 Workspace adds ten connected tools to Full-App Glass on Discord Android 347.x.
-Open **Home → Open Workspace**, or tap **✧ Tools** inside a conversation. Hold
+Open **Home → Open Workspace**, or tap **✧ Tools** above the message composer. Hold
 the chat button to open the gesture wheel. Existing theme settings are preserved.
 
 | Tool | Working behavior |
@@ -24,11 +24,17 @@ the chat button to open the gesture wheel. Existing theme settings are preserved
 - Lenses, peeks and voice tools use messages already loaded by Discord. Opening an
   original message uses Discord's normal navigation and loading behavior.
 - Media Studio automatically pages Discord 347's native media-search endpoint for
-  the selected conversation. It does not scroll chat, change the visible search,
+  the selected conversation. Opaque text and structured JSON cursors are preserved.
+  Unsupported tab responses switch once to the native standard search endpoint;
+  its older-message boundary avoids offset-limited pagination. It does not scroll chat, change the visible search,
   acknowledge unread messages, or search other channels. Each page is scoped and
   permission-checked; blocked/ignored search results and age-gated channels are excluded.
   Results include uploaded images/videos and images served by Discord's embed proxy.
   Deleted, inaccessible, expired or not-yet-indexed media may be unavailable.
+- The Tools shortcut occupies a normal row inside the measured composer container,
+  above its original input pill. Native input refs, draft state, keyboard padding,
+  controls, attachments, replies, and emoji suggestions retain their own layout.
+  Unknown composer layouts leave the patch inactive; Workspace remains available from Home.
 - Loading stops on pause, leaving Media Studio, backgrounding the app, permission
   loss, account change or unloading. Foregrounding resumes an automatically paused
   load. A manually paused load resumes with **Resume loading**. Discord's retry delays

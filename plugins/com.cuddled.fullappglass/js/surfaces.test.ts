@@ -248,7 +248,7 @@ function harness(
 			) {
 				const container =
 					scope === 'input'
-						? root.props.children.props.children[2]
+						? root.props.children.props.children[3]
 						: scope === 'masked-account'
 							? root.props.children
 							: root

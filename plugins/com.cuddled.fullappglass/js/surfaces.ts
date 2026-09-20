@@ -178,6 +178,7 @@ export function createSurfaces(
 	React: ReactApi,
 	native: { View: any; Image: any },
 	access: Access,
+	WorkspaceToolbar?: ReactTypes.ComponentType,
 ) {
 	let alive = true
 	let themeContext: ReactTypes.Context<any> | undefined
@@ -424,7 +425,17 @@ export function createSurfaces(
 			composer: kind === 'input',
 		})
 		return kind === 'input'
-			? backFloatingInput(React, original, enabled, wallpaper)
+			? backFloatingInput(
+					React,
+					original,
+					enabled,
+					wallpaper,
+					enabled && settings.workspace.enabled && WorkspaceToolbar
+						? React.createElement(WorkspaceToolbar, {
+								key: 'workspace-toolbar',
+							})
+						: null,
+				)
 			: kind === 'account-shade'
 				? backAccountShade(React, original, enabled, wallpaper)
 				: backAccountBar(React, original, enabled, wallpaper)
