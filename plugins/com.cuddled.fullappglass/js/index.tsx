@@ -289,6 +289,12 @@ export default plugin<{ jsonStorage: Settings }>({
 			['selectedChannel', 'stores/SelectedChannelStore.tsx', 'default'],
 			['selectedGuild', 'stores/SelectedGuildStore.tsx', 'default'],
 			['messages', 'stores/MessageStore.tsx', 'default'],
+			[
+				'http',
+				'../discord_common/js/packages/http-utils/HTTPUtils.tsx',
+				'HTTP',
+			],
+			['searchConstants', 'Constants.tsx', ''],
 			['permissions', 'stores/PermissionStore.tsx', 'default'],
 			['permissionConstants', '../discord_common/js/shared/Constants.tsx', ''],
 			['speaking', 'stores/SpeakingStore.tsx', 'default'],
@@ -316,7 +322,16 @@ export default plugin<{ jsonStorage: Settings }>({
 			watch(path, exports => {
 				const value = exportKey ? exports[exportKey] : exports
 				// Fast message/speaking updates are coalesced by Workspace.
-				if (!['messages', 'permissions', 'speaking', 'webPlayer'].includes(key))
+				if (
+					![
+						'messages',
+						'permissions',
+						'speaking',
+						'webPlayer',
+						'http',
+						'searchConstants',
+					].includes(key)
+				)
 					data.attach(key, value)
 				workspace.attach(key, value)
 			})

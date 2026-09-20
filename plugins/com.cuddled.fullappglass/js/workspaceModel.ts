@@ -151,7 +151,12 @@ function mark(v: unknown): Bookmark | null {
 		? {
 				channelId: r.channelId,
 				messageId: r.messageId,
-				attachmentId: isId(r.attachmentId) ? r.attachmentId : '',
+				attachmentId:
+					isId(r.attachmentId) ||
+					(typeof r.attachmentId === 'string' &&
+						/^embed:\d{1,2}$/.test(r.attachmentId))
+						? r.attachmentId
+						: '',
 				label: text(r.label, 100),
 				seconds: number(r.seconds, 0, 86400),
 			}
@@ -302,6 +307,7 @@ export interface Attachment {
 	duration: number
 	waveform: string
 	spoiler: boolean
+	thumbnail?: string
 }
 export interface WorkspaceMessage {
 	id: string
@@ -320,6 +326,26 @@ export function mediaUri(v: unknown): string {
 	)
 		? v
 		: ''
+}
+export function imageUri(v: unknown): string {
+	if (mediaUri(v)) return v as string
+	return typeof v === 'string' &&
+		v.length <= 4096 &&
+		!/[\s<>"\\]/.test(v) &&
+		/^https:\/\/(?:media\.discordapp\.net|images-ext-[12]\.discordapp\.net)\/external\//i.test(
+			v,
+		)
+		? v
+		: ''
+}
+export function thumbnailUri(uri: string) {
+	const safe = imageUri(uri)
+	if (!safe) return ''
+	const scaled = safe.replace(
+		'https://cdn.discordapp.com/',
+		'https://media.discordapp.net/',
+	)
+	return `${scaled}${scaled.includes('?') ? '&' : '?'}width=480&height=320&fit=contain&format=webp`
 }
 export function messageRecords(
 	value: unknown,
@@ -360,9 +386,30 @@ export function messageRecords(
 							duration: number(a.duration_secs ?? a.duration, 0, 86400),
 							waveform: text(a.waveform, 4096),
 							spoiler: name.startsWith('SPOILER_') || a.spoiler === true,
+							thumbnail:
+								kind === 'image'
+									? thumbnailUri(imageUri(a.proxy_url ?? a.proxyURL) || url)
+									: '',
 						},
 					]
 				: []
+		})
+		list(m.embeds, 10).forEach((raw, index) => {
+			const e = object(raw),
+				image = object(e.image ?? (e.type === 'image' ? e.thumbnail : null))
+			const url =
+				imageUri(image.proxy_url ?? image.proxyURL) || imageUri(image.url)
+			if (!url || attachments.some(a => a.url === url)) return
+			attachments.push({
+				id: `embed:${index}`,
+				name: text(e.title, 200) || 'Shared image',
+				url,
+				kind: 'image',
+				duration: 0,
+				waveform: '',
+				spoiler: e.spoiler === true || content.includes('||'),
+				thumbnail: thumbnailUri(url),
+			})
 		})
 		const links = unique(
 			(content.match(/https?:\/\/[^\s<>]+/g) ?? []).map(s =>

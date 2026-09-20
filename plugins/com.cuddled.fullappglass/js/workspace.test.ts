@@ -297,6 +297,50 @@ test('workspace reads only available channels and never fetches history on read'
 		f.close()
 	}
 })
+
+test('media history uses an isolated native request and leaves navigation, cached messages, and saved settings untouched', async () => {
+	const f = setup(),
+		requests: any[] = []
+	try {
+		const settings = JSON.stringify(runtime.getSettings())
+		f.workspace.attach('searchConstants', {
+			Endpoints: {
+				SEARCH_TABS_GUILD: (id: string) => `/guilds/${id}/messages/search/tabs`,
+				SEARCH_TABS_CHANNEL: (id: string) =>
+					`/channels/${id}/messages/search/tabs`,
+			},
+		})
+		f.workspace.attach('http', {
+			post: async (request: any) => {
+				requests.push(request)
+				return {
+					status: 200,
+					body: {
+						tabs: {
+							media: { messages: [[{ ...sample, id: other }]], cursor: null },
+						},
+					},
+				}
+			},
+		})
+		assert.ok(f.workspace.mediaSearchReady())
+		assert.equal(requests.length, 0)
+		f.workspace.mediaHistory.start(channel)
+		await Promise.resolve()
+		await Promise.resolve()
+		await Promise.resolve()
+		assert.equal(requests.length, 1)
+		assert.equal(requests[0].url, `/guilds/${guild}/messages/search/tabs`)
+		assert.equal(f.workspace.mediaMessages(channel).length, 2)
+		assert.equal(f.workspace.messages(channel).length, 1)
+		assert.equal(f.calls.length, 0)
+		assert.equal(JSON.stringify(runtime.getSettings()), settings)
+		f.account(other)
+		assert.equal(f.workspace.mediaHistory.snapshot().messages.length, 0)
+	} finally {
+		f.close()
+	}
+})
 test('account changes hide notes and clear in-memory reading anchors', async () => {
 	const f = setup()
 	try {

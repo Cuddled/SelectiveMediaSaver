@@ -407,7 +407,7 @@ function Peek(p: Props) {
 
 function Media(p: Props & { voice?: boolean }) {
 	const React = revenge.react.React,
-		{ Image } = revenge.react.ReactNative
+		{ Image, AppState } = revenge.react.ReactNative
 	const [selected, setSelected] = React.useState<{
 			message: WorkspaceMessage
 			attachment: Attachment
@@ -419,20 +419,53 @@ function Media(p: Props & { voice?: boolean }) {
 		[transcript, setTranscript] = React.useState(''),
 		[start, setStart] = React.useState('0'),
 		[end, setEnd] = React.useState(''),
-		[reveal, setReveal] = React.useState(false)
+		[reveal, setReveal] = React.useState(false),
+		[page, setPage] = React.useState(0)
+	const history = p.data.mediaHistory,
+		search = history.snapshot(),
+		ready = p.data.mediaSearchReady(),
+		allowed = p.data.canRead(p.channelId)
+	React.useEffect(() => {
+		if (p.voice || !ready || !allowed) return
+		if (!AppState.currentState || AppState.currentState === 'active')
+			history.start(p.channelId)
+		let resume = !!AppState.currentState && AppState.currentState !== 'active'
+		const subscription = AppState.addEventListener('change', state => {
+			if (state === 'active') {
+				if (resume) history.start(p.channelId)
+				resume = false
+			} else {
+				resume =
+					resume || ['loading', 'waiting'].includes(history.snapshot().status)
+				history.pause()
+			}
+		})
+		return () => {
+			subscription.remove()
+			history.pause()
+		}
+	}, [history, p.channelId, p.voice, ready, allowed])
+	React.useEffect(() => {
+		setPage(0)
+	}, [query, collection])
 	const channels = [
 		p.channelId,
 		...p.account.media.map(m => m.channelId),
 	].filter((v, i, a) => v && a.indexOf(v) === i)
-	const clips = channels.flatMap(id =>
-		p.data
-			.messages(id)
-			.flatMap(message =>
-				message.attachments
-					.filter(a => (p.voice ? a.kind === 'audio' : a.kind !== 'audio'))
-					.map(attachment => ({ message, attachment })),
+	const clips = channels
+		.flatMap(id =>
+			(p.voice ? p.data.messages(id) : p.data.mediaMessages(id)).flatMap(
+				message =>
+					message.attachments
+						.filter(a => (p.voice ? a.kind === 'audio' : a.kind !== 'audio'))
+						.map(attachment => ({ message, attachment })),
 			),
-	)
+		)
+		.sort(
+			(a, b) =>
+				b.message.id.length - a.message.id.length ||
+				b.message.id.localeCompare(a.message.id),
+		)
 	const marks = p.account.media
 	const saved = selected
 		? marks.find(
@@ -498,7 +531,7 @@ function Media(p: Props & { voice?: boolean }) {
 				: account.bookmarks,
 		}))
 	}
-	if (selected)
+	if (selected && p.data.canRead(selected.message.channelId))
 		return (
 			<>
 				<Button onPress={() => setSelected(null)}>← Back to library</Button>
@@ -622,7 +655,12 @@ function Media(p: Props & { voice?: boolean }) {
 			</>
 		)
 	const visible = clips.filter(({ attachment, message }) => {
-		const mark = marks.find(m => m.attachmentId === attachment.id)
+		const mark = marks.find(
+			m =>
+				m.attachmentId === attachment.id &&
+				m.messageId === message.id &&
+				m.channelId === message.channelId,
+		)
 		return (
 			(collection === 'All' || mark?.collection === collection) &&
 			`${attachment.name} ${message.author} ${mark?.tags ?? ''}`
@@ -630,8 +668,72 @@ function Media(p: Props & { voice?: boolean }) {
 				.includes(query.toLowerCase())
 		)
 	})
+	const pageIndex = Math.min(
+		page,
+		Math.max(0, Math.ceil(visible.length / 24) - 1),
+	)
+	const loading =
+		search.channelId === p.channelId &&
+		['loading', 'waiting'].includes(search.status)
 	return (
 		<>
+			{!p.voice ? (
+				<Box>
+					<Text large>
+						{loading ? 'Finding your media…' : 'Conversation media'}
+					</Text>
+					<Text subtle>{clips.length} items available · newest first</Text>
+					<Text subtle>
+						{!allowed
+							? 'This conversation is unavailable.'
+							: !ready
+								? 'Waiting for Discord’s media search to initialize…'
+								: search.channelId === p.channelId
+									? search.detail || 'Starting media search…'
+									: 'Starting media search…'}
+					</Text>
+					{search.channelId === p.channelId && search.pages > 0 ? (
+						<Text subtle>
+							{search.pages} batches checked
+							{search.total !== null
+								? ` · ${search.total} matching messages reported by Discord`
+								: ''}
+						</Text>
+					) : null}
+					<Row>
+						{loading ? (
+							<Button onPress={() => history.pause()}>Pause loading</Button>
+						) : search.channelId === p.channelId &&
+							['paused', 'error'].includes(search.status) ? (
+							<Button
+								disabled={!ready || !allowed}
+								onPress={() => history.start(p.channelId)}
+							>
+								Resume loading
+							</Button>
+						) : null}
+						{search.channelId === p.channelId && search.status === 'limited' ? (
+							<Button
+								onPress={() => {
+									setPage(0)
+									history.older()
+								}}
+							>
+								Browse older batch
+							</Button>
+						) : null}
+						<Button
+							disabled={!ready || !allowed || loading}
+							onPress={() => {
+								setPage(0)
+								history.refresh(p.channelId)
+							}}
+						>
+							Refresh media
+						</Button>
+					</Row>
+				</Box>
+			) : null}
 			<Input
 				label="Search clips, people, or tags"
 				value={query}
@@ -645,8 +747,32 @@ function Media(p: Props & { voice?: boolean }) {
 				value={collection}
 				select={setCollection}
 			/>
-			<Text subtle>From loaded messages and your saved collections.</Text>
-			{visible.slice(0, 60).map(item => (
+			<Text subtle>
+				{p.voice
+					? 'From loaded messages and your saved collections.'
+					: 'Images and videos from this conversation, plus your available saved collections.'}
+			</Text>
+			{visible.length ? (
+				<Row>
+					<Button
+						disabled={pageIndex === 0}
+						onPress={() => setPage(pageIndex - 1)}
+					>
+						Previous images
+					</Button>
+					<Text subtle>
+						{pageIndex * 24 + 1}–
+						{Math.min(visible.length, (pageIndex + 1) * 24)} of {visible.length}
+					</Text>
+					<Button
+						disabled={(pageIndex + 1) * 24 >= visible.length}
+						onPress={() => setPage(pageIndex + 1)}
+					>
+						Next images
+					</Button>
+				</Row>
+			) : null}
+			{visible.slice(pageIndex * 24, (pageIndex + 1) * 24).map(item => (
 				<Box key={`${item.message.id}:${item.attachment.id}`}>
 					<Text>{item.attachment.name}</Text>
 					<Text subtle>
@@ -657,7 +783,7 @@ function Media(p: Props & { voice?: boolean }) {
 					</Text>
 					{item.attachment.kind === 'image' && !item.attachment.spoiler ? (
 						<Image
-							source={{ uri: item.attachment.url }}
+							source={{ uri: item.attachment.thumbnail || item.attachment.url }}
 							resizeMode="cover"
 							style={{ height: 130, borderRadius: 16 }}
 						/>
@@ -669,12 +795,23 @@ function Media(p: Props & { voice?: boolean }) {
 			))}
 			{!visible.length ? (
 				<Text subtle>
-					No {p.voice ? 'voice notes' : 'media'} loaded yet. Open a conversation
-					containing some, then return.
+					{loading
+						? 'Looking for images and videos. You can stay here while older results arrive.'
+						: p.voice
+							? 'No voice notes loaded yet. Open a conversation containing some, then return.'
+							: 'No media matches these filters yet.'}
 				</Text>
 			) : null}
 			{marks
-				.filter(m => !clips.some(c => c.attachment.id === m.attachmentId))
+				.filter(
+					m =>
+						!clips.some(
+							c =>
+								c.attachment.id === m.attachmentId &&
+								c.message.id === m.messageId &&
+								c.message.channelId === m.channelId,
+						),
+				)
 				.slice(0, 15)
 				.map(m => (
 					<Box key={`${m.messageId}:${m.attachmentId}`}>

@@ -1,6 +1,9 @@
 # Selective Media Saver
 
-Full-App Glass `1.0.0-beta14` adds **Workspace**, a connected set of ten personal
+Full-App Glass `1.0.0-beta15` adds automatic media-history loading to **Workspace**.
+Opening Media Studio searches the selected conversation for older images and videos,
+newest first, without scrolling chat. It includes pause/resume, progress, small thumbnails,
+and paged browsing. Workspace is a connected set of ten personal
 tools: conversation lenses, floating peeks, media/voice tools, a gesture wheel,
 notebooks, editable Home layouts, local rules, reactive accents, and saved sessions.
 Open **Home → Open Workspace** or the chat’s **✧ Tools** button; hold it for the wheel.
@@ -605,7 +608,7 @@ The distributables are written to:
 build/classic/manifest.json
 build/classic/index.js
 build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
-build/dist/com.cuddled.fullappglass@1.0.0-beta13.zip
+build/dist/com.cuddled.fullappglass@1.0.0-beta15.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next9.zip
 ```
 

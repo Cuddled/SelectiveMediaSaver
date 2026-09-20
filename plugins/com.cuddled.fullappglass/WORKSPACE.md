@@ -1,4 +1,4 @@
-# Workspace beta14
+# Workspace beta15
 
 Workspace adds ten connected tools to Full-App Glass on Discord Android 347.x.
 Open **Home → Open Workspace**, or tap **✧ Tools** inside a conversation. Hold
@@ -8,7 +8,7 @@ the chat button to open the gesture wheel. Existing theme settings are preserved
 | --- | --- |
 | Conversation lenses | Search loaded messages; filter media, links, question marks and reply relationships; bookmark and jump to original messages. |
 | Floating peek | Keep the most recent loaded messages from another conversation over the current chat; move the panel up/down; open the native conversation to reply. |
-| Media Studio | Browse loaded attachments; save named collections, tags, timestamps and playback ranges; play clips in Discord's embedded player. |
+| Media Studio | Automatically search older images/videos in the selected conversation, newest first, with progress and pause/resume; browse thumbnails, collections, tags, timestamps and playback ranges. |
 | Gesture wheel | Tap or drag to six configurable shortcuts. The center cancels; screen-reader button actions remain available. |
 | Personal rules | Apply a scene and suggest a tool while a channel/server/voice condition matches; first enabled matching rule wins. The saved look returns when the rule stops matching. |
 | Notebooks | Per-conversation notes, private follow-ups and message bookmarks. |
@@ -21,9 +21,23 @@ the chat button to open the gesture wheel. Existing theme settings are preserved
 
 - This is a first implementation, not a promise of pixel-identical native rendering.
   Phone QA is still required on the supported Discord/Revenge build.
-- Lenses, peeks and libraries use messages already loaded by Discord. They do not
-  scan the account's history or fetch messages in the background. Opening an
+- Lenses, peeks and voice tools use messages already loaded by Discord. Opening an
   original message uses Discord's normal navigation and loading behavior.
+- Media Studio automatically pages Discord 347's native media-search endpoint for
+  the selected conversation. It does not scroll chat, change the visible search,
+  acknowledge unread messages, or search other channels. Each page is scoped and
+  permission-checked; blocked/ignored search results and age-gated channels are excluded.
+  Results include uploaded images/videos and images served by Discord's embed proxy.
+  Deleted, inaccessible, expired or not-yet-indexed media may be unavailable.
+- Loading stops on pause, leaving Media Studio, backgrounding the app, permission
+  loss, account change or unloading. Foregrounding resumes an automatically paused
+  load. A manually paused load resumes with **Resume loading**. Discord's retry delays
+  survive pause/resume and refresh; repeated indexing/rate-limit replies pause for retry.
+- Search metadata stays in memory for the current conversation; message text and
+  signed URLs are not saved to plugin storage. Only 24 thumbnails render per gallery
+  page. For very large conversations, **Browse older batch** continues after 5,000
+  media-bearing messages while releasing the prior batch; **Refresh media** returns
+  to the latest results. Partial indexing is labeled instead of claiming completion.
 - The library stores attachment identifiers and personal metadata, not permanent
   copies or expiring CDN URLs. Reopen a message to refresh an expired/unloaded link.
 - Playback uses Discord's media WebView. Open a video once if that optional module
@@ -62,7 +76,9 @@ current account. Unloading removes subscriptions, timers, wrappers and theme ove
 
 ## Validation
 
-Automated tests cover migration, bounded storage, account isolation, permission
+Automated tests cover automatic pagination, deduplication, search scope, retry delays,
+cancellation, late responses, cursor validation, large-history continuation, image
+proxies, migration, bounded storage, account isolation, permission
 changes, scene restoration, native handler preservation, navigation, playback
 document isolation, transcripts, shortcuts, persistence failures and disposal.
 Browser QA renders the actual React components through a React Native adapter and

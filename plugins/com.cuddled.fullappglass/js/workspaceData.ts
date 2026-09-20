@@ -1,6 +1,7 @@
 import { runtime } from './core'
 import { applyMood } from './experience'
 import { saveSettings } from './settingsWriter'
+import { createMediaHistory, mediaSearchRequest } from './workspaceMedia'
 import {
 	accountFor,
 	activeRule,
@@ -20,6 +21,7 @@ export function createWorkspaceData(home: StudioData) {
 		cleanup: Array<() => void> = []
 	const positions = new Map<string, string>()
 	const messagesCache = new Map<string, ReturnType<typeof messageRecords>>()
+	let history: ReturnType<typeof createMediaHistory> | undefined
 	let peekChannel = ''
 	let alive = true,
 		revision = 0,
@@ -27,6 +29,7 @@ export function createWorkspaceData(home: StudioData) {
 		lastAccount = ''
 	const emit = () => {
 		if (alive) {
+			history?.sync()
 			messagesCache.clear()
 			revision++
 			for (const fn of listeners) fn()
@@ -48,6 +51,26 @@ export function createWorkspaceData(home: StudioData) {
 		}
 	}
 	const api = {
+		get mediaHistory() {
+			return history!
+		},
+		mediaSearchReady() {
+			return (
+				typeof stores.http?.post === 'function' &&
+				!!stores.searchConstants?.Endpoints
+			)
+		},
+		mediaMessages(id: string) {
+			if (!api.canRead(id)) return []
+			const state = history!.snapshot()
+			const all = new Map(
+				(state.channelId === id ? state.messages : []).map(m => [m.id, m]),
+			)
+			for (const m of api.messages(id)) all.set(m.id, m)
+			return [...all.values()].sort(
+				(a, b) => b.id.length - a.id.length || b.id.localeCompare(a.id),
+			)
+		},
 		subscribe(fn: () => void) {
 			listeners.add(fn)
 			return () => {
@@ -283,6 +306,7 @@ export function createWorkspaceData(home: StudioData) {
 		},
 		dispose() {
 			alive = false
+			history?.dispose()
 			if (timer) clearTimeout(timer)
 			for (const fn of cleanup) fn()
 			listeners.clear()
@@ -293,6 +317,34 @@ export function createWorkspaceData(home: StudioData) {
 			for (const key of Object.keys(stores)) delete stores[key]
 		},
 	}
+	history = createMediaHistory({
+		account: api.accountId,
+		allowed: id =>
+			api.canRead(id) &&
+			runtime.getSettings().enabled &&
+			runtime.getSettings().workspace.enabled,
+		visible: m =>
+			call('relationships', 'isBlockedOrIgnoredForMessage', m) !== true &&
+			call('relationships', 'isBlocked', m.author?.id) !== true,
+		changed: emit,
+		request: async (id, cursor, signal) => {
+			if (!api.mediaSearchReady())
+				throw new Error(
+					'Media search is still initializing. Try again in a moment.',
+				)
+			const channel = api.channel(id)
+			if (!channel) throw new Error('This conversation is unavailable.')
+			return stores.http.post({
+				...mediaSearchRequest(
+					id,
+					channel.guildId,
+					cursor,
+					stores.searchConstants.Endpoints,
+				),
+				signal,
+			})
+		},
+	})
 	cleanup.push(
 		home.subscribe(() => {
 			const id = api.accountId()
