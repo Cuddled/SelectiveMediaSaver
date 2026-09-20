@@ -194,6 +194,27 @@ export function createStudioData() {
 				] === 'function'
 			)
 		},
+		canOpenFriends: () =>
+			alive && typeof stores.navigation?.getRootNavigationRef === 'function',
+		async openFriends() {
+			if (!api.canOpenFriends())
+				throw new Error(
+					'The friends list is not available yet. Try again shortly.',
+				)
+			const navigation = stores.navigation.getRootNavigationRef()
+			if (
+				typeof navigation?.navigate !== 'function' ||
+				(typeof navigation.isReady === 'function' && !navigation.isReady())
+			)
+				throw new Error(
+					'The friends list is not available yet. Try again shortly.',
+				)
+			// Select the list explicitly, even if Add Friends was opened previously.
+			await navigation.navigate('friends', {
+				screen: 'root',
+				params: { presentation: 'card' },
+			})
+		},
 		async open(kind: 'guild' | 'channel' | 'friend', id: string) {
 			if (!alive || !validId(id) || !api.canOpen(kind))
 				throw new Error(

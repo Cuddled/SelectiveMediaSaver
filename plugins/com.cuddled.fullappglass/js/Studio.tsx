@@ -85,6 +85,7 @@ function Action({
 	disabled = false,
 	compact = false,
 	signature = false,
+	accessibilityLabel,
 }: {
 	children: ReactNode
 	onPress(): void
@@ -92,6 +93,7 @@ function Action({
 	disabled?: boolean
 	compact?: boolean
 	signature?: boolean
+	accessibilityLabel?: string
 }) {
 	const { Pressable, Text, Animated, View } = revenge.react.ReactNative
 	const React = revenge.react.React
@@ -123,16 +125,17 @@ function Action({
 	return (
 		<Button
 			accessibilityRole="button"
+			accessibilityLabel={accessibilityLabel}
 			accessibilityState={{ selected, disabled }}
 			disabled={disabled}
-			hitSlop={compact ? 8 : undefined}
+			hitSlop={compact ? { top: 8, bottom: 8, left: 4, right: 4 } : undefined}
 			onPress={onPress}
 			onPressIn={() => press(0.975)}
 			onPressOut={() => press(1)}
 			style={{
 				minHeight: compact ? 28 : 44,
 				justifyContent: 'center',
-				paddingHorizontal: 14,
+				paddingHorizontal: compact ? 10 : 14,
 				paddingVertical: compact ? 2 : 10,
 				borderRadius: 14,
 				borderWidth: 1,
@@ -249,10 +252,38 @@ export function StudioLauncher({ compact = false }: { compact?: boolean }) {
 	)
 		return null
 	return (
-		<>
+		<native.View
+			style={
+				compact
+					? {
+							flexDirection: 'row',
+							alignItems: 'center',
+							gap: 8,
+							flexShrink: 0,
+						}
+					: undefined
+			}
+		>
 			<Action compact={compact} onPress={() => setOpen(true)}>
 				{compact ? '⌂ Home' : 'Open Appearance Studio'}
 			</Action>
+			{compact ? (
+				<Action
+					compact
+					accessibilityLabel="Open friends list"
+					disabled={!data?.canOpenFriends()}
+					onPress={() => {
+						data?.openFriends().catch(() => {
+							native.Alert?.alert(
+								'Friends',
+								'Could not open your friends list. Try again shortly.',
+							)
+						})
+					}}
+				>
+					Friends
+				</Action>
+			) : null}
 			<native.Modal
 				visible={open}
 				animationType={motion && settings.studio.softMotion ? 'fade' : 'none'}
@@ -265,7 +296,7 @@ export function StudioLauncher({ compact = false }: { compact?: boolean }) {
 					initialTab={compact ? 'home' : 'style'}
 				/>
 			</native.Modal>
-		</>
+		</native.View>
 	)
 }
 
@@ -1551,8 +1582,8 @@ function Customize({
 					[
 						[
 							'dashboard',
-							'Home shortcut',
-							'Add Home beside the Messages heading.',
+							'Home & Friends shortcuts',
+							'Add Home and your friends list beside the Messages heading.',
 						],
 						[
 							'floatingRail',

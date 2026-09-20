@@ -198,7 +198,7 @@ particular native build paints additional opaque layers over the wallpaper.
 
 ## Full-App Glass (Experimental) for Revenge Next
 
-`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta10` plugin. It does not require
+`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta11` plugin. It does not require
 Liquid Glass to be installed and has its own JSON storage. Liquid Glass's code, version, saved
 colors, and profiles are not changed by this experiment. A few audited pure helpers are bundled
 into the new ZIP; there is no runtime dependency on the other plugin.
@@ -300,6 +300,12 @@ conversations and your shared Spotify activity with album art when available. Th
 cached records and existing navigation actions; opening a friend does not send a message or join
 a call. Empty sections explain what to choose or load. The music card opens the track in Spotify;
 it does not control playback.
+
+Beta11 adds a matching **Friends** shortcut immediately beside **Home** at the top of Messages.
+It opens Discord's full friends list directly, even if Add Friends was visited previously.
+Both buttons follow **Home & Friends shortcuts** under Studio's **Finishing touches**.
+The native header height and search/message actions are preserved; long headings truncate on
+narrow screens to leave room for both shortcuts. The Friends row styling is unchanged in this update.
 
 Studio provides app and Home wallpapers, photo selection and HTTPS image URLs. Choose a server
 or DM under **People & places** to override its conversation wallpaper and accent. A DM override
@@ -575,7 +581,7 @@ The distributables are written to:
 build/classic/manifest.json
 build/classic/index.js
 build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
-build/dist/com.cuddled.fullappglass@1.0.0-beta10.zip
+build/dist/com.cuddled.fullappglass@1.0.0-beta11.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 
