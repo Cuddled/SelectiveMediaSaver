@@ -9,10 +9,11 @@ import {
 	focusAppearance,
 	generatedBackdrop,
 	MOODS,
+	moodSnapshot,
 	motionAllowed,
 } from './experience'
 
-test('beta7 settings migrate additively and mood changes retain scope, pins, scenes and power preferences', () => {
+test('mood changes retain scopes, pins and scenes; only Frosted opts into blur', () => {
 	const original = normalize({
 		enabled: true,
 		chats: false,
@@ -35,13 +36,21 @@ test('beta7 settings migrate additively and mood changes retain scope, pins, sce
 		const changed = normalize({ ...original, ...applyMood(original, mood) })
 		assert.equal(changed.enabled, true)
 		assert.equal(changed.chats, false)
-		assert.equal(changed.lowPower, true)
+		assert.equal(changed.lowPower, mood !== 'frosted')
 		assert.deepEqual(changed.studio.scenes, original.studio.scenes)
 		assert.deepEqual(changed.studio.favorites, original.studio.favorites)
-		assert.equal(changed.studio.wallpaper, '')
-		assert.equal(changed.studio.homeWallpaper, '')
+		const imagePreset = mood === 'waves' || mood === 'frosted'
+		assert.equal(
+			changed.studio.wallpaper,
+			imagePreset ? WALLPAPER_SOURCE.uri : '',
+		)
+		assert.equal(
+			changed.studio.homeWallpaper,
+			imagePreset ? WALLPAPER_SOURCE.uri : '',
+		)
 		assert.equal(changed.accentColor, MOODS[mood].accent)
-		assert.equal(generatedBackdrop(changed, WALLPAPER_SOURCE.uri), true)
+		assert.equal(generatedBackdrop(changed, WALLPAPER_SOURCE.uri), !imagePreset)
+		assert.equal(changed.blur, mood === 'frosted' ? 10 : 0)
 		assert.equal(
 			generatedBackdrop(changed, 'https://example.com/server.png'),
 			false,
@@ -53,6 +62,36 @@ test('beta7 settings migrate additively and mood changes retain scope, pins, sce
 		false,
 	)
 	assert.equal(normalize({ studio: { mood: 'bogus' } }).studio.mood, 'custom')
+})
+
+test('Waves restores the bundled image after every preset and survives saved-settings reload', () => {
+	for (const mood of Object.keys(MOODS) as Array<keyof typeof MOODS>) {
+		const before = normalize({ enabled: true, studio: { focus: true } })
+		const other = normalize({ ...before, ...applyMood(before, mood) })
+		const waves = normalize(
+			JSON.parse(JSON.stringify({ ...other, ...applyMood(other, 'waves') })),
+		)
+		assert.equal(waves.studio.wallpaper, WALLPAPER_SOURCE.uri)
+		assert.equal(waves.studio.homeWallpaper, WALLPAPER_SOURCE.uri)
+		assert.equal(waves.studio.focus, false)
+		assert.equal(waves.accentColor, '#B8A1FF')
+		assert.equal(waves.panelColor, '#171B2B')
+		assert.equal(waves.blur, 0)
+		assert.equal(waves.transparency, 0.8)
+		assert.equal(generatedBackdrop(waves, WALLPAPER_SOURCE.uri), false)
+	}
+})
+
+test('previous look snapshots restore blur, power and outlines after Frosted', () => {
+	const before = normalize({ blur: 3, lowPower: true, accentOpacity: 0.4 })
+	const snapshot = moodSnapshot(before)
+	const frosted = normalize({ ...before, ...applyMood(before, 'frosted') })
+	assert.equal(frosted.lowPower, false)
+	assert.equal(frosted.blur, 10)
+	const restored = normalize({ ...frosted, ...snapshot })
+	assert.equal(restored.blur, 3)
+	assert.equal(restored.lowPower, true)
+	assert.equal(restored.accentOpacity, 0.4)
 })
 
 test('focus overrides presentation without destroying saved preferences, and calls obey their own switch', () => {

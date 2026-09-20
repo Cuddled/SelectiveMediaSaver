@@ -8,6 +8,7 @@ import {
 	surfaceColor,
 	toolbarColor,
 } from './core'
+import { applyMood } from './experience'
 import {
 	createSurfaces,
 	recolorChrome,
@@ -622,6 +623,54 @@ test('both plain and custom profile backgrounds block underlying screens even wh
 		h.state.update({ ...h.state.getSettings(), profiles: false })
 		assert.equal(h.render().root, h.original)
 	}
+})
+
+test('profile gradients keep their native renderer and stops above the wallpaper, with live opt-out', () => {
+	const h = harness('profile', true)
+	const findOverlay = () =>
+		h
+			.render()
+			.root.props.children.find(
+				(child: any) => child?.key === 'profile-owner-gradient',
+			)
+	const overlay = findOverlay()
+	assert.equal(overlay.type, h.original.type)
+	assert.equal(overlay.props.pointerEvents, 'none')
+	assert.equal(overlay.props.locations, h.original.props.locations)
+	assert.equal(overlay.props.colors[0].slice(0, 7), '#123456')
+	assert.equal(overlay.props.colors[1].slice(0, 7), '#ABCDEF')
+	assert.notEqual(overlay.props.colors, h.original.props.colors)
+	assert.equal(h.original.props.colors[0], '#12345633')
+	h.state.update({
+		...h.state.getSettings(),
+		studio: { ...h.state.getSettings().studio, profileColors: false },
+	})
+	assert.equal(findOverlay(), undefined)
+	const plain = harness('profile')
+	assert.ok(
+		!plain
+			.render()
+			.root.props.children.some(
+				(child: any) => child?.key === 'profile-owner-gradient',
+			),
+	)
+})
+
+test('Frosted renders blurred bundled wallpaper, Waves restores sharp waves, and low power pauses blur', () => {
+	const h = harness('profile')
+	const before = h.state.getSettings()
+	h.state.update({ ...before, ...applyMood(before, 'frosted') })
+	assert.equal(h.render().image.props.blurRadius, 10)
+	assert.match(h.render().image.props.source.uri, /background-v1\.png$/)
+	h.state.update({ ...h.state.getSettings(), lowPower: true })
+	assert.equal(h.render().image.props.blurRadius, 0)
+	assert.equal(h.state.getSettings().blur, 10)
+	h.state.update({
+		...h.state.getSettings(),
+		...applyMood(h.state.getSettings(), 'waves'),
+	})
+	assert.equal(h.render().image.props.blurRadius, 0)
+	assert.match(h.render().image.props.source.uri, /background-v1\.png$/)
 })
 
 test('profile background ignores stale callbacks and honors pause, area toggle, blur and disposal', () => {

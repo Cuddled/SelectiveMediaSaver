@@ -14,6 +14,7 @@ import {
 } from './experience'
 import { avatarFrame, avatarRadius, profileCardStyle } from './identity'
 import { SignatureMotif } from './motif'
+import { profilePalette } from './profileTheme'
 import { saveSettings } from './settingsWriter'
 import { getStudioData } from './studioData'
 import { imageUri, interfaceFont, togglePin } from './studioModel'
@@ -46,8 +47,16 @@ function glassCard() {
 	return [
 		card,
 		{
-			backgroundColor: hexWithAlpha(settings.panelColor, 0.94),
-			borderColor: hexWithAlpha(settings.accentColor, 0.18),
+			backgroundColor: hexWithAlpha(
+				settings.panelColor,
+				settings.studio.mood === 'frosted' && !settings.studio.focus
+					? 0.55
+					: 0.94,
+			),
+			borderColor: hexWithAlpha(
+				settings.accentColor,
+				settings.studio.mood === 'frosted' ? 0.4 : 0.18,
+			),
 		},
 	]
 }
@@ -723,6 +732,7 @@ function ExperienceControls({
 		mood: StudioSettings['mood']
 		wallpaper: string
 		homeWallpaper: string
+		focus: boolean
 	} | null>(null)
 	const mood = settings.studio.mood
 	return (
@@ -730,8 +740,9 @@ function ExperienceControls({
 			<View style={glassCard()}>
 				<Label large>Set the mood</Label>
 				<Label subtle>
-					One tap coordinates your backdrop, glass and accents. Your saved
-					conversation scenes keep their own look.
+					Waves restores your original image and colors. Frosted Glass adds
+					wallpaper blur and clearer panels. Saved conversation scenes keep
+					their own look.
 				</Label>
 				<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
 					{(Object.keys(MOODS) as Mood[]).map(key => (
@@ -773,6 +784,7 @@ function ExperienceControls({
 											mood: current.studio.mood,
 											wallpaper: current.studio.wallpaper,
 											homeWallpaper: current.studio.homeWallpaper,
+											focus: current.studio.focus,
 										}
 										await saveSettings(value => applyMood(value, key))
 										setPrevious(backup)
@@ -785,6 +797,12 @@ function ExperienceControls({
 						</View>
 					))}
 				</View>
+				{mood === 'frosted' ? (
+					<Label subtle>
+						Blur is on for this preset. Low-power mode pauses it; text and media
+						stay sharp.
+					</Label>
+				) : null}
 				{previous ? (
 					<Action
 						disabled={busy}
@@ -797,6 +815,7 @@ function ExperienceControls({
 										mood: previous.mood,
 										wallpaper: previous.wallpaper,
 										homeWallpaper: previous.homeWallpaper,
+										focus: previous.focus,
 									},
 								}))
 								setPrevious(null)
@@ -901,6 +920,17 @@ function IdentityControls({
 	const { View, Text, Switch, Pressable } = revenge.react.ReactNative
 	const settings = runtime.getSettings()
 	const studio = settings.studio
+	const sampleColors = profilePalette(
+		{ ...settings, enabled: true },
+		{ primaryColor: 0xed7cbb, secondaryColor: 0xaf528e },
+	)
+	const sampleSettings = sampleColors
+		? {
+				...settings,
+				panelColor: sampleColors.primary as Settings['panelColor'],
+				accentColor: sampleColors.border as Settings['accentColor'],
+			}
+		: settings
 	const toggle = (
 		key:
 			| 'avatarStyles'
@@ -908,7 +938,8 @@ function IdentityControls({
 			| 'profileBannerFade'
 			| 'profileFloatAvatar'
 			| 'profileCompactConnections'
-			| 'profileCollapsible',
+			| 'profileCollapsible'
+			| 'profileColors',
 		title: string,
 		description: string,
 	) => (
@@ -1023,15 +1054,15 @@ function IdentityControls({
 					style={{
 						borderRadius: 20,
 						borderWidth: 1,
-						borderColor: hexWithAlpha(settings.accentColor, 0.25),
+						borderColor: hexWithAlpha(sampleSettings.accentColor, 0.25),
 						overflow: 'hidden',
-						backgroundColor: settings.panelColor,
+						backgroundColor: sampleSettings.panelColor,
 					}}
 				>
 					<View
 						style={{
 							height: 84,
-							backgroundColor: hexWithAlpha(settings.accentColor, 0.24),
+							backgroundColor: '#ED7CBB88',
 							justifyContent: 'flex-end',
 						}}
 					>
@@ -1049,7 +1080,7 @@ function IdentityControls({
 										style={{
 											height: 4,
 											backgroundColor: hexWithAlpha(
-												settings.panelColor,
+												sampleSettings.panelColor,
 												step / 16,
 											),
 										}}
@@ -1071,10 +1102,10 @@ function IdentityControls({
 										? avatarRadius(studio.avatarShape, 54) + 6
 										: 33,
 								padding: 5,
-								backgroundColor: settings.panelColor,
+								backgroundColor: sampleSettings.panelColor,
 								borderWidth:
 									studio.profileLayout && studio.profileFloatAvatar ? 1 : 0,
-								borderColor: hexWithAlpha(settings.accentColor, 0.42),
+								borderColor: hexWithAlpha(sampleSettings.accentColor, 0.42),
 							}}
 						>
 							<View
@@ -1085,7 +1116,9 @@ function IdentityControls({
 									backgroundColor: '#35304F',
 									alignItems: 'center',
 									justifyContent: 'center',
-									...(studio.avatarStyles ? avatarFrame(settings, 54) : {}),
+									...(studio.avatarStyles
+										? avatarFrame(sampleSettings, 54)
+										: {}),
 								}}
 							>
 								<Text style={{ color: ink, fontWeight: '700', fontSize: 24 }}>
@@ -1094,11 +1127,11 @@ function IdentityControls({
 							</View>
 						</View>
 						<Label large>Alex</Label>
-						<Label subtle>A little more you.</Label>
+						<Label subtle>Their pink, blended with your glass.</Label>
 						<View
 							style={
 								studio.profileLayout
-									? [profileCardStyle(settings), { padding: 12 }]
+									? [profileCardStyle(sampleSettings), { padding: 12 }]
 									: { paddingVertical: 12 }
 							}
 						>
@@ -1110,6 +1143,31 @@ function IdentityControls({
 						</View>
 					</View>
 				</View>
+				{toggle(
+					'profileColors',
+					'Blend member colors',
+					'Keep each person’s profile colors in your glass backdrop and cards.',
+				)}
+				{studio.profileColors ? (
+					<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+						{(
+							[
+								['Soft', 0.35],
+								['Balanced', 0.65],
+								['Rich', 1],
+							] as const
+						).map(([label, strength]) => (
+							<Action
+								key={label}
+								disabled={busy}
+								selected={studio.profileColorStrength === strength}
+								onPress={() => change({ profileColorStrength: strength })}
+							>
+								{label}
+							</Action>
+						))}
+					</View>
+				) : null}
 				{toggle(
 					'profileLayout',
 					'Redesigned profiles',

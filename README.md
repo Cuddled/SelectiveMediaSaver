@@ -198,7 +198,7 @@ particular native build paints additional opaque layers over the wallpaper.
 
 ## Full-App Glass (Experimental) for Revenge Next
 
-`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta12` plugin. It does not require
+`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta13` plugin. It does not require
 Liquid Glass to be installed and has its own JSON storage. Liquid Glass's code, version, saved
 colors, and profiles are not changed by this experiment. A few audited pure helpers are bundled
 into the new ZIP; there is no runtime dependency on the other plugin.
@@ -210,6 +210,17 @@ instruction, not an automatic conflict detector. Full-App Glass starts with its 
 
 In its settings, enable **Full-App Glass**, then use:
 
+- **Restore Waves:** a permanent button below the preview restores the bundled Midnight Waves
+  image, violet/blue colors, 80% transparency and 28% darkness. **Waves** is also a Studio preset.
+  Both image presets exit Focus mode while preserving saved conversation scenes and area switches.
+- **Frosted Glass:** a Studio preset with blurred Waves, 90% transparency, icy outlines and clearer
+  Home/profile cards. It enables wallpaper blur at 10 px and turns low-power mode off. You can turn
+  low-power mode back on to pause blur. Text, banners and media remain sharp; this is wallpaper blur.
+- **Blend member colors:** on by default under Studio → Profile design. Each member's primary and
+  secondary profile colors tint their fixed backdrop, cards, banner fade and avatar backing while
+  retaining the app wallpaper. Soft, Balanced and Rich adjust the tint strength; pale colors are
+  darkened for legibility. Profiles without custom colors keep the app look. Switching it off
+  restores the previous app-colored profile styling. No profile colors are cached across users.
 - **Master transparency:** 0% solid through 100% clear; default 80%. The miniature preview changes
   while dragging, and releasing applies/saves the value across supported surfaces. Chat and
   channel-list headers have their own opaque wallpaper-backed layer, with adjustable tint/dim,
@@ -353,7 +364,8 @@ Beta8 adds **Set the mood** and **Feel & focus** in Appearance Studio:
 - **Midnight, Ice, Rose and OLED** coordinate the app/Home backdrop, panel colors and accents.
   Presets use native gradients without new downloads; OLED uses solid black. Applying a preset
   replaces app/Home wallpaper selections. **Restore previous look** restores the last look during
-  that Studio session. Pins, per-conversation scenes, area switches and power settings are retained.
+  that Studio session, including blur and power settings. Pins, per-conversation scenes and area
+  switches are retained. Frosted Glass opts into blur; the other presets keep the current power setting.
 - **Ambient light** drifts on a 24-second native animation loop. **Gentle motion** adds soft presses
   to Studio/Home buttons and a fading Studio transition. Both respect system reduced motion,
   low-power mode, background app state and focus mode. OLED stays still. Existing low-power settings
@@ -587,7 +599,7 @@ The distributables are written to:
 build/classic/manifest.json
 build/classic/index.js
 build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
-build/dist/com.cuddled.fullappglass@1.0.0-beta12.zip
+build/dist/com.cuddled.fullappglass@1.0.0-beta13.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next9.zip
 ```
 

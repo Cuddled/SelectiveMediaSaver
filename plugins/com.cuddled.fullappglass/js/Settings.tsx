@@ -5,7 +5,7 @@ import {
 } from '../../com.cuddled.liquidglass/js/wallpaper'
 import { Atmosphere } from './Atmosphere'
 import { DEFAULT_SETTINGS, runtime, surfaceColor } from './core'
-import { generatedBackdrop } from './experience'
+import { applyMood, generatedBackdrop, MOODS } from './experience'
 import { polishEnabled, polishStyles } from './polish'
 import { StudioLauncher } from './Studio'
 import { saveSettings } from './settingsWriter'
@@ -92,7 +92,11 @@ function Preview({ settings }: { settings: Settings }) {
 			>
 				<Text variant="heading-md/semibold" style={{ color: '#F7F8FF' }}>
 					Your look ·{' '}
-					{settings.studio.wallpaper ? 'Custom wallpaper' : 'Midnight Waves'}
+					{settings.studio.mood !== 'custom'
+						? MOODS[settings.studio.mood].name
+						: settings.studio.wallpaper
+							? 'Custom wallpaper'
+							: 'Midnight Waves'}
 				</Text>
 			</View>
 			<View style={{ padding: 14, gap: 12 }}>
@@ -401,6 +405,11 @@ export default function SettingsPage({
 						</Text>
 					) : null}
 					<Preview settings={draft} />
+					<Button
+						text="Restore Waves"
+						variant="secondary"
+						onPress={() => commit(applyMood(runtime.getSettings(), 'waves'))}
+					/>
 					<StudioLauncher />
 					<TableRowGroup title="Your custom look">
 						<TableSwitchRow
@@ -464,10 +473,10 @@ export default function SettingsPage({
 					<Text variant="text-xs/normal" color="text-muted">
 						0% = solid panels · 100% = clear panels. Drag to preview above;
 						release to apply across the app. Recommended starting point: 80%.
-						Headers, bottom bars, and profiles have their own wallpaper
-						backing—not the text underneath. Profile buttons keep a subtle color
-						accent. Conversations temporarily use Discord's native dark colors;
-						your saved appearance choice stays unchanged.
+						Headers, bottom bars, and profiles have their own wallpaper backing.
+						Profiles blend each member’s colors with your glass; adjust the
+						blend in Studio. Conversations temporarily use Discord's native dark
+						colors; your saved appearance choice stays unchanged.
 					</Text>
 					<Slider
 						label="Wallpaper darkness"

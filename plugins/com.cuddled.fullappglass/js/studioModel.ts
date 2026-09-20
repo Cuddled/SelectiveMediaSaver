@@ -24,7 +24,9 @@ export interface StudioSettings {
 	profileFloatAvatar: boolean
 	profileCompactConnections: boolean
 	profileCollapsible: boolean
-	mood: 'custom' | 'midnight' | 'ice' | 'rose' | 'oled'
+	profileColors: boolean
+	profileColorStrength: number
+	mood: 'custom' | 'waves' | 'frosted' | 'midnight' | 'ice' | 'rose' | 'oled'
 	ambient: boolean
 	softMotion: boolean
 	calls: boolean
@@ -67,6 +69,8 @@ export const STUDIO_DEFAULTS: StudioSettings = {
 	profileFloatAvatar: true,
 	profileCompactConnections: true,
 	profileCollapsible: true,
+	profileColors: true,
+	profileColorStrength: 0.65,
 	mood: 'custom',
 	ambient: true,
 	softMotion: true,
@@ -134,6 +138,7 @@ export function normalizeStudio(value: unknown): StudioSettings {
 		'profileFloatAvatar',
 		'profileCompactConnections',
 		'profileCollapsible',
+		'profileColors',
 		'ambient',
 		'softMotion',
 		'calls',
@@ -157,8 +162,20 @@ export function normalizeStudio(value: unknown): StudioSettings {
 		result.avatarShape = raw.avatarShape!
 	if (['none', 'subtle', 'accent'].includes(raw.avatarBorder ?? ''))
 		result.avatarBorder = raw.avatarBorder!
-	if (['custom', 'midnight', 'ice', 'rose', 'oled'].includes(raw.mood ?? ''))
+	if (
+		['custom', 'waves', 'frosted', 'midnight', 'ice', 'rose', 'oled'].includes(
+			raw.mood ?? '',
+		)
+	)
 		result.mood = raw.mood!
+	if (
+		typeof raw.profileColorStrength === 'number' &&
+		Number.isFinite(raw.profileColorStrength)
+	)
+		result.profileColorStrength = Math.min(
+			1,
+			Math.max(0, raw.profileColorStrength),
+		)
 	for (const key of ['wallpaper', 'homeWallpaper', 'emptyImage'] as const)
 		result[key] = imageUri(raw[key])
 	if (['discord', 'rounded', 'serif', 'mono'].includes(raw.font ?? ''))
