@@ -27,6 +27,30 @@
         }
       }
     },
+    "com.cuddled.fullappglass.updater": {
+      "name": "Full-App Glass Update Helper",
+      "description": "One-time repair for sideloaded Full-App Glass beta14 or older. Open this helper's settings to install beta15 and link future updates without clearing your theme. Remove only the helper after restarting Discord.",
+      "author": "Cuddled",
+      "icon": "DownloadIcon",
+      "channels": {
+        "latest": "1.0.0"
+      },
+      "versions": {
+        "1.0.0": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/com.cuddled.fullappglass.updater@1.0.0.zip",
+          "sha256": "756f10d085ff54af1005a3fad286e5733736cbcc5848ab3b0889bc585b200786",
+          "size": 2265,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        }
+      }
+    },
     "com.cuddled.fullappglass": {
       "name": "Full-App Glass (Experimental)",
       "description": "Waves glass with a personal Workspace: conversation lenses, floating peeks, media and voice tools, notebooks, gesture shortcuts, layouts, rules, reactive color, and sessions for Discord 347.",
