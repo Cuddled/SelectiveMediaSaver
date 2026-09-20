@@ -25,6 +25,7 @@ const userItem = (user: RecordAny): HomeItem => ({
 export function createStudioData() {
 	let revision = 0
 	let alive = true
+	let appearanceResolver: ((settings: Settings) => Settings) | undefined
 	const stores: Record<string, RecordAny> = {}
 	const listeners = new Set<() => void>()
 	const appearanceListeners = new Set<() => void>()
@@ -34,7 +35,8 @@ export function createStudioData() {
 		if (alive) {
 			revision++
 			for (const listener of listeners) listener()
-			const key = `${runtime.getSnapshot()}:${JSON.stringify(api.scene())}`
+			const effective = api.effectiveSettings()
+			const key = `${runtime.getSnapshot()}:${JSON.stringify(api.scene())}:${effective.accentColor}:${effective.studio.mood}`
 			if (key !== appearanceKey) {
 				appearanceKey = key
 				for (const listener of appearanceListeners) listener()
@@ -49,6 +51,13 @@ export function createStudioData() {
 		}
 	}
 	const api = {
+		invalidate: notify,
+		setAppearanceResolver(
+			resolver: ((settings: Settings) => Settings) | undefined,
+		) {
+			appearanceResolver = resolver
+			notify()
+		},
 		subscribeAppearance(listener: () => void) {
 			appearanceListeners.add(listener)
 			return () => {
@@ -93,10 +102,13 @@ export function createStudioData() {
 		},
 		effectiveSettings(): Settings {
 			const settings = runtime.getSettings()
-			return focusAppearance({
+			const scoped = {
 				...settings,
 				accentColor: api.scene().accent as Settings['accentColor'],
-			})
+			}
+			return focusAppearance(
+				appearanceResolver ? appearanceResolver(scoped) : scoped,
+			)
 		},
 		guilds(): HomeItem[] {
 			const guilds = call('guilds', 'getGuilds')

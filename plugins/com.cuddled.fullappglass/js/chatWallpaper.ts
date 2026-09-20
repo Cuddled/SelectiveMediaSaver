@@ -15,6 +15,7 @@ export function createChatWallpaper(
 	React: typeof ReactTypes,
 	native: { View: any; Image: any },
 	access: Access,
+	Overlay?: ReactTypes.ComponentType<{ channelId: string }>,
 ) {
 	let alive = true
 	const Visible = React.createContext(false)
@@ -96,6 +97,9 @@ export function createChatWallpaper(
 						})
 					: original,
 			),
+			enabled && Overlay
+				? React.createElement(Overlay, { key: 'workspace-tools', channelId })
+				: null,
 		)
 	}
 	class Guard extends React.Component<
