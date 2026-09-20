@@ -29,11 +29,11 @@
     },
     "com.cuddled.fullappglass": {
       "name": "Full-App Glass (Experimental)",
-      "description": "Midnight Waves glass with custom accent colors, clean channel highlights, a polished message box and matching menus.",
+      "description": "A personal glass Home, per-conversation wallpapers, thin-line icons and an Appearance Studio for Discord 347.",
       "author": "Cuddled",
       "icon": "ic_theme_24px",
       "channels": {
-        "beta": "1.0.0-beta6"
+        "beta": "1.0.0-beta7"
       },
       "versions": {
         "1.0.0-beta1": {
@@ -105,6 +105,19 @@
           "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/com.cuddled.fullappglass@1.0.0-beta6.zip",
           "sha256": "875532f3bae33910778b51bad4aeed8495dd8ce1219abb68b85eb48c95d06818",
           "size": 18142,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        },
+        "1.0.0-beta7": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/com.cuddled.fullappglass@1.0.0-beta7.zip",
+          "sha256": "ddd98bdacf599f5898adae4c8b81fd9a1d69179a5be6e94b8b30e3b83cc5bee7",
+          "size": 46113,
           "dependencies": {
             "revenge.api": {
               "version": ">=1.0.0 <2.0.0"
