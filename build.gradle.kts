@@ -157,6 +157,7 @@ configure(subprojects.filter { it.path.startsWith(":plugins:") }) {
         }
         sourceSets {
             named("main") { kotlin.directories += "src/main/kotlin" }
+            if (project.name == "com.cuddled.nocompression") named("test") { kotlin.directories += "src/test/kotlin" }
         }
     }
 
@@ -175,6 +176,7 @@ configure(subprojects.filter { it.path.startsWith(":plugins:") }) {
         add("compileOnly", revengeApiDep)
         add("compileOnly", xposedApiDep)
         add("compileOnly", coroutinesDep)
+        if (project.name == "com.cuddled.nocompression") add("testImplementation", "junit:junit:4.13.2")
     }
 
     val androidExt = extensions.getByType<LibraryExtension>()

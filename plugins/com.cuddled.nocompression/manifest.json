@@ -1,11 +1,11 @@
 {
 	"format": 1,
 	"id": "com.cuddled.nocompression",
-	"name": "NoCompression",
-	"description": "Prevents Discord from compressing files when uploading",
+	"name": "NoCompression - Original Media",
+	"description": "Preserve original images and videos, choose compression per attachment, and check the current upload limit.",
 	"icon": "ic_file_upload_24px",
 	"author": "MSMA (original), Cuddled (Revenge Next port)",
-	"version": "1.0.0",
+	"version": "1.1.0-beta1",
 	"dependencies": {
 		"revenge.api": {
 			"version": ">=1.0.0 <2.0.0"
@@ -15,6 +15,10 @@
 		}
 	},
 	"dist": {
-		"script": "index.js"
+		"script": "index.js",
+		"android": {
+			"path": "plugin.jar",
+			"class": "com.cuddled.nocompression.OriginalMediaPlugin"
+		}
 	}
 }
