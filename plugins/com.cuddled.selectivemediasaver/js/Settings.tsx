@@ -1,6 +1,7 @@
 import {
 	DEFAULT_SETTINGS,
 	DISCORD_ID_PATTERN,
+	MAX_DOWNLOAD_MIB,
 	normalizeSettings,
 } from './defaults'
 import { refreshNativeBridge } from './native-status'
@@ -244,8 +245,11 @@ function DestinationEditor({
 		const normalizedAlbum =
 			album.trim().slice(0, 64) || DEFAULT_SETTINGS.albumName
 		const normalizedMax = Math.min(
-			512,
-			Math.max(1, Math.round(Number(maxMiB) || 100)),
+			MAX_DOWNLOAD_MIB,
+			Math.max(
+				1,
+				Math.round(Number(maxMiB) || DEFAULT_SETTINGS.maxDownloadMiB),
+			),
 		)
 		void api.jsonStorage
 			.set({ albumName: normalizedAlbum, maxDownloadMiB: normalizedMax })

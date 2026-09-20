@@ -1,4 +1,4 @@
-export const SETTINGS_SCHEMA_VERSION = 3 as const
+export const SETTINGS_SCHEMA_VERSION = 4 as const
 
 export type MediaKind = 'image' | 'video'
 

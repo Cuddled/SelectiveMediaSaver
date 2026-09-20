@@ -1,7 +1,8 @@
 function _createSelectiveMediaSaver() {
 	'use strict'
 
-	const VERSION = '2.4.0-classic1'
+	const VERSION = '2.4.0-classic2'
+	const MAX_DOWNLOAD_MIB = 500
 	const MAX_SEEN = 2048
 	const MAX_QUEUE = 64
 	const MAX_MEDIA_PER_MESSAGE = 16
@@ -30,7 +31,7 @@ function _createSelectiveMediaSaver() {
 		'USER_PROFILE_MODAL_FETCH_SUCCESS',
 	]
 	const DEFAULTS = {
-		schemaVersion: 1,
+		schemaVersion: 2,
 		enabled: true,
 		onlySaveAllowlisted: true,
 		matchAnyAllowlist: true,
@@ -46,7 +47,7 @@ function _createSelectiveMediaSaver() {
 		saveBannersForAllowlistedUsers: false,
 		showSaveToasts: true,
 		showErrorToasts: true,
-		maxDownloadMiB: 100,
+		maxDownloadMiB: MAX_DOWNLOAD_MIB,
 	}
 	const CAPTURE_DEFAULTS = {
 		seen: [],
@@ -163,6 +164,7 @@ function _createSelectiveMediaSaver() {
 	}
 
 	function initializeStorage() {
+		const previousSchema = Number(storage.schemaVersion) || 0
 		for (const [key, fallback] of Object.entries(DEFAULTS)) {
 			if (typeof storage[key] === 'undefined') {
 				storage[key] = Array.isArray(fallback)
@@ -185,9 +187,15 @@ function _createSelectiveMediaSaver() {
 			if (typeof fallback === 'boolean' && typeof storage[key] !== 'boolean')
 				storage[key] = fallback
 		}
+		if (previousSchema < 2 && Number(storage.maxDownloadMiB) === 100) {
+			storage.maxDownloadMiB = DEFAULTS.maxDownloadMiB
+		}
 		storage.maxDownloadMiB = Math.max(
 			1,
-			Math.min(512, Number(storage.maxDownloadMiB) || 100),
+			Math.min(
+				MAX_DOWNLOAD_MIB,
+				Number(storage.maxDownloadMiB) || DEFAULTS.maxDownloadMiB,
+			),
 		)
 		const rawCapture = safeRecord(storage.captureState)
 		captureState = normalizeCaptureState(rawCapture || CAPTURE_DEFAULTS)
@@ -197,7 +205,7 @@ function _createSelectiveMediaSaver() {
 		) {
 			storage.captureState = captureState
 		}
-		storage.schemaVersion = 1
+		storage.schemaVersion = DEFAULTS.schemaVersion
 	}
 
 	function normalizeUrl(url) {
@@ -1016,7 +1024,10 @@ function _createSelectiveMediaSaver() {
 					onPress: () => {
 						const limit = Math.max(
 							1,
-							Math.min(512, Math.round(Number(maxSizeDraft) || 100)),
+							Math.min(
+								MAX_DOWNLOAD_MIB,
+								Math.round(Number(maxSizeDraft) || DEFAULTS.maxDownloadMiB),
+							),
 						)
 						set('maxDownloadMiB', limit)
 						setMaxSizeDraft(String(limit))

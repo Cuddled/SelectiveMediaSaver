@@ -14,7 +14,7 @@ The two Revenge plugin systems use different loaders and are not interchangeable
   and portrait background are published under `/themes/midnight-glass` so the existing plugin URLs
   stay unchanged.
 
-The Revenge Next port is currently `2.4.0-next8`, a beta build for this tested client stack:
+The Revenge Next port is currently `2.4.0-next9`, a beta build for this tested client stack:
 
 - RevengeXposed loader `1.6.2`
 - Discord Android `347.1` (`347201`)
@@ -55,7 +55,7 @@ in the Classic build.
 - Ignore-bot and ignore-self options.
 - Foreground capture from new `MESSAGE_CREATE` events.
 - A bounded processing queue and bounded in-session event deduplication.
-- Configurable album name, separate image/video folders, and a 1–512 MiB per-file limit.
+- Configurable album name, separate image/video folders, and a 1–500 MiB per-file limit (500 MiB by default, matching standard Nitro uploads). Existing 100 MiB defaults upgrade automatically; other smaller custom limits are preserved.
 - Visual folder modes for flat storage, stable per-sender folders, or server/DM then sender. Sender
   folders combine the global username with the full Discord user ID so duplicate names never mix.
 - Bounded persistent sender-folder assignments keep a person's original folder stable after a
@@ -588,7 +588,7 @@ build/classic/manifest.json
 build/classic/index.js
 build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
 build/dist/com.cuddled.fullappglass@1.0.0-beta12.zip
-build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
+build/dist/com.cuddled.selectivemediasaver@2.4.0-next9.zip
 ```
 
 The Selective Media Saver ZIP must contain `manifest.json`, `index.js`, and `plugin.jar` at its
@@ -615,7 +615,7 @@ packaging, and a full Pages-layout validation. Merges to `main` publish Classic 
 repository under `/next`. The same atomic Pages update publishes the validated Midnight Glass
 manifest and background under `/themes/midnight-glass`.
 
-`2.4.0-next8` remains on the beta channel. Promote only after testing installation, settings,
+`2.4.0-next9` remains on the beta channel. Promote only after testing installation, settings,
 capture, large-file cancellation, duplicates, and lifecycle reloads on the target phone. A stable
 release uses a newer version without a prerelease label.
 

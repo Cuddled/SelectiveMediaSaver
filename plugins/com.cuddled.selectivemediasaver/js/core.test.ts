@@ -44,11 +44,69 @@ test('settings normalization supplies safe defaults and cleans persisted input',
 	assert.equal(settings.enabled, DEFAULT_SETTINGS.enabled)
 	assert.deepEqual(settings.allowedUserIds, ['123456789012345'])
 	assert.deepEqual(settings.allowedGuildIds, [])
-	assert.equal(settings.maxDownloadMiB, 512)
+	assert.equal(settings.maxDownloadMiB, 500)
 	assert.equal(settings.albumName, '-My-Album')
 	assert.equal(settings.folderOrganization, 'sender')
 	assert.equal(settings.organizeProfileMediaBySender, true)
 	assert.deepEqual(settings.senderFolderAssignments, {})
+})
+
+test('fresh installs and legacy 100 MiB settings use the Nitro download limit', () => {
+	assert.equal(normalizeSettings(undefined).maxDownloadMiB, 500)
+	for (const schemaVersion of [undefined, 1, 2, 3]) {
+		const migrated = normalizeSettings({ schemaVersion, maxDownloadMiB: 100 })
+		assert.equal(migrated.maxDownloadMiB, 500)
+		assert.equal(migrated.schemaVersion, 4)
+		assert.deepEqual(normalizeSettings(migrated), migrated)
+	}
+})
+
+test('download limit migration preserves custom limits and later 100 MiB choices', () => {
+	for (const maxDownloadMiB of [1, 25, 200, 500]) {
+		assert.equal(
+			normalizeSettings({ schemaVersion: 3, maxDownloadMiB }).maxDownloadMiB,
+			maxDownloadMiB,
+		)
+	}
+	assert.equal(
+		normalizeSettings({ schemaVersion: 4, maxDownloadMiB: 100 }).maxDownloadMiB,
+		100,
+	)
+	assert.equal(
+		normalizeSettings({ schemaVersion: 3, maxDownloadMiB: 512 }).maxDownloadMiB,
+		500,
+	)
+	assert.equal(
+		normalizeSettings({ schemaVersion: 4, maxDownloadMiB: 'invalid' })
+			.maxDownloadMiB,
+		500,
+	)
+})
+
+test('migrated settings pass the full Nitro limit to the native download request', () => {
+	const settings = normalizeSettings({ schemaVersion: 3, maxDownloadMiB: 100 })
+	const request = buildDownloadRequest(
+		{
+			id: 'message1',
+			channelId: 'channel1',
+			guildId: '',
+			authorId: 'user1',
+			authorName: 'tester',
+			authorUsername: 'tester',
+			authorIsBot: false,
+		},
+		{
+			source: 'attachment',
+			url: 'https://cdn.discordapp.com/attachments/1/2/clip.mp4',
+			kind: 'video',
+			extension: '.mp4',
+			mimeType: 'video/mp4',
+			size: 524_288_000,
+		},
+		0,
+		settings,
+	)
+	assert.equal(request.maxBytes, 524_288_000)
 })
 
 test('folder names never keep traversal separators or control characters', () => {

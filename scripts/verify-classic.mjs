@@ -108,6 +108,48 @@ const messageEvent = ({
 
 const raw = vm.runInNewContext(`vendetta=>{return ${bundle}}`)(mockVendetta)
 const plugin = typeof raw === 'function' ? raw() : raw
+assert.equal(storage.maxDownloadMiB, 500)
+assert.equal(storage.schemaVersion, 2)
+for (const [previousSchema, previousLimit, expectedLimit] of [
+	[undefined, 100, 500],
+	[1, 100, 500],
+	[1, 25, 25],
+	[1, 512, 500],
+	[2, 100, 100],
+]) {
+	const savedStorage = {
+		schemaVersion: previousSchema,
+		maxDownloadMiB: previousLimit,
+	}
+	const factory = vm.runInNewContext(`vendetta=>{return ${bundle}}`)({
+		...mockVendetta,
+		plugin: { storage: savedStorage },
+	})
+	factory()
+	assert.equal(savedStorage.maxDownloadMiB, expectedLimit)
+	assert.equal(savedStorage.schemaVersion, 2)
+	factory()
+	assert.equal(savedStorage.maxDownloadMiB, expectedLimit)
+}
+for (const [size, expectedCount] of [
+	[101 * 1024 * 1024, 1],
+	[524_288_000, 1],
+	[524_288_001, 0],
+]) {
+	assert.equal(
+		plugin.__testing.extractMedia({
+			attachments: [
+				{
+					url: 'https://cdn.discordapp.com/attachments/1/2/clip.mp4',
+					filename: 'clip.mp4',
+					content_type: 'video/mp4',
+					size,
+				},
+			],
+		}).length,
+		expectedCount,
+	)
+}
 assert.equal(typeof plugin.onLoad, 'function')
 assert.equal(typeof plugin.onUnload, 'function')
 assert.equal(typeof plugin.settings, 'function')
@@ -210,7 +252,7 @@ subscriptions.get('MESSAGE_CREATE')(
 )
 await tick()
 assert.equal(downloads.length, 2)
-storage.maxDownloadMiB = 100
+storage.maxDownloadMiB = 500
 
 // Turning the master switch off after enqueue cleans the pending marker so retry works.
 const retryEvent = messageEvent({

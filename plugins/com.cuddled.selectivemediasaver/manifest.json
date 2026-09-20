@@ -4,7 +4,7 @@
 	"name": "Selective Media Saver",
 	"description": "Save selected Discord images, GIFs, videos, avatars, and banners on Android.",
 	"author": "Cuddled",
-	"version": "2.4.0-next8",
+	"version": "2.4.0-next9",
 	"dependencies": {
 		"revenge.api": {
 			"version": ">=1.0.0 <2.0.0"

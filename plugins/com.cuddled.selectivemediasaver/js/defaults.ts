@@ -5,6 +5,7 @@ import type {
 } from './types'
 
 export const DISCORD_ID_PATTERN = /^\d{15,22}$/
+export const MAX_DOWNLOAD_MIB = 500
 
 export const DEFAULT_SETTINGS: SelectiveMediaSaverSettings = {
 	schemaVersion: SETTINGS_SCHEMA_VERSION,
@@ -32,10 +33,9 @@ export const DEFAULT_SETTINGS: SelectiveMediaSaverSettings = {
 	folderOrganization: 'sender',
 	organizeProfileMediaBySender: true,
 	senderFolderAssignments: {},
-	maxDownloadMiB: 100,
+	maxDownloadMiB: MAX_DOWNLOAD_MIB,
 }
 
-const MAX_DOWNLOAD_MIB = 512
 export const MAX_SENDER_FOLDER_ASSIGNMENTS = 1_024
 export const MAX_PROFILE_HISTORY_ENTRIES = 256
 export const MAX_PROFILE_HISTORY_PER_USER = 8
@@ -279,11 +279,16 @@ function folderOrganizationOr(
 export function normalizeSettings(value: unknown): SelectiveMediaSaverSettings {
 	const raw =
 		value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+	// Upgrade the old default once; a later explicit 100 MiB choice stays intact.
+	const storedLimit =
+		(Number(raw.schemaVersion) || 0) < 4 && Number(raw.maxDownloadMiB) === 100
+			? DEFAULT_SETTINGS.maxDownloadMiB
+			: raw.maxDownloadMiB
 	const maxDownloadMiB = Math.min(
 		MAX_DOWNLOAD_MIB,
 		Math.max(
 			1,
-			Math.round(Number(raw.maxDownloadMiB) || DEFAULT_SETTINGS.maxDownloadMiB),
+			Math.round(Number(storedLimit) || DEFAULT_SETTINGS.maxDownloadMiB),
 		),
 	)
 
