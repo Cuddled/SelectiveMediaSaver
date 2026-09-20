@@ -7,6 +7,7 @@ import {
 	profileButtonTheme,
 	runtime,
 } from './core'
+import { DETAIL_HOOKS } from './details'
 import { PROFILE_ACCENT } from './profileAccents'
 
 test('standalone lifecycle installs/restores patches, honors late activation and rejects stale startup reads', async () => {
@@ -182,6 +183,54 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 					}),
 				},
 			}
+			const detailCalls: any[] = []
+			for (const [path, keys] of DETAIL_HOOKS) {
+				let target = (modules[path] ??= {})
+				for (const key of keys.slice(0, -1)) target = target[key] ??= {}
+				target[keys[keys.length - 1]] = function (this: any, ...args: any[]) {
+					detailCalls.push({ path, receiver: this, args })
+					return header
+				}
+			}
+			const nativeDetailPaths = [
+				[
+					'modules/messages/native/renderer/row_data/embeds/coded_links/invite/GuildInvite.tsx',
+					[
+						'createGuildInvite',
+						'createResolvingGuildInvite',
+						'createExpiredGuildInvite',
+						'createDisabledGuildInvite',
+						'createErroredGuildInvite',
+					],
+				],
+				[
+					'modules/messages/native/renderer/system_messages/SystemMessage.tsx',
+					['createSystemMessageContent'],
+				],
+				[
+					'modules/messages/native/renderer/transformMessageAttachments.tsx',
+					['default'],
+				],
+			] as const
+			const nativeOutput = {
+				backgroundColor: 1,
+				borderColor: 2,
+				thumbnailCornerRadius: 15,
+				type: 7,
+				timestampColor: 3,
+				highlightColor: 4,
+			}
+			for (const [path, keys] of nativeDetailPaths) {
+				modules[path] = Object.fromEntries(
+					keys.map(key => [
+						key,
+						() =>
+							path.endsWith('transformMessageAttachments.tsx')
+								? [{ attachmentType: 'image', backgroundColor: 1 }]
+								: nativeOutput,
+					]),
+				)
+			}
 			let unpatched = 0
 			const install = (
 				target: any,
@@ -250,6 +299,9 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				paths,
 				nativeThemes,
 				modules,
+				detailCalls,
+				nativeDetailPaths,
+				nativeOutput,
 				pathsForBeta2,
 				pathsForBeta4,
 				pathsForBeta5,
@@ -273,6 +325,21 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 		}
 		for (const reverse of [true, false]) {
 			const h = setup(reverse)
+			for (const [path, keys] of DETAIL_HOOKS) {
+				let target = h.modules[path]
+				for (const key of keys.slice(0, -1)) target = target[key]
+				const props = { sample: path }
+				const result = target[keys[keys.length - 1]](props, 'second')
+				assert.ok(React.isValidElement(result))
+				assert.notEqual(result, h.header)
+				assert.equal(h.detailCalls.at(-1).receiver, target)
+				assert.deepEqual(h.detailCalls.at(-1).args, [props, 'second'])
+			}
+			for (const [path, keys] of h.nativeDetailPaths) {
+				assert.ok(h.paths.includes(path))
+				for (const key of keys)
+					assert.notEqual(h.modules[path][key](), h.nativeOutput)
+			}
 			const nativeUpdater = h.modules['modules/themes/native/updateTheme.tsx']
 			assert.deepEqual(h.nativeThemes, ['dark'])
 			nativeUpdater.updateTheme('midnight')
@@ -493,6 +560,15 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			runtime.update({ enabled: true })
 			const pending = definition.start(h.api)
 			h.stop()
+			for (const [path, keys] of DETAIL_HOOKS) {
+				let target = h.modules[path]
+				for (const key of keys.slice(0, -1)) target = target[key]
+				assert.equal(target[keys[keys.length - 1]](), h.header)
+			}
+			for (const [path, keys] of h.nativeDetailPaths)
+				for (const key of keys)
+					if (!path.endsWith('transformMessageAttachments.tsx'))
+						assert.equal(h.modules[path][key](), h.nativeOutput)
 			assert.equal(
 				h.modules[
 					'modules/main_tabs_v2/native/tabs/you/YouScreen.tsx'

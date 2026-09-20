@@ -246,6 +246,22 @@ test('gallery polish preserves media content, spoiler components, actions, refs 
 	assert.equal(result.props.ref, pressable.props.ref)
 	assert.equal(result.props.onPress, pressable.props.onPress)
 	assert.equal(result.props.style[0], pressable.props.style)
+	assert.equal(result.props.style.at(-1).borderWidth, 1)
+	h.state.update({
+		...settings,
+		studio: { ...settings.studio, mediaCards: false, mediaFrames: true },
+	})
+	assert.equal(
+		h.render('media-gallery', original).props.children.props.style.at(-1)
+			.borderWidth,
+		1,
+	)
+	h.state.update({
+		...settings,
+		studio: { ...settings.studio, mediaCards: false, mediaFrames: false },
+	})
+	assert.equal(h.render('media-gallery', original), original)
+	h.state.update(settings)
 	const post = e('AndroidThumbnail', {
 		androidStyle: { width: 200 },
 		shouldSpoiler: true,

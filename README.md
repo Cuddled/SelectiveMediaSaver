@@ -198,7 +198,7 @@ particular native build paints additional opaque layers over the wallpaper.
 
 ## Full-App Glass (Experimental) for Revenge Next
 
-`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta9` plugin. It does not require
+`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta10` plugin. It does not require
 Liquid Glass to be installed and has its own JSON storage. Liquid Glass's code, version, saved
 colors, and profiles are not changed by this experiment. A few audited pure helpers are bundled
 into the new ZIP; there is no runtime dependency on the other plugin.
@@ -395,6 +395,38 @@ with sample components at 320 and 430 pixel widths, including larger connection 
 save-failure rollback and collapse accessibility. This is not native Android verification: final phone
 QA should cover decorated/status avatars, own/member profiles, GIF banners, media viewing and scrolling.
 
+Beta10 adds **Your signature**, **Lists & cards**, and **Chat details** to Customize:
+
+- A small, static butterfly or star motif on Home, selected Studio tabs and built-in empty artwork.
+  Choose None to remove it. The motif uses native primitives, requires no downloads, and stays out
+  of touch and accessibility navigation.
+- Rounded Friends rows and action backings, scoped to the Friends screen. DM rows receive a quiet
+  backing, accent outline and selected tint. Native row heights, status/unread indicators, actions,
+  accessibility, blocked/muted state and previews are preserved. Nameplate rows remain native.
+- Forum list/grid cards and their disabled previews receive coordinated borders and corners.
+  Native filtering, post press/long-press actions and measured content remain intact.
+- Server invite cards receive matching backing, border and icon corners; native splash images,
+  member counts, acceptance rules and disabled/error button colors are preserved.
+- Media frames decorate search, forum and media-channel thumbnails. Native chat image/video
+  attachments receive a matching background only; their corners, grid spacing and frame layout
+  are controlled by Android. Spoilers, age gates, GIF behavior and media actions are unchanged.
+- Voice messages receive a matching native playback background and a framed recording pill.
+  Android still draws the playback waveform, play button and progress; this plugin does not replace
+  them. Recording warnings, duration, cancel/send controls and animated styles remain intact.
+- The native Jump to Present/return-target button becomes a 56 by 48 accent capsule. Its real
+  action, accessibility label, keyboard/voice-panel positioning and press animation are retained;
+  the voice-panel dismiss alternative and unrelated floating buttons are unchanged.
+- Everyday system notices receive accent timestamps and selection highlights. Their text, actions
+  and native layout are preserved. Moderation/safety notices and unknown types remain native.
+
+Each detail has its own switch; settings migrate additively and new installs remain paused.
+List/card changes respect Main screens, chat changes respect Chats, and the jump button also respects
+Controls. Unknown component shapes are skipped. Beta10 is a JavaScript-only package for Discord 347;
+native message colors are cached, so reopen the channel or reload Discord after changing them.
+The plugin does not claim custom layouts for Android-native message rows. Automated validation covers native
+data preservation, React component guards, scope/toggle behavior and plugin teardown. Native Android
+verification remains required for virtualized lists, unread scrolling, media gates and audio playback.
+
 This is **wallpaper-backed translucency inside Discord**, not a transparent Android window,
 screen capture, or live iOS Liquid Glass blur. Opaque native screens, media viewers, video surfaces,
 and some separately hosted modals may not reveal the root wallpaper. With **Matching menus** on,
@@ -543,7 +575,7 @@ The distributables are written to:
 build/classic/manifest.json
 build/classic/index.js
 build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
-build/dist/com.cuddled.fullappglass@1.0.0-beta9.zip
+build/dist/com.cuddled.fullappglass@1.0.0-beta10.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 

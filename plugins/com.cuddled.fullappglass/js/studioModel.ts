@@ -7,6 +7,15 @@ export interface Scene {
 	accent: string
 }
 export interface StudioSettings {
+	signatureMotif: 'butterfly' | 'star' | 'none'
+	friendList: boolean
+	forumCards: boolean
+	inviteCards: boolean
+	dmList: boolean
+	systemNotices: boolean
+	voiceMessages: boolean
+	jumpToLatest: boolean
+	mediaFrames: boolean
 	avatarStyles: boolean
 	avatarShape: 'native' | 'circle' | 'rounded' | 'soft'
 	avatarBorder: 'none' | 'subtle' | 'accent'
@@ -41,6 +50,15 @@ export interface StudioSettings {
 	scenes: Record<string, Scene>
 }
 export const STUDIO_DEFAULTS: StudioSettings = {
+	signatureMotif: 'butterfly',
+	friendList: true,
+	forumCards: true,
+	inviteCards: true,
+	dmList: true,
+	systemNotices: true,
+	voiceMessages: true,
+	jumpToLatest: true,
+	mediaFrames: true,
 	avatarStyles: true,
 	avatarShape: 'rounded',
 	avatarBorder: 'accent',
@@ -102,6 +120,14 @@ export function normalizeStudio(value: unknown): StudioSettings {
 		scenes: {} as StudioSettings['scenes'],
 	}
 	for (const key of [
+		'friendList',
+		'forumCards',
+		'inviteCards',
+		'dmList',
+		'systemNotices',
+		'voiceMessages',
+		'jumpToLatest',
+		'mediaFrames',
 		'avatarStyles',
 		'profileLayout',
 		'profileBannerFade',
@@ -125,6 +151,8 @@ export function normalizeStudio(value: unknown): StudioSettings {
 		'music',
 	] as const)
 		if (typeof raw[key] === 'boolean') result[key] = raw[key]
+	if (['butterfly', 'star', 'none'].includes(raw.signatureMotif ?? ''))
+		result.signatureMotif = raw.signatureMotif!
 	if (['native', 'circle', 'rounded', 'soft'].includes(raw.avatarShape ?? ''))
 		result.avatarShape = raw.avatarShape!
 	if (['none', 'subtle', 'accent'].includes(raw.avatarBorder ?? ''))
