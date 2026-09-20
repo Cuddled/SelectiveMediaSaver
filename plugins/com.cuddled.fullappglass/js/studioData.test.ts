@@ -129,6 +129,53 @@ test('navigation runs only on explicit calls and never joins a call; missing pat
 	await assert.rejects(data.open('friend', id))
 	assert.equal(calls.length, 1)
 })
+test('Friends shortcut opens the native list only on press and becomes unavailable on unload', async () => {
+	const data = createStudioData()
+	const calls: unknown[] = []
+	const navigation = {
+		isReady: () => true,
+		navigate(this: unknown, ...args: unknown[]) {
+			assert.equal(this, navigation)
+			calls.push(args)
+		},
+	}
+	assert.equal(data.canOpenFriends(), false)
+	await assert.rejects(data.openFriends(), /not available/)
+	data.attach('navigation', { getRootNavigationRef: () => navigation })
+	assert.equal(data.canOpenFriends(), true)
+	assert.deepEqual(calls, [])
+	await data.openFriends()
+	assert.deepEqual(calls, [
+		['friends', { screen: 'root', params: { presentation: 'card' } }],
+	])
+	data.dispose()
+	assert.equal(data.canOpenFriends(), false)
+	await assert.rejects(data.openFriends(), /not available/)
+	assert.equal(calls.length, 1)
+})
+test('Friends shortcut handles missing or unready navigation and forwards native failures', async () => {
+	const data = createStudioData()
+	for (const navigation of [
+		null,
+		{},
+		{
+			isReady: () => false,
+			navigate: () => assert.fail('Must wait until navigation is ready'),
+		},
+	]) {
+		data.attach('navigation', { getRootNavigationRef: () => navigation })
+		await assert.rejects(data.openFriends(), /not available/)
+	}
+	data.attach('navigation', {
+		getRootNavigationRef: () => ({
+			navigate() {
+				throw new Error('native failure')
+			},
+		}),
+	})
+	await assert.rejects(data.openFriends(), /native failure/)
+	data.dispose()
+})
 test('font sizing uses supported native steps, preserves classic mode and never applies automatically', async () => {
 	const data = createStudioData()
 	let scale = 1

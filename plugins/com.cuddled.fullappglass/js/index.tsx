@@ -257,6 +257,7 @@ export default plugin<{ jsonStorage: Settings }>({
 			['guild', 'modules/routing/transitionToGuild.native.tsx', ''],
 			['channel', 'modules/routing/transitionToChannel.tsx', ''],
 			['openDM', 'actions/ChannelActionCreators.tsx', 'default'],
+			['navigation', 'modules/main_tabs_v2/RootNavigationRef.native.tsx', ''],
 			['picker', 'modules/image/native/ImagePicker.tsx', 'default'],
 			[
 				'font',

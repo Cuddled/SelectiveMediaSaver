@@ -438,7 +438,15 @@ export function createStudioSurfaces(
 				)
 					return heading
 				return React.cloneElement(heading, {}, [
-					React.cloneElement(heading.props.children, { key: 'original-title' }),
+					React.cloneElement(heading.props.children, {
+						key: 'original-title',
+						numberOfLines: 1,
+						ellipsizeMode: 'tail',
+						style: [
+							heading.props.children.props.style,
+							{ flexShrink: 1, minWidth: 0 },
+						],
+					}),
 					React.createElement(Home, { key: 'glass-home', compact: true }),
 				])
 			}) as ReactTypes.ReactNode

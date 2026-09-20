@@ -286,7 +286,7 @@ test('gallery polish preserves media content, spoiler components, actions, refs 
 		theme,
 	)
 })
-test('Home entry leaves the measured header and all original search and message actions intact', () => {
+test('Home and Friends entries preserve header height and actions while allowing the title to shrink', () => {
 	const h = harness()
 	const heading = e(
 		'View',
@@ -305,10 +305,20 @@ test('Home entry leaves the measured header and all original search and message 
 	assert.equal(next.props.style, original.props.style)
 	assert.equal(next.props.children[1], actions)
 	assert.equal(next.props.children[2], border)
+	assert.equal(next.props.children[0].props.style, heading.props.style)
+	const title = next.props.children[0].props.children[0]
+	assert.equal(title.props.numberOfLines, 1)
+	assert.equal(title.props.ellipsizeMode, 'tail')
+	assert.deepEqual(title.props.style[1], { flexShrink: 1, minWidth: 0 })
 	assert.equal(
 		next.props.children[0].props.children[0].props.children,
 		'Messages',
 	)
+	h.state.update({
+		...settings,
+		studio: { ...settings.studio, dashboard: false },
+	})
+	assert.equal(h.render('home', original), original)
 	h.state.update({ ...settings, enabled: false })
 	assert.equal(h.render('home', original), original)
 	assert.equal(
