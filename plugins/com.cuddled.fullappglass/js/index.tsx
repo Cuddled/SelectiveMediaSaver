@@ -229,6 +229,11 @@ export default plugin<{ jsonStorage: Settings }>({
 				)
 			})
 		for (const [path, keys, kind] of [
+			[
+				'modules/main_tabs_v2/native/tabs/you/YouScreen.tsx',
+				['default'],
+				'you-root',
+			],
 			['design/void/Avatar/native/Avatar.tsx', ['default', 'type'], 'avatar'],
 			[
 				'design/void/CutoutableAvatarImage/native/CutoutableAvatarImage.tsx',

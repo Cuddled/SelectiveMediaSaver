@@ -94,6 +94,9 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				gradient: null,
 			}
 			const modules: Record<string, any> = {
+				'modules/main_tabs_v2/native/tabs/you/YouScreen.tsx': {
+					default: () => header,
+				},
 				'design/void/Avatar/native/Avatar.tsx': {
 					default: { type: () => header },
 				},
@@ -287,6 +290,7 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			)
 			assert.ok(h.paths.includes('modules/chat/native/Chat.android.tsx'))
 			for (const [path, keys] of [
+				['modules/main_tabs_v2/native/tabs/you/YouScreen.tsx', ['default']],
 				['design/void/Avatar/native/Avatar.tsx', ['default', 'type']],
 				[
 					'design/void/CutoutableAvatarImage/native/CutoutableAvatarImage.tsx',
@@ -489,6 +493,12 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			runtime.update({ enabled: true })
 			const pending = definition.start(h.api)
 			h.stop()
+			assert.equal(
+				h.modules[
+					'modules/main_tabs_v2/native/tabs/you/YouScreen.tsx'
+				].default(),
+				h.header,
+			)
 			for (const [path, exportName, inner] of [
 				['design/void/Avatar/native/Avatar.tsx', 'default', 'type'],
 				[

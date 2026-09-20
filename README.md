@@ -377,7 +377,8 @@ Beta9 adds **Avatar styles** and **Profile design** to Appearance Studio:
   avatars are not reshaped. These changes affect only this device's view of Discord.
 - Profile cards and sections receive soft corners and coordinated borders. A framed avatar backing
   follows the existing banner overlap without moving the native avatar or its media-viewer ref.
-  A static fade softens the banner's lower edge while preserving its image and GIF interaction.
+  A static fade softens both own and member banner edges while preserving images, GIF interaction,
+  native scroll refs, animated styles and profile-effect layers.
 - Connection rows use less padding and a 48-pixel minimum height; they remain free to grow with
   larger text. Compact styling is scoped to native account and application-role connection cards.
 - Connection headings can collapse or expand their contents. Sections start expanded for another
@@ -388,7 +389,7 @@ Beta9 adds **Avatar styles** and **Profile design** to Appearance Studio:
   existing Profiles area switch; all changes stop when the plugin is paused or unloaded. Existing
   settings migrate additively, and new installations still start paused.
 
-Beta9 local validation passes TypeScript, 184 tests, normalized full-repository lint, JavaScript
+Beta9 local validation passes TypeScript, 185 tests, normalized full-repository lint, JavaScript
 builds and archive checks. The interactive preview exercises the actual Studio and styling functions
 with sample components at 320 and 430 pixel widths, including larger connection text, preset controls,
 save-failure rollback and collapse accessibility. This is not native Android verification: final phone

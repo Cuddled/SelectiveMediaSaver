@@ -1,4 +1,5 @@
 import { hexWithAlpha } from '../../com.cuddled.liquidglass/js/core'
+import { atPath } from './studioSurfaces'
 import type * as ReactTypes from 'react'
 import type { Settings } from './core'
 import type { Access } from './surfaces'
@@ -14,6 +15,8 @@ export type IdentityKind =
 	| 'section'
 	| 'connections'
 	| 'connection-row'
+	| 'you-root'
+	| 'you-banner'
 const MARKER = '__fullAppGlassAvatar'
 const element = (React: ReactApi, value: unknown): value is Element =>
 	React.isValidElement(value)
@@ -206,6 +209,10 @@ export function createIdentitySurfaces(
 ) {
 	let alive = true
 	let sizes: Record<string, number> = {}
+	const youWrappers = new WeakMap<
+		(props: any) => any,
+		ReactTypes.ComponentType<any>
+	>()
 	const DetailContext = React.createContext<{ key: string } | null>(null)
 	const current = () =>
 		alive && access.isActive()
@@ -269,6 +276,30 @@ export function createIdentitySurfaces(
 		if (kind === 'profile-avatar')
 			return styleProfileAvatar(React, original, props, settings, flatten)
 		if (!element(React, original)) return original
+		if (kind === 'you-root') {
+			const renderer = original.type as any
+			if (
+				typeof renderer !== 'function' ||
+				renderer.prototype?.isReactComponent ||
+				!original.props.user ||
+				typeof original.props.navigateToProfileCustomization !== 'function' ||
+				typeof original.props.navigateToSettings !== 'function'
+			)
+				return original
+			let Wrapper = youWrappers.get(renderer)
+			if (!Wrapper) {
+				Wrapper = (innerProps: any) =>
+					React.createElement(Surface, {
+						kind: 'you-banner',
+						original: renderer(innerProps),
+					})
+				youWrappers.set(renderer, Wrapper)
+			}
+			return React.createElement(Wrapper, {
+				...original.props,
+				key: original.key,
+			})
+		}
 		if (kind === 'connections') {
 			const group = original.props.children
 			if (
@@ -286,6 +317,46 @@ export function createIdentitySurfaces(
 			)
 		}
 		if (!profileEnabled(settings)) return original
+		if (kind === 'you-banner') {
+			if (!settings.studio.profileBannerFade) return original
+			// LayerScope > theme > analytics > container > scroll > banner > image stack.
+			return atPath(React, original, ['child', 'child', 'child'], container => {
+				if (
+					!container.props.nativeID ||
+					!Array.isArray(container.props.children) ||
+					container.props.children.length !== 6
+				)
+					return container
+				return atPath(React, container, [2], scroll => {
+					if (
+						!Object.hasOwn(scroll.props, 'onScroll') ||
+						!Object.hasOwn(scroll.props, 'scrollEventThrottle') ||
+						!Array.isArray(scroll.props.children) ||
+						scroll.props.children.length !== 4
+					)
+						return scroll
+					return atPath(React, scroll, [0], banner => {
+						if (
+							!Array.isArray(banner.props.children) ||
+							banner.props.children.length !== 2
+						)
+							return banner
+						return atPath(React, banner, [1], stack => {
+							if (
+								!Array.isArray(stack.props.children) ||
+								stack.props.children.length !== 3 ||
+								!Object.hasOwn(stack.props, 'style')
+							)
+								return stack
+							return React.cloneElement(stack, {}, [
+								...stack.props.children,
+								React.createElement(BannerFade, { key: 'fade', settings }),
+							])
+						})
+					})
+				})
+			})
+		}
 		if (kind === 'connection-row') {
 			if (
 				!detail ||

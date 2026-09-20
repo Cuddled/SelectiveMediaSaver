@@ -357,3 +357,84 @@ test('compact rows are scoped to profile connections and leave text sizing, heig
 	})
 	assert.equal(render('connection-row', row, { label }), row)
 })
+
+test('own-profile fade preserves providers, scroll/animation refs, frames and GIF controls across toggles', () => {
+	const { render, state, ui } = harness()
+	const image = e(
+		'PressableOpacity',
+		{ onPress: () => {} },
+		e('FastImage', { source: { uri: 'banner.gif' }, paused: false }),
+	)
+	const stack = e(
+		'AnimatedView',
+		{ style: [{ width: 400, height: 180 }, { transform: [{ scale: 1.1 }] }] },
+		[e('View'), image, null],
+	)
+	const banner = e('AnimatedView', {}, [e('BackButton'), stack])
+	const ref = React.createRef()
+	const scrollHandler = { worklet: true }
+	const content = e('ProfileContent', { user: { id: 'me' } })
+	const scroll = e(
+		'AnimatedScrollView',
+		{
+			ref,
+			onScroll: scrollHandler,
+			scrollEventThrottle: 16,
+			onLayout: () => {},
+		},
+		[banner, e('ProfileEffect'), content, e('TTI')],
+	)
+	const frame = e('ProfileFrame')
+	const container = e('View', { nativeID: 'you-screen' }, [
+		frame,
+		e('Background'),
+		scroll,
+		frame,
+		e('Toolbar'),
+		null,
+	])
+	const root = e(
+		'LayerScope',
+		{},
+		e(
+			'ThemeProvider',
+			{ theme: 'dark' },
+			e('AnalyticsProvider', { value: {} }, container),
+		),
+	)
+	const styled = render('you-banner', root)
+	const nextContainer = styled.props.children.props.children.props.children
+	const nextScroll = nextContainer.props.children[2]
+	const nextStack = nextScroll.props.children[0].props.children[1]
+	assert.equal(nextScroll.props.ref, ref)
+	assert.equal(nextScroll.props.onScroll, scrollHandler)
+	assert.equal(nextScroll.props.onLayout, scroll.props.onLayout)
+	assert.equal(nextScroll.props.children[2], content)
+	assert.equal(nextContainer.props.children[0], frame)
+	assert.equal(nextStack.props.style, stack.props.style)
+	assert.equal(nextStack.props.children[1], image)
+	assert.equal(nextStack.props.children.length, 4)
+	function Unconnected(props: any) {
+		assert.equal(props.user.id, 'me')
+		return root
+	}
+	const child = e(Unconnected, {
+		user: { id: 'me' },
+		navigateToSettings: () => {},
+		navigateToProfileCustomization: () => {},
+	})
+	const wrapped = render('you-root', child)
+	const inner = wrapped.type(wrapped.props)
+	assert.equal(inner.props.original, root)
+	state.update({
+		...settings,
+		studio: { ...settings.studio, profileBannerFade: false },
+	})
+	assert.equal(render('you-root', child).type, wrapped.type)
+	assert.equal(render('you-banner', root), root)
+	const unknown = e('Unknown')
+	state.update(settings)
+	assert.equal(render('you-banner', unknown), unknown)
+	ui.dispose()
+	assert.equal(render('you-root', child), child)
+})
