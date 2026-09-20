@@ -32,6 +32,7 @@ import { createIdentitySurfaces } from './identity'
 import { createNativeThemeSync } from './nativeTheme'
 import { createPolish } from './polish'
 import { profileControlColor, profileSemanticContext } from './profileAccents'
+import { blendProfileColors, blendProfileGradient } from './profileTheme'
 import { readableReplies } from './replies'
 import SettingsPage from './Settings'
 import { StudioLauncher } from './Studio'
@@ -688,17 +689,48 @@ export default plugin<{ jsonStorage: Settings }>({
 		)
 		watch(
 			'modules/user_profile/hooks/native/useUserProfileColors.tsx',
-			exports =>
-				after(exports, 'useUserProfileColors', original =>
-					applyProfileGlassToColors(asGlass(runtime.getSettings()), original),
-				),
+			exports => {
+				if (typeof exports.useUserProfileColors !== 'function') return
+				api.cleanup(
+					revenge.patcher.instead(
+						exports as any,
+						'useUserProfileColors',
+						function (this: any, args, original) {
+							const result = Reflect.apply(original, this, args)
+							const settings = runtime.getSettings()
+							if (!alive) return result
+							return blendProfileColors(
+								settings,
+								applyProfileGlassToColors(asGlass(settings), result),
+								args[0],
+							)
+						},
+					),
+				)
+			},
 		)
 		watch(
 			'modules/user_profile/hooks/native/useUserProfileGradientColors.tsx',
-			exports =>
-				after(exports, 'useUserProfileGradientColors', original =>
-					applyProfileGlassToGradient(asGlass(runtime.getSettings()), original),
-				),
+			exports => {
+				if (typeof exports.useUserProfileGradientColors !== 'function') return
+				api.cleanup(
+					revenge.patcher.instead(
+						exports as any,
+						'useUserProfileGradientColors',
+						function (this: any, args, original) {
+							const result = Reflect.apply(original, this, args)
+							const settings = runtime.getSettings()
+							if (!alive) return result
+							return blendProfileGradient(
+								settings,
+								applyProfileGlassToGradient(asGlass(settings), result),
+								args[0],
+								args[1],
+							)
+						},
+					),
+				)
+			},
 		)
 
 		watch('modules/client_themes/native/ThemedGradient.tsx', exports => {
@@ -804,7 +836,10 @@ export default plugin<{ jsonStorage: Settings }>({
 			'../discord_common/js/packages/design/components/ThemeContextProvider/ThemeContext.tsx',
 			exports => {
 				context = exports.ThemeContext
-				if (context?.Provider) surfaces.setThemeContext(context as any)
+				if (context?.Provider) {
+					surfaces.setThemeContext(context as any)
+					identity.setThemeContext(context as any)
+				}
 				for (const [target, key] of pending) patchContext(target, key)
 			},
 		)

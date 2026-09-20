@@ -2,6 +2,28 @@ import { WALLPAPER_SOURCE } from '../../com.cuddled.liquidglass/js/wallpaper'
 import type { Settings } from './core'
 
 export const MOODS = {
+	waves: {
+		name: 'Waves',
+		description: 'Original waves image · violet and blue glass',
+		accent: '#B8A1FF',
+		secondary: '#6DCAEF',
+		panel: '#171B2B',
+		menu: '#111321',
+		base: '#0B0D19',
+		transparency: 0.8,
+		darkness: 0.28,
+	},
+	frosted: {
+		name: 'Frosted Glass',
+		description: 'Blurred waves · clear panels · icy edges',
+		accent: '#C4E8FF',
+		secondary: '#B8A1FF',
+		panel: '#151B2C',
+		menu: '#111827',
+		base: '#090F1D',
+		transparency: 0.9,
+		darkness: 0.18,
+	},
 	midnight: {
 		name: 'Midnight',
 		description: 'Violet light · deep blue glass',
@@ -53,9 +75,10 @@ export const moodColors = (settings: Settings) =>
 		? { base: '#0B0D17', secondary: '#6DCAEF' }
 		: MOODS[settings.studio.mood]
 
-/** Only appearance values are changed: pins, scopes, scenes and power preferences survive. */
+/** Presets retain pins, scopes and scenes. Frosted explicitly enables wallpaper blur. */
 export function applyMood(settings: Settings, mood: Mood): Partial<Settings> {
 	const value = MOODS[mood]
+	const imagePreset = mood === 'waves' || mood === 'frosted'
 	return {
 		panelColor: value.panel,
 		menuColor: value.menu,
@@ -63,7 +86,16 @@ export function applyMood(settings: Settings, mood: Mood): Partial<Settings> {
 		textColor: '#F7F8FF',
 		transparency: value.transparency,
 		darkness: value.darkness,
-		studio: { ...settings.studio, mood, wallpaper: '', homeWallpaper: '' },
+		accentOpacity: mood === 'frosted' ? 0.85 : 0.65,
+		blur: mood === 'frosted' ? 10 : 0,
+		...(mood === 'frosted' ? { lowPower: false } : {}),
+		studio: {
+			...settings.studio,
+			mood,
+			wallpaper: imagePreset ? WALLPAPER_SOURCE.uri : '',
+			homeWallpaper: imagePreset ? WALLPAPER_SOURCE.uri : '',
+			...(imagePreset ? { focus: false } : {}),
+		},
 	}
 }
 
@@ -75,6 +107,9 @@ export function moodSnapshot(settings: Settings): Partial<Settings> {
 		textColor: settings.textColor,
 		transparency: settings.transparency,
 		darkness: settings.darkness,
+		blur: settings.blur,
+		lowPower: settings.lowPower,
+		accentOpacity: settings.accentOpacity,
 	}
 }
 
@@ -82,7 +117,8 @@ export const isFocused = (settings: Settings) =>
 	settings.enabled && settings.studio.focus
 export const generatedBackdrop = (settings: Settings, uri: string) =>
 	isFocused(settings) ||
-	(settings.studio.mood !== 'custom' && uri === WALLPAPER_SOURCE.uri)
+	(!['custom', 'waves', 'frosted'].includes(settings.studio.mood) &&
+		uri === WALLPAPER_SOURCE.uri)
 export function motionAllowed(
 	settings: Settings,
 	reduced: boolean,

@@ -17,6 +17,7 @@ import {
 } from './core'
 import { generatedBackdrop } from './experience'
 import { polishEnabled, polishStyles } from './polish'
+import { profileGradientOverlay } from './profileTheme'
 import type * as ReactTypes from 'react'
 import type { Settings } from './core'
 
@@ -458,6 +459,10 @@ export function createSurfaces(
 				setLoaded(ok ? request : null)
 		}
 		if (!enabled) return original
+		const profileColors = profileGradientOverlay(
+			settings,
+			original.props.colors,
+		)
 		// Replace only the decorative fixed background, behind banners/content/scrolling.
 		// This opaque base prevents the previous screen bleeding through even offline.
 		return React.createElement(
@@ -495,6 +500,13 @@ export function createSurfaces(
 			}),
 			generated
 				? React.createElement(Atmosphere, { settings, backdrop: true })
+				: null,
+			profileColors
+				? React.cloneElement(original, {
+						key: 'profile-owner-gradient',
+						style: ABSOLUTE_FILL,
+						colors: profileColors,
+					})
 				: null,
 		)
 	}

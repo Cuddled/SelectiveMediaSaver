@@ -9,6 +9,7 @@ import {
 	styleAvatarImage,
 	styleProfileAvatar,
 } from './identity'
+import { profilePalette } from './profileTheme'
 import type { IdentityKind } from './identity'
 
 const e = (
@@ -22,11 +23,13 @@ const settings = normalize({ enabled: true })
 function harness() {
 	const state = createState(settings)
 	let context: any = null
+	let owner: any = null
+	const themeContext = React.createContext(null)
 	let fold = { key: '', closed: false }
 	const hooks = {
 		...React,
 		useSyncExternalStore: (_: any, snapshot: () => string) => snapshot(),
-		useContext: () => context,
+		useContext: (value: unknown) => (value === themeContext ? owner : context),
 		useState: () => [
 			fold,
 			(value: typeof fold) => {
@@ -39,6 +42,7 @@ function harness() {
 		{ View: 'View', Text: 'Text', Pressable: 'Pressable' },
 		{ ...state, isActive: () => true },
 	)
+	ui.setThemeContext(themeContext)
 	const render = (kind: IdentityKind, original: any, props?: any): any => {
 		const guarded = ui.wrap(kind, original, props) as any
 		if (guarded === original) return original
@@ -51,8 +55,58 @@ function harness() {
 		context(value: any) {
 			context = value
 		},
+		owner(value: any) {
+			owner = value
+		},
 	}
 }
+
+test('profile cards react to their owner’s theme without replacing content or actions', () => {
+	const h = harness()
+	const pink = { primaryColor: 0xff75bf, secondaryColor: 0xa53c88 }
+	const children = [
+		e('Text', {}, 'About me'),
+		e('Link', { onPress: () => {} }, 'Spotify'),
+	]
+	const card = e(
+		'View',
+		{ style: { marginTop: 12 }, onLayout: () => {} },
+		children,
+	)
+	h.owner(pink)
+	const tinted = h.render('card', card)
+	assert.equal(tinted.props.children, children)
+	assert.equal(tinted.props.onLayout, card.props.onLayout)
+	assert.equal(tinted.props.style[0], card.props.style)
+	assert.ok(
+		tinted.props.style[1].backgroundColor.startsWith(
+			profilePalette(settings, pink)!.primary,
+		),
+	)
+	h.owner({ primaryColor: 0x317fcc, secondaryColor: 0x223388 })
+	assert.notEqual(
+		h.render('card', card).props.style[1].backgroundColor,
+		tinted.props.style[1].backgroundColor,
+	)
+	h.owner(null)
+	assert.ok(
+		h
+			.render('card', card)
+			.props.style[1].backgroundColor.startsWith(settings.panelColor),
+	)
+	h.owner(pink)
+	h.state.update({
+		...settings,
+		studio: { ...settings.studio, profileColors: false },
+	})
+	assert.ok(
+		h
+			.render('card', card)
+			.props.style[1].backgroundColor.startsWith(settings.panelColor),
+	)
+	h.state.update({ ...settings, profiles: false })
+	assert.equal(h.render('card', card), card)
+})
 
 test('beta8 migration retains saved scenes and settings while validating identity controls', () => {
 	const before = normalize({

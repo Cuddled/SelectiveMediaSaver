@@ -2,10 +2,10 @@
 	"format": 1,
 	"id": "com.cuddled.fullappglass",
 	"name": "Full-App Glass (Experimental)",
-	"description": "Personal glass Home with signature motifs, polished lists, forum and invite cards, and matching chat details for Discord 347.",
+	"description": "Personal glass Home with member-color profiles, Waves and Frosted Glass presets, polished lists, and matching chat details for Discord 347.",
 	"icon": "ic_theme_24px",
 	"author": "Cuddled",
-	"version": "1.0.0-beta12",
+	"version": "1.0.0-beta13",
 	"dependencies": {
 		"revenge.api": { "version": ">=1.0.0 <2.0.0" },
 		"discord": { "version": ">=347.0 <348.0" }

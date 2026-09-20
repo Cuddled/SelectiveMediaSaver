@@ -1,4 +1,5 @@
 import { hexWithAlpha } from '../../com.cuddled.liquidglass/js/core'
+import { profilePalette } from './profileTheme'
 import { atPath } from './studioSurfaces'
 import type * as ReactTypes from 'react'
 import type { Settings } from './core'
@@ -47,10 +48,17 @@ export function profileCardStyle(settings: Settings) {
 	return {
 		borderRadius: 24,
 		borderWidth: 1,
-		borderColor: hexWithAlpha(settings.accentColor, 0.22),
+		borderColor: hexWithAlpha(
+			settings.accentColor,
+			settings.studio.mood === 'frosted' ? 0.4 : 0.22,
+		),
 		backgroundColor: hexWithAlpha(
 			settings.panelColor,
-			settings.studio.focus ? 1 : 0.9,
+			settings.studio.focus
+				? 1
+				: settings.studio.mood === 'frosted'
+					? 0.55
+					: 0.9,
 		),
 		padding: 16,
 	}
@@ -209,6 +217,8 @@ export function createIdentitySurfaces(
 ) {
 	let alive = true
 	let sizes: Record<string, number> = {}
+	const EmptyTheme = React.createContext(null)
+	let themeContext: ReactTypes.Context<any> | undefined
 	const youWrappers = new WeakMap<
 		(props: any) => any,
 		ReactTypes.ComponentType<any>
@@ -268,11 +278,19 @@ export function createIdentitySurfaces(
 			access.getSnapshot,
 		)
 		const detail = React.useContext(DetailContext)
+		const ownerTheme = React.useContext(themeContext ?? EmptyTheme)
 		const [fold, setFold] = React.useState({ key: '', closed: false })
-		const settings = current()
+		let settings = current()
 		if (kind === 'avatar') return markAvatar(React, original, props, settings)
 		if (kind === 'avatar-image')
 			return styleAvatarImage(React, original, props, settings, sizes)
+		const ownerColors = profilePalette(settings, ownerTheme)
+		if (ownerColors)
+			settings = {
+				...settings,
+				panelColor: ownerColors.primary as Settings['panelColor'],
+				accentColor: ownerColors.border as Settings['accentColor'],
+			}
 		if (kind === 'profile-avatar')
 			return styleProfileAvatar(React, original, props, settings, flatten)
 		if (!element(React, original)) return original
@@ -490,6 +508,9 @@ export function createIdentitySurfaces(
 		}
 	}
 	return {
+		setThemeContext(value: ReactTypes.Context<any>) {
+			themeContext = value
+		},
 		setAvatarSizes(value: unknown) {
 			if (value && typeof value === 'object')
 				sizes = { ...(value as Record<string, number>) }
@@ -506,6 +527,7 @@ export function createIdentitySurfaces(
 		dispose() {
 			alive = false
 			sizes = {}
+			themeContext = undefined
 		},
 	}
 }
