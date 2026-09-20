@@ -1,6 +1,9 @@
 # Selective Media Saver
 
-Full-App Glass `1.0.0-beta15` adds automatic media-history loading to **Workspace**.
+Full-App Glass `1.0.0-beta16` moves **Tools** into its own row above the composer,
+so it cannot cover message controls. Media loading now accepts structured search
+cursors and automatically falls back to Discord's standard media search when
+the tab response is unsupported. It keeps beta15's automatic media-history loading in **Workspace**.
 Opening Media Studio searches the selected conversation for older images and videos,
 newest first, without scrolling chat. It includes pause/resume, progress, small thumbnails,
 and paged browsing. Workspace is a connected set of ten personal
@@ -22,6 +25,7 @@ Use the **Full-App Glass Update Helper** for beta14 or older:
 4. Fully close and reopen Discord. Check that Full-App Glass shows **1.0.0-beta15**
    and its Repository shows **Cuddled's Revenge Plugins**, rather than Sideloaded.
 5. Remove only **Full-App Glass Update Helper** after those checks.
+6. Use **Check for updates** to install the latest Glass release (currently beta16).
 
 The helper uses Revenge's native repository installer to replace Glass in place;
 it never clears, uninstalls, reads, or rewrites Glass's stored settings. It verifies
@@ -634,7 +638,7 @@ The distributables are written to:
 build/classic/manifest.json
 build/classic/index.js
 build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
-build/dist/com.cuddled.fullappglass@1.0.0-beta15.zip
+build/dist/com.cuddled.fullappglass@1.0.0-beta16.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next9.zip
 ```
 

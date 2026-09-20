@@ -6,6 +6,96 @@ type Response = {
 	body?: any
 	headers?: Record<string, unknown>
 }
+type JsonCursor =
+	| null
+	| string
+	| number
+	| boolean
+	| JsonCursor[]
+	| { [key: string]: JsonCursor }
+export type MediaCursor =
+	| string
+	| JsonCursor[]
+	| { [key: string]: JsonCursor }
+	| null
+export type MediaSearchMode = 'tabs' | 'messages'
+
+class UnsupportedMediaResponse extends Error {}
+
+/** Search cursors are opaque JSON. Bound and clone them without coercing objects to strings. */
+function searchCursor(value: unknown): MediaCursor {
+	if (value == null || value === '') return null
+	let nodes = 0
+	const visit = (item: unknown, depth: number): JsonCursor => {
+		if (++nodes > 512 || depth > 8)
+			throw new UnsupportedMediaResponse('Invalid search cursor.')
+		if (item === null || typeof item === 'boolean') return item
+		if (typeof item === 'string' && item.length <= 16384) return item
+		if (typeof item === 'number' && Number.isFinite(item)) return item
+		if (Array.isArray(item)) return item.map(child => visit(child, depth + 1))
+		if (
+			item &&
+			typeof item === 'object' &&
+			Object.getPrototypeOf(item) === Object.prototype
+		) {
+			const entries = Object.entries(item).sort(([a], [b]) =>
+				a.localeCompare(b),
+			)
+			if (entries.length > 64)
+				throw new UnsupportedMediaResponse('Invalid search cursor.')
+			return Object.fromEntries(
+				entries.map(([key, child]) => [key, visit(child, depth + 1)]),
+			)
+		}
+		throw new UnsupportedMediaResponse('Invalid search cursor.')
+	}
+	if (typeof value !== 'string' && (typeof value !== 'object' || !value))
+		throw new UnsupportedMediaResponse('Invalid search cursor.')
+	const cursor = visit(value, 0) as MediaCursor
+	if (JSON.stringify(cursor).length > 16384)
+		throw new UnsupportedMediaResponse('Invalid search cursor.')
+	return cursor
+}
+
+function searchPage(
+	response: Response,
+	mode: MediaSearchMode,
+	channelId: string,
+) {
+	const body = response.body
+	const tab = mode === 'tabs' ? body?.tabs?.media : body
+	if (!Array.isArray(tab?.messages) || tab.messages.length > 200) {
+		throw new UnsupportedMediaResponse(
+			'Discord returned an unreadable media-search page. Refresh media to retry.',
+		)
+	}
+	const rows = tab.messages.flatMap((group: any) => {
+		const m = Array.isArray(group)
+			? (group.find(v => v?.hit === true) ?? group[0])
+			: group
+		return m && m.channel_id === channelId ? [m] : []
+	})
+	let cursor: MediaCursor = null
+	if (mode === 'tabs') cursor = searchCursor(tab.cursor)
+	else if (tab.messages.length >= 25) {
+		// Standard search pages backwards by the oldest hit, avoiding the offset ceiling.
+		const ids = rows
+			.map((m: any) => m.id)
+			.filter(isId)
+			.sort((a: string, b: string) => a.length - b.length || a.localeCompare(b))
+		if (!ids.length)
+			throw new UnsupportedMediaResponse(
+				'Discord returned a media page outside this conversation.',
+			)
+		cursor = ids[0]
+	}
+	return {
+		rows,
+		cursor,
+		total: tab.total_results,
+		partial: body?.doing_deep_historical_index === true,
+	}
+}
 export type MediaHistoryStatus =
 	| 'idle'
 	| 'loading'
@@ -29,8 +119,9 @@ interface Dependencies {
 	visible(message: any): boolean
 	request(
 		channelId: string,
-		cursor: string | null,
+		cursor: MediaCursor,
 		signal: AbortSignal,
+		mode: MediaSearchMode,
 	): Promise<Response>
 	changed(): void
 	now?(): number
@@ -53,7 +144,8 @@ export function createMediaHistory(deps: Dependencies) {
 		owner = deps.account(),
 		alive = true,
 		active = false
-	let cursor: string | null = null,
+	let cursor: MediaCursor = null,
+		mode: MediaSearchMode = 'tabs',
 		generation = 0,
 		retryCount = 0,
 		notBefore = 0
@@ -81,6 +173,7 @@ export function createMediaHistory(deps: Dependencies) {
 	const reset = (channelId = '') => {
 		stop()
 		cursor = null
+		mode = 'tabs'
 		retryCount = 0
 		seenCursors.clear()
 		messages.clear()
@@ -129,9 +222,11 @@ export function createMediaHistory(deps: Dependencies) {
 					state.channelId,
 					cursor,
 					controller.signal,
+					mode,
 				)
 			} catch (error: any) {
-				if (![202, 429, 503].includes(error?.status)) throw error
+				if (![202, 429, 503, 400, 404, 405, 501].includes(error?.status))
+					throw error
 				response = error
 			}
 			if (token !== generation || !active || !valid()) {
@@ -163,44 +258,40 @@ export function createMediaHistory(deps: Dependencies) {
 				emit()
 				return
 			}
+			if (mode === 'tabs' && [400, 404, 405, 501].includes(response.status))
+				throw new UnsupportedMediaResponse('Tab media search is unavailable.')
 			if (response.status !== 200)
 				throw new Error(
 					response.status === 403
 						? 'Discord could not grant access to this conversation.'
 						: 'Media search could not finish. Resume to retry.',
 				)
-			const tab = response.body?.tabs?.media
-			if (
-				!Array.isArray(tab?.messages) ||
-				tab.messages.length > 200 ||
-				(tab.cursor != null &&
-					(typeof tab.cursor !== 'string' || tab.cursor.length > 16384))
-			)
-				throw new Error(
-					'This Discord build returned an unsupported media-search response.',
-				)
-			const rows = tab.messages.flatMap((group: any) => {
-				// 347 returns groups with the matching message first, followed by optional context.
-				const m = Array.isArray(group)
-					? (group.find(v => v?.hit === true) ?? group[0])
-					: group
-				return m && m.channel_id === state.channelId && deps.visible(m)
-					? [m]
-					: []
-			})
+			const page = searchPage(response, mode, state.channelId)
+			// max_id changes the remaining-result count; keep the first standard page's total.
+			const total =
+				mode === 'messages' && cursor !== null
+					? state.total
+					: Number.isFinite(page.total) && page.total >= 0
+						? page.total
+						: null
+			const rows = page.rows.filter(deps.visible)
 			for (const m of messageRecords(rows, state.channelId)) {
 				if (m.attachments.some(a => a.kind !== 'audio'))
 					messages.set(m.id, { ...m, content: '', links: [], replyId: '' })
 			}
-			const next = tab.cursor || null
-			if (next && (next === cursor || seenCursors.has(next)))
+			const next = page.cursor
+			const nextKey = JSON.stringify(next)
+			if (
+				next &&
+				(nextKey === JSON.stringify(cursor) || seenCursors.has(nextKey))
+			)
 				throw new Error(
 					'Discord repeated a search page. Refresh the library to try again.',
 				)
-			if (next) seenCursors.add(next)
+			if (next) seenCursors.add(nextKey)
 			cursor = next
 			retryCount = 0
-			const partial = response.body?.doing_deep_historical_index === true
+			const partial = page.partial
 			const limited =
 				messages.size >= (deps.maxMessages ?? 5000) && cursor !== null
 			state = {
@@ -209,10 +300,7 @@ export function createMediaHistory(deps: Dependencies) {
 					(a, b) => b.id.length - a.id.length || b.id.localeCompare(a.id),
 				),
 				pages: state.pages + 1,
-				total:
-					Number.isFinite(tab.total_results) && tab.total_results >= 0
-						? tab.total_results
-						: null,
+				total,
 				status: limited
 					? 'limited'
 					: cursor
@@ -237,6 +325,21 @@ export function createMediaHistory(deps: Dependencies) {
 		} catch (error) {
 			if (token !== generation || !active || !valid()) {
 				sync()
+				return
+			}
+			if (error instanceof UnsupportedMediaResponse && mode === 'tabs') {
+				mode = 'messages'
+				cursor = null
+				seenCursors.clear()
+				retryCount = 0
+				notBefore = now() + 1200
+				state = {
+					...state,
+					status: 'waiting',
+					detail: 'Switching to Discord’s standard media search…',
+				}
+				later(1200)
+				emit()
 				return
 			}
 			active = false
@@ -308,7 +411,7 @@ export function createMediaHistory(deps: Dependencies) {
 export function mediaSearchRequest(
 	channelId: string,
 	guildId: string,
-	cursor: string | null,
+	cursor: MediaCursor,
 	endpoints: Record<string, any>,
 ) {
 	if (!isId(channelId) || (guildId && !isId(guildId)))
@@ -334,6 +437,45 @@ export function mediaSearchRequest(
 			},
 			track_exact_total_hits: true,
 		},
+		oldFormErrors: true,
+		rejectWithError: false,
+	}
+}
+
+/** Same scoped GET search used by Discord 347's SearchFetcherImpl. */
+export function standardMediaSearchRequest(
+	channelId: string,
+	guildId: string,
+	cursor: MediaCursor,
+	endpoints: Record<string, any>,
+) {
+	if (!isId(channelId) || (guildId && !isId(guildId)))
+		throw new Error('Choose a conversation first.')
+	if (cursor !== null && !isId(cursor))
+		throw new Error('Invalid media continuation.')
+	const endpoint = guildId ? endpoints.SEARCH_GUILD : endpoints.SEARCH_CHANNEL
+	if (typeof endpoint !== 'function')
+		throw new Error(
+			'Standard media search is unavailable on this Discord build.',
+		)
+	const query = [
+		['channel_id', channelId],
+		['has', 'image'],
+		['has', 'video'],
+		['sort_by', 'timestamp'],
+		['sort_order', 'desc'],
+		['limit', '25'],
+		['include_nsfw', 'false'],
+	]
+	if (cursor) query.push(['max_id', cursor as string])
+	return {
+		url: endpoint(guildId || channelId),
+		query: query
+			.map(
+				([key, value]) =>
+					`${encodeURIComponent(key)}=${encodeURIComponent(value)}`,
+			)
+			.join('&'),
 		oldFormErrors: true,
 		rejectWithError: false,
 	}

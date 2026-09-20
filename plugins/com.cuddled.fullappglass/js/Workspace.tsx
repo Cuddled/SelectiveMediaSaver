@@ -2067,7 +2067,7 @@ export function WorkspaceLauncher({
 	)
 	const [open, setOpen] = React.useState(false),
 		[initial, setInitial] = React.useState<Tool>('home')
-	const peek = data?.peek() ?? ''
+	channelId ||= data?.context().channelId ?? ''
 	const accountId = data?.accountId() ?? '',
 		enabled =
 			runtime.getSettings().enabled && runtime.getSettings().workspace.enabled
@@ -2087,13 +2087,9 @@ export function WorkspaceLauncher({
 	return (
 		<View
 			pointerEvents={dock ? 'box-none' : undefined}
-			style={dock ? ABSOLUTE_FILL : undefined}
+			style={dock ? { alignItems: 'flex-end', paddingVertical: 4 } : undefined}
 		>
-			<View
-				style={
-					dock ? { position: 'absolute', right: 12, bottom: 12 } : undefined
-				}
-			>
+			<View>
 				<Button
 					onPress={() => launch('home')}
 					onLongPress={() => launch('wheel')}
@@ -2138,21 +2134,42 @@ export function WorkspaceLauncher({
 					</WorkspaceBoundary>
 				) : null}
 			</Modal>
-			{peek && dock ? (
-				<FloatingPeek
-					key={`${accountId}:${peek}`}
-					data={data}
-					id={peek}
-					close={() => data.setPeek('')}
-				/>
-			) : null}
 		</View>
 	)
 }
 
-export const WorkspaceDock = ({ channelId }: { channelId: string }) => (
-	<WorkspaceLauncher channelId={channelId} dock />
-)
+export const WorkspaceToolbar = () => <WorkspaceLauncher dock />
+
+/** Only the explicitly opened peek floats over chat; the launcher lives in the composer layout. */
+export function WorkspaceDock({ channelId }: { channelId: string }) {
+	const data = getWorkspaceData()
+	revenge.react.React.useSyncExternalStore(
+		data?.subscribe ?? runtime.subscribe,
+		data?.getSnapshot ?? runtime.getSnapshot,
+		data?.getSnapshot ?? runtime.getSnapshot,
+	)
+	const settings = runtime.getSettings()
+	const peek = data?.peek()
+	if (
+		!data?.accountId() ||
+		!peek ||
+		!settings.enabled ||
+		!settings.workspace.enabled ||
+		data.context().channelId !== channelId
+	)
+		return null
+	const { View } = revenge.react.ReactNative
+	return (
+		<View pointerEvents="box-none" style={ABSOLUTE_FILL}>
+			<FloatingPeek
+				key={`${data.accountId()}:${peek}`}
+				data={data}
+				id={peek}
+				close={() => data.setPeek('')}
+			/>
+		</View>
+	)
+}
 
 function WorkspaceBoundary({
 	children,

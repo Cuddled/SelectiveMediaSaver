@@ -1,12 +1,17 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createMediaHistory, mediaSearchRequest } from './workspaceMedia'
+import {
+	createMediaHistory,
+	mediaSearchRequest,
+	standardMediaSearchRequest,
+} from './workspaceMedia'
 import {
 	imageUri,
 	messageRecords,
 	normalizeAccount,
 	thumbnailUri,
 } from './workspaceModel'
+import type { MediaCursor, MediaSearchMode } from './workspaceMedia'
 
 const channel = '323456789012345678',
 	other = '423456789012345678',
@@ -28,7 +33,7 @@ const raw = (suffix: number, overrides: Record<string, unknown> = {}) => ({
 })
 const response = (
 	messages: unknown[],
-	cursor: string | null = null,
+	cursor: MediaCursor = null,
 	extra = {},
 ) => ({
 	status: 200,
@@ -42,7 +47,8 @@ function fixture(maxMessages = 5000) {
 	const timers = new Map<number, { at: number; fn(): void }>()
 	const calls: Array<{
 		channel: string
-		cursor: string | null
+		cursor: MediaCursor
+		mode: MediaSearchMode
 		signal: AbortSignal
 		resolve(value: any): void
 		reject(error: unknown): void
@@ -52,9 +58,9 @@ function fixture(maxMessages = 5000) {
 		allowed: () => allowed,
 		visible: m => m.author?.id !== 'blocked',
 		maxMessages,
-		request: (channel, cursor, signal) =>
+		request: (channel, cursor, signal, mode) =>
 			new Promise((resolve, reject) =>
-				calls.push({ channel, cursor, signal, resolve, reject }),
+				calls.push({ channel, cursor, signal, mode, resolve, reject }),
 			),
 		changed() {},
 		now: () => time,
@@ -266,6 +272,10 @@ test('invalid responses and repeated cursors fail visibly instead of looping or 
 	const f = fixture()
 	f.history.start(channel)
 	await f.answer({ status: 200, body: {} })
+	assert.equal(f.history.snapshot().status, 'waiting')
+	await f.tick()
+	assert.equal(f.calls[1].mode, 'messages')
+	await f.answer({ status: 200, body: {} })
 	assert.equal(f.history.snapshot().status, 'error')
 	f.history.refresh(channel)
 	await f.answer(response([[raw(3)]], 'same'))
@@ -274,6 +284,150 @@ test('invalid responses and repeated cursors fail visibly instead of looping or 
 	assert.equal(f.history.snapshot().status, 'error')
 	assert.match(f.history.snapshot().detail, /repeated/)
 	assert.equal(f.timers.size, 0)
+	f.history.dispose()
+})
+
+test('structured search cursors round-trip unchanged and repeated objects stop pagination', async () => {
+	const f = fixture()
+	const cursor = { before: raw(1).id, sort: [1720000000, 'tie-breaker'] }
+	f.history.start(channel)
+	await f.answer(response([[raw(3)]], cursor))
+	assert.equal(f.history.snapshot().status, 'loading')
+	await f.tick()
+	assert.deepEqual(f.calls[1].cursor, cursor)
+	assert.equal(f.calls[1].mode, 'tabs')
+	await f.answer(
+		response([[raw(2)]], { sort: cursor.sort, before: cursor.before }),
+	)
+	assert.equal(f.history.snapshot().status, 'error')
+	assert.match(f.history.snapshot().detail, /repeated/)
+	f.history.dispose()
+})
+
+test('unsupported tabs fall back once to standard search and page past the first 25 hits', async () => {
+	const f = fixture()
+	f.history.start(channel)
+	await f.answer({ status: 200, body: { tabs: {} } })
+	assert.equal(f.history.snapshot().status, 'waiting')
+	await f.tick()
+	assert.equal(f.calls[1].mode, 'messages')
+	assert.equal(f.calls[1].cursor, null)
+	await f.answer({
+		status: 200,
+		body: {
+			messages: Array.from({ length: 25 }, (_, i) => [raw(30 - i)]),
+			total_results: 26,
+		},
+	})
+	await f.tick()
+	assert.equal(f.calls[2].cursor, raw(6).id)
+	assert.equal(f.calls[2].mode, 'messages')
+	await f.answer({
+		status: 200,
+		body: {
+			messages: [
+				[raw(1)],
+				[raw(2, { author: { id: 'blocked' } })],
+				[raw(3, { channel_id: other })],
+			],
+			total_results: 3,
+		},
+	})
+	assert.equal(f.history.snapshot().status, 'complete')
+	assert.equal(f.history.snapshot().messages.length, 26)
+	assert.equal(f.history.snapshot().total, 26)
+	assert.ok(
+		f.history
+			.snapshot()
+			.messages.every(m => m.content === '' && m.channelId === channel),
+	)
+	f.history.dispose()
+})
+
+test('fallback requests remain conversation-scoped and use the native GET endpoint with an exclusive older-message boundary', () => {
+	const endpoints = {
+		SEARCH_GUILD: (id: string) => `/guilds/${id}/messages/search`,
+		SEARCH_CHANNEL: (id: string) => `/channels/${id}/messages/search`,
+	}
+	for (const guildId of ['', other]) {
+		const request = standardMediaSearchRequest(
+			channel,
+			guildId,
+			raw(6).id,
+			endpoints,
+		)
+		assert.equal(
+			request.url,
+			guildId
+				? `/guilds/${guildId}/messages/search`
+				: `/channels/${channel}/messages/search`,
+		)
+		const query = new URLSearchParams(request.query)
+		assert.deepEqual(query.getAll('channel_id'), [channel])
+		assert.deepEqual(query.getAll('has'), ['image', 'video'])
+		assert.equal(query.get('max_id'), raw(6).id)
+		assert.equal(query.get('include_nsfw'), 'false')
+		assert.equal(query.get('sort_order'), 'desc')
+	}
+	assert.throws(() =>
+		standardMediaSearchRequest(channel, '', { opaque: true }, endpoints),
+	)
+})
+
+test('structured cursor limits trigger compatibility search instead of sending unbounded JSON', async () => {
+	for (const cursor of [
+		{ value: 'x'.repeat(16385) },
+		Number.NaN,
+		{ invalid: () => {} },
+	]) {
+		const f = fixture()
+		f.history.start(channel)
+		await f.answer({
+			status: 200,
+			body: { tabs: { media: { messages: [], cursor } } },
+		})
+		await f.tick()
+		assert.equal(f.calls[1].mode, 'messages')
+		assert.equal(f.calls[1].cursor, null)
+		f.history.dispose()
+	}
+})
+
+test('pause and account changes cancel a queued compatibility request; rate limits never trigger fallback', async () => {
+	const f = fixture()
+	f.history.start(channel)
+	await f.answer({ status: 200, body: {} })
+	f.history.pause()
+	await f.tick()
+	assert.equal(f.calls.length, 1)
+	f.history.start(channel)
+	assert.equal(f.calls[1].mode, 'messages')
+	await f.answer({ status: 429, body: { retry_after: 10 } })
+	await f.tick(9999)
+	assert.equal(f.calls.length, 2)
+	f.account(other)
+	await f.tick(10000)
+	assert.equal(f.calls.length, 2)
+	assert.equal(f.history.snapshot().messages.length, 0)
+	f.history.dispose()
+})
+
+test('unsupported tab endpoints fall back but access-denied responses never do', async () => {
+	for (const status of [400, 404, 405, 501]) {
+		const f = fixture()
+		f.history.start(channel)
+		f.calls[0].reject({ status })
+		await f.flush()
+		await f.tick()
+		assert.equal(f.calls[1].mode, 'messages')
+		f.history.dispose()
+	}
+	const f = fixture()
+	f.history.start(channel)
+	await f.answer({ status: 403, body: {} })
+	await f.tick()
+	assert.equal(f.calls.length, 1)
+	assert.equal(f.history.snapshot().status, 'error')
 	f.history.dispose()
 })
 

@@ -121,8 +121,10 @@ test('input backing changes only the pill and preserves draft, keyboard layout, 
 	assert.equal(next.props.style, h.original.props.style)
 	assert.equal(next.props.onLayout, h.original.props.onLayout)
 	const children = next.props.children.props.children
-	for (const i of [0, 1, 3]) assert.equal(children[i], h.children[i])
-	const pill = children[2]
+	for (const i of [0, 1]) assert.equal(children[i], h.children[i])
+	assert.equal(children[2], null)
+	assert.equal(children[4], h.children[3])
+	const pill = children[3]
 	for (const key of [
 		'ref',
 		'collapsable',
@@ -141,10 +143,34 @@ test('input backing changes only the pill and preserves draft, keyboard layout, 
 	assert.equal(pill.props.children[0], wallpaper)
 	assert.equal(pill.props.children[1].props.children, h.content)
 	const off = backFloatingInput(React, h.original, false, wallpaper) as any
-	const offPill = off.props.children.props.children[2]
+	const offPill = off.props.children.props.children[3]
 	assert.equal(offPill.props.style, h.box.props.style)
 	assert.equal(offPill.props.children[1].key, pill.props.children[1].key)
 	assert.equal(offPill.props.children[1].props.children, h.content)
+})
+
+test('workspace toolbar occupies its own composer row without replacing native controls or changing their keys', () => {
+	const h = input()
+	const toolbar = React.createElement('WorkspaceToolbar', {
+		key: 'workspace-toolbar',
+	})
+	const on = backFloatingInput(
+		React,
+		h.original,
+		true,
+		wallpaper,
+		toolbar,
+	) as any
+	const off = backFloatingInput(React, h.original, true, wallpaper, null) as any
+	assert.equal(on.props.onLayout, h.original.props.onLayout)
+	assert.equal(on.props.style, h.original.props.style)
+	const children = on.props.children.props.children
+	assert.equal(children[2], toolbar)
+	assert.equal(children[3].props.children[1].props.children, h.content)
+	assert.equal(children[3].props.ref, h.box.props.ref)
+	assert.equal(children[3].key, off.props.children.props.children[3].key)
+	assert.equal(off.props.children.props.children[2], null)
+	assert.equal(children[4], h.children[3])
 })
 
 test('account backings keep the large-avatar mask and small-avatar animated radii intact', () => {

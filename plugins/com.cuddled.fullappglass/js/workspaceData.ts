@@ -1,7 +1,11 @@
 import { runtime } from './core'
 import { applyMood } from './experience'
 import { saveSettings } from './settingsWriter'
-import { createMediaHistory, mediaSearchRequest } from './workspaceMedia'
+import {
+	createMediaHistory,
+	mediaSearchRequest,
+	standardMediaSearchRequest,
+} from './workspaceMedia'
 import {
 	accountFor,
 	activeRule,
@@ -327,13 +331,28 @@ export function createWorkspaceData(home: StudioData) {
 			call('relationships', 'isBlockedOrIgnoredForMessage', m) !== true &&
 			call('relationships', 'isBlocked', m.author?.id) !== true,
 		changed: emit,
-		request: async (id, cursor, signal) => {
+		request: async (id, cursor, signal, mode) => {
 			if (!api.mediaSearchReady())
 				throw new Error(
 					'Media search is still initializing. Try again in a moment.',
 				)
 			const channel = api.channel(id)
 			if (!channel) throw new Error('This conversation is unavailable.')
+			if (mode === 'messages') {
+				if (typeof stores.http.get !== 'function')
+					throw new Error(
+						'Standard media search is still initializing. Try again in a moment.',
+					)
+				return stores.http.get({
+					...standardMediaSearchRequest(
+						id,
+						channel.guildId,
+						cursor,
+						stores.searchConstants.Endpoints,
+					),
+					signal,
+				})
+			}
 			return stores.http.post({
 				...mediaSearchRequest(
 					id,

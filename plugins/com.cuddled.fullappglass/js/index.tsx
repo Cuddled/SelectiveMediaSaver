@@ -40,7 +40,7 @@ import { createSettingsWriter, setSettingsWriter } from './settingsWriter'
 import { createStudioData, setStudioData } from './studioData'
 import { createStudioSurfaces, LINE_ICONS, mediaTheme } from './studioSurfaces'
 import { createSurfaces } from './surfaces'
-import { WorkspaceDock } from './Workspace'
+import { WorkspaceDock, WorkspaceToolbar } from './Workspace'
 import { createWorkspaceData, setWorkspaceData } from './workspaceData'
 import { createReadingTracker } from './workspaceHooks'
 import type { Settings } from './core'
@@ -130,7 +130,12 @@ export default plugin<{ jsonStorage: Settings }>({
 						: data.scene(channelId).wallpaper,
 			isActive: () => alive,
 		}
-		const surfaces = createSurfaces(React, revenge.react.ReactNative, access)
+		const surfaces = createSurfaces(
+			React,
+			revenge.react.ReactNative,
+			access,
+			WorkspaceToolbar,
+		)
 		const polish = createPolish(React, revenge.react.ReactNative.View, access)
 		const chat = createChatWallpaper(
 			React,

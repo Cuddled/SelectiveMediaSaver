@@ -35,6 +35,7 @@ export function backFloatingInput(
 	original: unknown,
 	enabled: boolean,
 	wallpaper: ReactTypes.ReactNode,
+	toolbar?: ReactTypes.ReactNode,
 ): unknown {
 	if (
 		!React.isValidElement<Record<string, any>>(original) ||
@@ -64,6 +65,8 @@ export function backFloatingInput(
 		return original
 	const next = [...children]
 	next[2] = backing(React, box, enabled, wallpaper)
+	// Keep the pill's sibling index stable when Workspace is toggled, preserving its draft/ref.
+	next.splice(2, 0, toolbar ?? null)
 	return React.cloneElement(
 		original,
 		{},
