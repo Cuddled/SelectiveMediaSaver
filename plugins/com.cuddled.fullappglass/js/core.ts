@@ -7,10 +7,12 @@ import {
 	readableChatForeground,
 } from '../../com.cuddled.liquidglass/js/core'
 import { PROFILE_ACCENT, profileAccent } from './profileAccents'
+import { normalizeStudio, STUDIO_DEFAULTS } from './studioModel'
 import type {
 	HexColor,
 	LiquidGlassSettings,
 } from '../../com.cuddled.liquidglass/js/types'
+import type { StudioSettings } from './studioModel'
 
 export interface Settings {
 	schemaVersion: 1
@@ -33,6 +35,7 @@ export interface Settings {
 	polishMenus: boolean
 	menuColor: HexColor
 	compactMenus: boolean
+	studio: StudioSettings
 }
 
 // Start paused so the user can turn their other appearance plugin off first.
@@ -57,6 +60,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	polishMenus: true,
 	menuColor: '#111321',
 	compactMenus: true,
+	studio: STUDIO_DEFAULTS,
 }
 
 const clamp = (value: unknown, fallback: number, max = 1) =>
@@ -90,6 +94,7 @@ export function normalize(value: unknown): Settings {
 	result.accentColor = normalizeHexColor(raw.accentColor, result.accentColor)
 	result.menuColor = normalizeHexColor(raw.menuColor, result.menuColor)
 	result.accentOpacity = clamp(raw.accentOpacity, result.accentOpacity)
+	result.studio = normalizeStudio(raw.studio)
 	return result
 }
 
@@ -145,6 +150,19 @@ export function palette(value: Settings): Record<string, string> {
 	for (const key of BASE_SEMANTIC_COLOR_KEYS) {
 		if (!(CHAT_BASE_KEYS.has(key) ? settings.chats : settings.mainScreens))
 			delete result[key]
+	}
+	if (settings.enabled && settings.chats && settings.studio.reactions) {
+		Object.assign(result, {
+			REACTION_BACKGROUND_DEFAULT: '#181C2BDD',
+			REACTION_BORDER_DEFAULT: hexWithAlpha(settings.accentColor, 0.2),
+			REACTION_TEXT_DEFAULT: '#E8EAF5FF',
+			REACTION_BACKGROUND_REACTED_DEFAULT: hexWithAlpha(
+				settings.accentColor,
+				0.26,
+			),
+			REACTION_BORDER_REACTED_DEFAULT: hexWithAlpha(settings.accentColor, 0.75),
+			REACTION_TEXT_REACTED_DEFAULT: '#F7F8FFFF',
+		})
 	}
 	return result
 }

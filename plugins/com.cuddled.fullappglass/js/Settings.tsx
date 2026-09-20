@@ -3,8 +3,10 @@ import {
 	ABSOLUTE_FILL,
 	WALLPAPER_SOURCE,
 } from '../../com.cuddled.liquidglass/js/wallpaper'
-import { DEFAULT_SETTINGS, normalize, runtime, surfaceColor } from './core'
+import { DEFAULT_SETTINGS, runtime, surfaceColor } from './core'
 import { polishEnabled, polishStyles } from './polish'
+import { StudioLauncher } from './Studio'
+import { saveSettings } from './settingsWriter'
 import type { PluginApi } from '@revenge-mod/plugins/types'
 import type { Settings } from './core'
 
@@ -39,7 +41,9 @@ const GROUPS = [
 function Preview({ settings }: { settings: Settings }) {
 	const { View, Image } = revenge.react.ReactNative
 	const { Text } = revenge.discord.design.Design
-	const [ready, setReady] = revenge.react.React.useState(false)
+	const uri = settings.studio.wallpaper || WALLPAPER_SOURCE.uri
+	const [loaded, setLoaded] = revenge.react.React.useState('')
+	const ready = loaded === uri
 	const surface = surfaceColor(settings)
 	// The miniature preview works while the app-wide appearance is paused.
 	const preview = { ...settings, enabled: true }
@@ -59,11 +63,12 @@ function Preview({ settings }: { settings: Settings }) {
 			}}
 		>
 			<Image
-				source={WALLPAPER_SOURCE}
+				key={uri}
+				source={{ uri }}
 				resizeMode="cover"
 				blurRadius={settings.lowPower ? 0 : settings.blur}
-				onLoad={() => setReady(true)}
-				onError={() => setReady(false)}
+				onLoad={() => setLoaded(uri)}
+				onError={() => setLoaded('')}
 				style={[ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }]}
 			/>
 			<View
@@ -80,7 +85,8 @@ function Preview({ settings }: { settings: Settings }) {
 				}}
 			>
 				<Text variant="heading-md/semibold" style={{ color: '#F7F8FF' }}>
-					Your look · Midnight Waves
+					Your look ·{' '}
+					{settings.studio.wallpaper ? 'Custom wallpaper' : 'Midnight Waves'}
 				</Text>
 			</View>
 			<View style={{ padding: 14, gap: 12 }}>
@@ -310,48 +316,41 @@ export default function SettingsPage({
 }: {
 	api: PluginApi<{ jsonStorage: Settings }>
 }) {
-	const { useEffect, useRef, useState } = revenge.react.React
+	const { useEffect, useRef, useState, useSyncExternalStore } =
+		revenge.react.React
 	const { Page } = api.unscoped.components
 	const { ScrollView, View, Pressable } = revenge.react.ReactNative
 	const { Text, Stack, TableRowGroup, TableSwitchRow, Button } =
 		revenge.discord.design.Design
-	const stored = normalize(api.jsonStorage.use() ?? DEFAULT_SETTINGS)
+	const snapshot = useSyncExternalStore(
+		runtime.subscribe,
+		runtime.getSnapshot,
+		runtime.getSnapshot,
+	)
+	const stored = runtime.getSettings()
 	const [draft, setDraft] = useState(stored)
 	const [error, setError] = useState('')
 	const current = useRef(stored)
-	const saved = useRef(stored)
 	const mounted = useRef(true)
-	const sequence = useRef(0)
-	const queue = useRef<Promise<unknown>>(Promise.resolve())
-	useEffect(
-		() => () => {
+	useEffect(() => {
+		current.current = runtime.getSettings()
+		setDraft(current.current)
+	}, [snapshot])
+	useEffect(() => {
+		mounted.current = true
+		return () => {
 			mounted.current = false
-		},
-		[],
-	)
+		}
+	}, [])
 	const commit = (changes: Partial<Settings>) => {
-		const next = normalize({ ...current.current, ...changes })
-		current.current = next
-		setDraft(next)
 		setError('')
-		runtime.update(next)
-		const revision = ++sequence.current
-		queue.current = queue.current.then(async () => {
-			try {
-				await api.jsonStorage.set(next, true)
-				saved.current = next
-			} catch {
-				if (sequence.current === revision) {
-					current.current = saved.current
-					runtime.update(saved.current)
-					if (mounted.current) {
-						setDraft(saved.current)
-						setError(
-							'Could not save that change. Your previous settings were restored.',
-						)
-					}
-				}
-			}
+		void saveSettings(changes).catch(cause => {
+			if (mounted.current)
+				setError(
+					cause instanceof Error
+						? cause.message
+						: 'Could not save that change.',
+				)
 		})
 	}
 	return (
@@ -369,7 +368,7 @@ export default function SettingsPage({
 						}}
 					>
 						<Text variant="heading-lg/semibold" style={{ color: '#F7F8FF' }}>
-							Full-App Glass · beta6
+							Full-App Glass · beta7
 						</Text>
 						<Text variant="text-sm/normal" style={{ color: '#E5DFFF' }}>
 							Turn Liquid Glass and other appearance plugins OFF, then reload
@@ -396,6 +395,7 @@ export default function SettingsPage({
 						</Text>
 					) : null}
 					<Preview settings={draft} />
+					<StudioLauncher />
 					<TableRowGroup title="Your custom look">
 						<TableSwitchRow
 							label="Clean channel highlights"

@@ -4,7 +4,8 @@ import {
 	applyProfileGlassToGradient,
 } from '../../com.cuddled.liquidglass/js/core'
 import { deferLateRuntime } from '../../com.cuddled.liquidglass/js/runtime'
-import { createMainTabsWallpaper } from '../../com.cuddled.liquidglass/js/wallpaper'
+import { WALLPAPER_SOURCE } from '../../com.cuddled.liquidglass/js/wallpaper'
+import { createChatWallpaper } from './chatWallpaper'
 import {
 	asGlass,
 	DEFAULT_SETTINGS,
@@ -19,8 +20,13 @@ import { createPolish } from './polish'
 import { profileControlColor, profileSemanticContext } from './profileAccents'
 import { readableReplies } from './replies'
 import SettingsPage from './Settings'
+import { StudioLauncher } from './Studio'
+import { createSettingsWriter, setSettingsWriter } from './settingsWriter'
+import { createStudioData, setStudioData } from './studioData'
+import { createStudioSurfaces, LINE_ICONS, mediaTheme } from './studioSurfaces'
 import { createSurfaces } from './surfaces'
 import type { Settings } from './core'
+import type { StudioKind } from './studioSurfaces'
 
 type RecordAny = Record<string, any>
 let generation = 0
@@ -62,25 +68,62 @@ export default plugin<{ jsonStorage: Settings }>({
 		}
 		api.cleanup(shutdown)
 		runtime.update(api.jsonStorage.cache)
+		const writer = createSettingsWriter(api.jsonStorage)
+		setSettingsWriter(writer)
+		api.cleanup(() => {
+			writer.stop()
+			setSettingsWriter(undefined)
+		})
 		refresh()
 		api.cleanup(runtime.subscribe(refresh))
 		api.cleanup(
 			api.jsonStorage.subscribe(() => {
-				if (alive) runtime.update(api.jsonStorage.cache)
+				if (alive && !writer.isPending()) runtime.update(api.jsonStorage.cache)
 			}),
 		)
 		const React = revenge.react.React
-		const access = { ...runtime, isActive: () => alive }
+		const data = createStudioData()
+		data.start()
+		setStudioData(data)
+		api.cleanup(() => {
+			data.dispose()
+			setStudioData(undefined)
+		})
+		const access = {
+			...runtime,
+			subscribe: data.subscribeAppearance,
+			getSnapshot: data.getAppearanceSnapshot,
+			getSettings: data.effectiveSettings,
+			getWallpaper: (channelId?: string, scope?: 'app') =>
+				scope === 'app'
+					? runtime.getSettings().studio.wallpaper || WALLPAPER_SOURCE.uri
+					: data.scene(channelId).wallpaper,
+			isActive: () => alive,
+		}
 		const surfaces = createSurfaces(React, revenge.react.ReactNative, access)
 		const polish = createPolish(React, revenge.react.ReactNative.View, access)
-		const chat = createMainTabsWallpaper(React, revenge.react.ReactNative, {
-			...access,
-			getSettings: () => asGlass(runtime.getSettings()),
-		})
+		const chat = createChatWallpaper(React, revenge.react.ReactNative, access)
+		const studio = createStudioSurfaces(
+			React,
+			revenge.react.ReactNative,
+			access,
+			StudioLauncher,
+		)
+		api.cleanup(
+			data.subscribeAppearance(() => {
+				colors = palette(data.effectiveSettings())
+				try {
+					themeStore?.emitChange?.()
+				} catch {
+					/* Optional themed surface. */
+				}
+			}),
+		)
 		api.cleanup(() => {
 			surfaces.dispose()
 			polish.dispose()
 			chat.dispose()
+			studio.dispose()
 		})
 		const watch = (path: string, install: (exports: RecordAny) => void) => {
 			let installed = false
@@ -110,6 +153,148 @@ export default plugin<{ jsonStorage: Settings }>({
 			if (typeof target?.[key] === 'function')
 				api.cleanup(revenge.patcher.after(target as any, key, callback))
 		}
+		for (const [key, path, exportKey] of [
+			['guilds', 'stores/GuildStore.tsx', 'default'],
+			['channels', 'stores/ChannelStore.tsx', 'default'],
+			['users', 'stores/UserStore.tsx', 'default'],
+			['relationships', 'stores/RelationshipStore.tsx', 'default'],
+			['presence', 'stores/PresenceStore.tsx', 'default'],
+			['selfPresence', 'stores/SelfPresenceStore.tsx', 'default'],
+			['selectedChannel', 'stores/SelectedChannelStore.tsx', 'default'],
+			['selectedGuild', 'stores/SelectedGuildStore.tsx', 'default'],
+			['guild', 'modules/routing/transitionToGuild.native.tsx', ''],
+			['channel', 'modules/routing/transitionToChannel.tsx', ''],
+			['openDM', 'actions/ChannelActionCreators.tsx', 'default'],
+			['picker', 'modules/image/native/ImagePicker.tsx', 'default'],
+			[
+				'font',
+				'../discord_common/js/packages/rtn-codegen/js/NativeFontModule.tsx',
+				'default',
+			],
+			[
+				'fontState',
+				'modules/user_settings/appearance/native/FontScaleStore.tsx',
+				'',
+			],
+		])
+			watch(path, exports =>
+				data.attach(key, exportKey ? exports[exportKey] : exports),
+			)
+		const detail = (
+			path: string,
+			key: string,
+			inner: string | null,
+			kind: StudioKind,
+		) =>
+			watch(path, exports => {
+				const target = inner ? exports[key] : exports
+				const method = inner ?? key
+				if (typeof target?.[method] !== 'function') return
+				api.cleanup(
+					revenge.patcher.instead(
+						target as any,
+						method,
+						function (this: any, args, original) {
+							return studio.wrap(
+								kind,
+								Reflect.apply(original, this, args),
+								args[0],
+							)
+						},
+					),
+				)
+			})
+		detail(
+			'modules/main_tabs_v2/native/tabs/messages/MessagesHeader.tsx',
+			'default',
+			'type',
+			'home',
+		)
+		detail('modules/guilds_bar/native/GuildsBar.tsx', 'default', 'type', 'rail')
+		detail(
+			'modules/guilds_bar/native/GuildsBarAnimatedItemWrapper.tsx',
+			'default',
+			null,
+			'rail-item',
+		)
+		detail(
+			'modules/in_app_notifications/native/Notification.tsx',
+			'NotificationPressable',
+			null,
+			'notification',
+		)
+		detail(
+			'modules/in_app_notifications/native/NotificationContent.tsx',
+			'default',
+			null,
+			'notification-content',
+		)
+		detail(
+			'components_native/common/ViewEmptyState.tsx',
+			'default',
+			null,
+			'empty-common',
+		)
+		detail(
+			'design/void/EmptyState/native/EmptyState.tsx',
+			'default',
+			null,
+			'empty-modern',
+		)
+		detail(
+			'modules/main_tabs_v2/native/tabs/messages/MessagesEmptyState.tsx',
+			'default',
+			null,
+			'empty-messages',
+		)
+		detail(
+			'modules/main_tabs_v2/native/tabs/guilds/empty_states/ChannelsEmpty.tsx',
+			'default',
+			'type',
+			'empty-channels',
+		)
+		detail('design/components/Text/native/Text.tsx', 'Text', 'render', 'text')
+		detail(
+			'modules/chat_input/native/action_buttons/ChatInputActionButtonGift.tsx',
+			'default',
+			'type',
+			'gift',
+		)
+		detail(
+			'modules/chat_input/native/action_buttons/ChatInputActionButtonApps.tsx',
+			'default',
+			'type',
+			'apps',
+		)
+		for (const name of LINE_ICONS)
+			watch(
+				`design/components/Icon/native/redesign/generated/${name}.tsx`,
+				exports =>
+					after(exports, name, original => studio.wrap(name, original)),
+			)
+		detail(
+			'modules/search/native/components/list/rows/MediaGridItem.tsx',
+			'default',
+			'type',
+			'media-gallery',
+		)
+		detail(
+			'modules/media_channel/native/MediaPostGridThumbnail.tsx',
+			'default',
+			null,
+			'media-post',
+		)
+		watch(
+			'modules/messages/native/renderer/row_data/embeds/getEmbedThemeColors.tsx',
+			exports => {
+				const processColor = revenge.react.ReactNative.processColor
+				if (typeof processColor !== 'function') return
+				for (const key of ['default', 'useEmbedThemeColors'])
+					after(exports, key, original =>
+						mediaTheme(data.effectiveSettings(), original, processColor),
+					)
+			},
+		)
 		watch('modules/channel_list_v2/native/items/TextChannel.tsx', exports =>
 			after(exports.default, 'type', original =>
 				polish.wrap('text-channel', original),
@@ -348,9 +533,9 @@ export default plugin<{ jsonStorage: Settings }>({
 		const patched = new WeakMap<object, Set<string>>()
 		function Revision({ children }: { children?: any }) {
 			const key = React.useSyncExternalStore(
-				runtime.subscribe,
-				runtime.getSnapshot,
-				runtime.getSnapshot,
+				access.subscribe,
+				access.getSnapshot,
+				access.getSnapshot,
 			)
 			const parent = React.useContext(context as any) as RecordAny
 			const value = React.useMemo(

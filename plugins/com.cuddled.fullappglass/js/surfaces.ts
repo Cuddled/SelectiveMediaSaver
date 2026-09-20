@@ -25,6 +25,7 @@ export interface Access {
 	getSnapshot(): string
 	getSettings(): Settings
 	isActive(): boolean
+	getWallpaper?(channelId?: string, scope?: 'app'): string
 }
 
 export function recolorChrome(
@@ -196,7 +197,8 @@ export function createSurfaces(
 		)
 		const settings = access.getSettings()
 		const enabled = active()
-		const request = React.useMemo(() => ({}), [enabled])
+		const uri = access.getWallpaper?.(undefined, 'app') ?? WALLPAPER_SOURCE.uri
+		const request = React.useMemo(() => ({}), [enabled, uri])
 		const current = React.useRef<object | null>(request)
 		current.current = request
 		const [loaded, setLoaded] = React.useState<object | null>(null)
@@ -223,7 +225,8 @@ export function createSurfaces(
 						importantForAccessibility: 'no-hide-descendants',
 					},
 					React.createElement(native.Image, {
-						source: WALLPAPER_SOURCE,
+						key: uri,
+						source: { uri },
 						resizeMode: 'cover',
 						blurRadius: settings.lowPower ? 0 : settings.blur,
 						style: [ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }],
@@ -264,9 +267,11 @@ export function createSurfaces(
 	function Chrome({
 		original,
 		kind,
+		channelId,
 	}: {
 		original: unknown
 		kind: 'header' | 'scrim' | 'list-header' | 'profile-toolbar'
+		channelId?: string
 	}) {
 		React.useSyncExternalStore(
 			access.subscribe,
@@ -283,6 +288,7 @@ export function createSurfaces(
 				? React.createElement(HeaderWallpaper, {
 						key: 'header-wallpaper',
 						settings,
+						channelId,
 						enabled:
 							settings.enabled &&
 							(kind === 'header' ? settings.chats : settings.mainScreens),
@@ -298,12 +304,15 @@ export function createSurfaces(
 		settings,
 		enabled,
 		composer = false,
+		channelId,
 	}: {
 		settings: Settings
 		enabled: boolean
 		composer?: boolean
+		channelId?: string
 	}) {
-		const request = React.useMemo(() => ({}), [enabled])
+		const uri = access.getWallpaper?.(channelId) ?? WALLPAPER_SOURCE.uri
+		const request = React.useMemo(() => ({}), [enabled, uri])
 		const current = React.useRef<object | null>(request)
 		current.current = request
 		const [loaded, setLoaded] = React.useState<object | null>(null)
@@ -332,7 +341,8 @@ export function createSurfaces(
 				importantForAccessibility: 'no-hide-descendants',
 			},
 			React.createElement(native.Image, {
-				source: WALLPAPER_SOURCE,
+				key: uri,
+				source: { uri },
 				resizeMode: 'cover',
 				blurRadius: settings.lowPower ? 0 : settings.blur,
 				style: [ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }],
@@ -405,7 +415,8 @@ export function createSurfaces(
 		)
 		const settings = access.getSettings()
 		const enabled = active() && settings.profiles
-		const request = React.useMemo(() => ({}), [enabled])
+		const uri = access.getWallpaper?.(undefined, 'app') ?? WALLPAPER_SOURCE.uri
+		const request = React.useMemo(() => ({}), [enabled, uri])
 		const current = React.useRef<object | null>(request)
 		current.current = request
 		const [loaded, setLoaded] = React.useState<object | null>(null)
@@ -440,7 +451,8 @@ export function createSurfaces(
 				importantForAccessibility: 'no-hide-descendants',
 			},
 			React.createElement(native.Image, {
-				source: WALLPAPER_SOURCE,
+				key: uri,
+				source: { uri },
 				resizeMode: 'cover',
 				blurRadius: settings.lowPower ? 0 : settings.blur,
 				style: [ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }],
@@ -607,6 +619,7 @@ export function createSurfaces(
 					React.createElement(Chrome as any, {
 						original: Header(props),
 						kind: 'header',
+						channelId: props.channelId,
 					})
 				headers.set(Header, Wrapper)
 			}

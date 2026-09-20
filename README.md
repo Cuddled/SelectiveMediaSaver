@@ -198,7 +198,7 @@ particular native build paints additional opaque layers over the wallpaper.
 
 ## Full-App Glass (Experimental) for Revenge Next
 
-`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta6` plugin. It does not require
+`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta7` plugin. It does not require
 Liquid Glass to be installed and has its own JSON storage. Liquid Glass's code, version, saved
 colors, and profiles are not changed by this experiment. A few audited pure helpers are bundled
 into the new ZIP; there is no runtime dependency on the other plugin.
@@ -293,6 +293,48 @@ the account bar's existing measured invisible touch-blocking area, preventing ch
 showing around its upper edge. Its original hit area, gradient siblings, avatar mask, animated
 nameplate and controls stay in place. All new choices are additive; existing saved settings survive.
 Final menu density and account-bar appearance still need confirmation on the Android phone.
+
+Beta7 adds **Appearance Studio**, opened from the plugin settings, and a **Home** shortcut beside
+the Messages heading. Home shows up to 24 favorite servers, 24 pinned friends, eight recent
+conversations and your shared Spotify activity with album art when available. These use Discord's
+cached records and existing navigation actions; opening a friend does not send a message or join
+a call. Empty sections explain what to choose or load. The music card opens the track in Spotify;
+it does not control playback.
+
+Studio provides app and Home wallpapers, photo selection and HTTPS image URLs. Choose a server
+or DM under **People & places** to override its conversation wallpaper and accent. A DM override
+wins over a server override, then the app wallpaper; clearing an override restores inheritance.
+Headers, bottom bars and the native chat viewport observe the selection. Root and profile
+backdrops use the app wallpaper. Image-load failures keep readable backings, and stale loads from
+another conversation cannot reveal an old wallpaper. Local photo URIs may need to be selected
+again if Android revokes access or the file moves. Up to 100 scene overrides are retained.
+
+Optional finishing touches include a decorative floating server rail and slim unread marks,
+nine original thin-line icons, rounded search-media and media-post thumbnails, calmer embed
+cards, compact in-app notification banners, coordinated native reaction colors, a minimal
+composer, and orbital empty-screen artwork or a chosen photo. Notification actions, native
+spoiler protections, gallery dimensions, avatar cutouts, drag gestures and unread counts remain
+Discord's own. The app-launcher shortcut stays available while its panel is active. The gift
+toggle targets the gift component; thread controls are not hidden. All native patches are scoped
+to inspected Discord 347 components and skip unrecognized layouts. The icon source can be
+regenerated with `scripts/generate-full-app-icons.py` and Pillow; installing the plugin does not
+require Python.
+
+Typography offers Discord, soft sans, serif and mono interface fonts plus label letter spacing.
+Code text is excluded. **Discord text size** explicitly calls Discord's existing Android font
+setting, preserving its classic-chat option. Unlike temporary Glass styling, this is a saved
+Discord preference: it remains when Glass is paused or unloaded; select **100%** to restore the
+default. No font changes are applied automatically. Custom chat-message font families, username
+weights and message-group spacing are not exposed by the audited native message renderer.
+
+Settings and Home share a serialized save queue with rollback on failure. Presence updates
+refresh Home without repainting every themed icon or label. The additive beta7 settings retain
+the existing enabled state, colors and area switches; new installs continue to start paused.
+Local checks include TypeScript, normalized repository lint, all 168 tests, all 12 JavaScript
+plugin builds, Classic loader checks and ZIP-content verification. An interactive DOM adapter
+exercises the actual Studio component at 320 and 430 pixel widths, including picker wiring and
+save-error recovery. This is a layout check, not Android execution; phone verification of the
+new hooks, image access, keyboard, navigation, font setting and restart persistence is required.
 
 This is **wallpaper-backed translucency inside Discord**, not a transparent Android window,
 screen capture, or live iOS Liquid Glass blur. Opaque native screens, media viewers, video surfaces,
@@ -442,7 +484,7 @@ The distributables are written to:
 build/classic/manifest.json
 build/classic/index.js
 build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
-build/dist/com.cuddled.fullappglass@1.0.0-beta6.zip
+build/dist/com.cuddled.fullappglass@1.0.0-beta7.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 
