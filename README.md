@@ -505,6 +505,10 @@ use `/next`; the site root itself is the Classic install URL.
 
 The release workflow also attaches each compiled Next plugin ZIP to its matching GitHub Release.
 
+Full-App Glass exposes its current experimental release through both `latest` and `beta`,
+so installations following either channel receive updates. Keep its `latest` override in
+`repo.config.json` aligned with the Full-App Glass manifest when publishing a new version.
+
 Files are stored in Android's public Pictures or Movies collection under the configured album name.
 No broad storage permission is needed on Android 10 or newer.
 
