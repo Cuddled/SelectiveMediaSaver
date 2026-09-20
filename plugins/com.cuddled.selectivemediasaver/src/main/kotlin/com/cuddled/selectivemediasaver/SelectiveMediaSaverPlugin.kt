@@ -44,8 +44,8 @@ import kotlinx.coroutines.withContext
 
 private const val METHOD_PREFIX = "com.cuddled.selectivemediasaver"
 private const val DEFAULT_FOLDER = "SelectiveMediaSaver"
-private const val DEFAULT_MAX_BYTES = 100L * 1024L * 1024L
-private const val HARD_MAX_BYTES = 512L * 1024L * 1024L
+private const val DEFAULT_MAX_BYTES = 500L * 1024L * 1024L
+private const val HARD_MAX_BYTES = DEFAULT_MAX_BYTES
 private const val CONNECT_TIMEOUT_MS = 15_000
 private const val READ_TIMEOUT_MS = 30_000
 private const val MAX_REDIRECTS = 5
