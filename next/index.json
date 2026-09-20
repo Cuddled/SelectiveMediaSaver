@@ -349,7 +349,7 @@
       "description": "Save selected Discord images, GIFs, videos, avatars, and banners on Android.",
       "author": "Cuddled",
       "channels": {
-        "beta": "2.4.0-next8"
+        "beta": "2.4.0-next9"
       },
       "versions": {
         "2.4.0-next1": {
@@ -447,6 +447,19 @@
           "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/com.cuddled.selectivemediasaver@2.4.0-next8.zip",
           "sha256": "84f61fc0f7a42b6fa080b9c6f6cce713e68f10ed9aec94b4b810ca1def08caf4",
           "size": 52174,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        },
+        "2.4.0-next9": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/next/pool/com.cuddled.selectivemediasaver@2.4.0-next9.zip",
+          "sha256": "4ddc2ea212c0507f39a4dcf2c2257418b97b7ecea9e985cf180d245f97a06ff9",
+          "size": 52221,
           "dependencies": {
             "revenge.api": {
               "version": ">=1.0.0 <2.0.0"
