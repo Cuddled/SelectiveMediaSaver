@@ -18,6 +18,7 @@ import { profilePalette } from './profileTheme'
 import { saveSettings } from './settingsWriter'
 import { getStudioData } from './studioData'
 import { imageUri, interfaceFont, togglePin } from './studioModel'
+import { WorkspaceLauncher } from './Workspace'
 import type { ReactNode } from 'react'
 import type { Settings } from './core'
 import type { Mood } from './experience'
@@ -454,6 +455,7 @@ function StudioScreen({
 				contentContainerStyle={{ padding: 16, paddingBottom: 48, gap: 16 }}
 				keyboardShouldPersistTaps="handled"
 			>
+				<WorkspaceLauncher onNavigate={onClose} />
 				{tab === 'home' ? (
 					<Home
 						data={data}

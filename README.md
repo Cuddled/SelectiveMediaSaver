@@ -1,5 +1,11 @@
 # Selective Media Saver
 
+Full-App Glass `1.0.0-beta14` adds **Workspace**, a connected set of ten personal
+tools: conversation lenses, floating peeks, media/voice tools, a gesture wheel,
+notebooks, editable Home layouts, local rules, reactive accents, and saved sessions.
+Open **Home → Open Workspace** or the chat’s **✧ Tools** button; hold it for the wheel.
+See [Workspace behavior, limits, and validation](plugins/com.cuddled.fullappglass/WORKSPACE.md).
+
 Selective Media Saver automatically saves new Discord images, GIFs, and videos from the users,
 servers, or channels you choose. This repository contains the verified BetterDiscord v2.4.0 source
 archive plus separate Android builds for Revenge Classic and Revenge Next.

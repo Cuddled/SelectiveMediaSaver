@@ -40,6 +40,9 @@ import { createSettingsWriter, setSettingsWriter } from './settingsWriter'
 import { createStudioData, setStudioData } from './studioData'
 import { createStudioSurfaces, LINE_ICONS, mediaTheme } from './studioSurfaces'
 import { createSurfaces } from './surfaces'
+import { WorkspaceDock } from './Workspace'
+import { createWorkspaceData, setWorkspaceData } from './workspaceData'
+import { createReadingTracker } from './workspaceHooks'
 import type { Settings } from './core'
 import type { ExperienceKind } from './experienceSurfaces'
 import type { IdentityKind } from './identity'
@@ -106,7 +109,11 @@ export default plugin<{ jsonStorage: Settings }>({
 		const data = createStudioData()
 		data.start()
 		setStudioData(data)
+		const workspace = createWorkspaceData(data)
+		setWorkspaceData(workspace)
 		api.cleanup(() => {
+			workspace.dispose()
+			setWorkspaceData(undefined)
 			data.dispose()
 			setStudioData(undefined)
 		})
@@ -116,14 +123,21 @@ export default plugin<{ jsonStorage: Settings }>({
 			getSnapshot: data.getAppearanceSnapshot,
 			getSettings: data.effectiveSettings,
 			getWallpaper: (channelId?: string, scope?: 'app') =>
-				scope === 'app'
-					? runtime.getSettings().studio.wallpaper || WALLPAPER_SOURCE.uri
-					: data.scene(channelId).wallpaper,
+				workspace.rule() && runtime.getSettings().workspace.enabled
+					? data.effectiveSettings().studio.wallpaper || WALLPAPER_SOURCE.uri
+					: scope === 'app'
+						? runtime.getSettings().studio.wallpaper || WALLPAPER_SOURCE.uri
+						: data.scene(channelId).wallpaper,
 			isActive: () => alive,
 		}
 		const surfaces = createSurfaces(React, revenge.react.ReactNative, access)
 		const polish = createPolish(React, revenge.react.ReactNative.View, access)
-		const chat = createChatWallpaper(React, revenge.react.ReactNative, access)
+		const chat = createChatWallpaper(
+			React,
+			revenge.react.ReactNative,
+			access,
+			WorkspaceDock,
+		)
 		const studio = createStudioSurfaces(
 			React,
 			revenge.react.ReactNative,
@@ -192,6 +206,25 @@ export default plugin<{ jsonStorage: Settings }>({
 			if (typeof target?.[key] === 'function')
 				api.cleanup(revenge.patcher.after(target as any, key, callback))
 		}
+		const reading = createReadingTracker((channelId, messageId) =>
+			workspace.recordPosition(channelId, { middleVisibleMessage: messageId }),
+		)
+		api.cleanup(reading.dispose)
+		watch('modules/messages/native/hooks/useScrollHandlers.tsx', exports => {
+			if (typeof exports.default !== 'function') return
+			api.cleanup(
+				revenge.patcher.instead(
+					exports as any,
+					'default',
+					function (this: any, args, original) {
+						return Reflect.apply(original, this, [
+							reading.wrap(args[0]),
+							...args.slice(1),
+						])
+					},
+				),
+			)
+		})
 		for (const [path, keys, kind] of DETAIL_HOOKS) {
 			watch(path, exports => {
 				let target = exports
@@ -255,6 +288,15 @@ export default plugin<{ jsonStorage: Settings }>({
 			['selfPresence', 'stores/SelfPresenceStore.tsx', 'default'],
 			['selectedChannel', 'stores/SelectedChannelStore.tsx', 'default'],
 			['selectedGuild', 'stores/SelectedGuildStore.tsx', 'default'],
+			['messages', 'stores/MessageStore.tsx', 'default'],
+			['permissions', 'stores/PermissionStore.tsx', 'default'],
+			['permissionConstants', '../discord_common/js/shared/Constants.tsx', ''],
+			['speaking', 'stores/SpeakingStore.tsx', 'default'],
+			[
+				'webPlayer',
+				'modules/media_viewer/native/components/MediaModalWebView.tsx',
+				'',
+			],
 			['guild', 'modules/routing/transitionToGuild.native.tsx', ''],
 			['channel', 'modules/routing/transitionToChannel.tsx', ''],
 			['openDM', 'actions/ChannelActionCreators.tsx', 'default'],
@@ -271,9 +313,13 @@ export default plugin<{ jsonStorage: Settings }>({
 				'',
 			],
 		])
-			watch(path, exports =>
-				data.attach(key, exportKey ? exports[exportKey] : exports),
-			)
+			watch(path, exports => {
+				const value = exportKey ? exports[exportKey] : exports
+				// Fast message/speaking updates are coalesced by Workspace.
+				if (!['messages', 'permissions', 'speaking', 'webPlayer'].includes(key))
+					data.attach(key, value)
+				workspace.attach(key, value)
+			})
 		const detail = (
 			path: string,
 			key: string,

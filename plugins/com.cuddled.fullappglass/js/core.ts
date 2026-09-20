@@ -9,11 +9,13 @@ import {
 import { focusAppearance } from './experience'
 import { PROFILE_ACCENT, profileAccent } from './profileAccents'
 import { normalizeStudio, STUDIO_DEFAULTS } from './studioModel'
+import { normalizeWorkspace } from './workspaceModel'
 import type {
 	HexColor,
 	LiquidGlassSettings,
 } from '../../com.cuddled.liquidglass/js/types'
 import type { StudioSettings } from './studioModel'
+import type { WorkspaceSettings } from './workspaceModel'
 
 export interface Settings {
 	schemaVersion: 1
@@ -37,6 +39,7 @@ export interface Settings {
 	menuColor: HexColor
 	compactMenus: boolean
 	studio: StudioSettings
+	workspace: WorkspaceSettings
 }
 
 // Start paused so the user can turn their other appearance plugin off first.
@@ -62,6 +65,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	menuColor: '#111321',
 	compactMenus: true,
 	studio: STUDIO_DEFAULTS,
+	workspace: normalizeWorkspace(undefined),
 }
 
 const clamp = (value: unknown, fallback: number, max = 1) =>
@@ -96,6 +100,7 @@ export function normalize(value: unknown): Settings {
 	result.menuColor = normalizeHexColor(raw.menuColor, result.menuColor)
 	result.accentOpacity = clamp(raw.accentOpacity, result.accentOpacity)
 	result.studio = normalizeStudio(raw.studio)
+	result.workspace = normalizeWorkspace(raw.workspace)
 	return result
 }
 
