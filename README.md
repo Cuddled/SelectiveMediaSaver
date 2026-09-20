@@ -198,7 +198,7 @@ particular native build paints additional opaque layers over the wallpaper.
 
 ## Full-App Glass (Experimental) for Revenge Next
 
-`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta7` plugin. It does not require
+`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta8` plugin. It does not require
 Liquid Glass to be installed and has its own JSON storage. Liquid Glass's code, version, saved
 colors, and profiles are not changed by this experiment. A few audited pure helpers are bundled
 into the new ZIP; there is no runtime dependency on the other plugin.
@@ -335,6 +335,38 @@ plugin builds, Classic loader checks and ZIP-content verification. An interactiv
 exercises the actual Studio component at 320 and 430 pixel widths, including picker wiring and
 save-error recovery. This is a layout check, not Android execution; phone verification of the
 new hooks, image access, keyboard, navigation, font setting and restart persistence is required.
+
+Beta8 adds **Set the mood** and **Feel & focus** in Appearance Studio:
+
+- **Midnight, Ice, Rose and OLED** coordinate the app/Home backdrop, panel colors and accents.
+  Presets use native gradients without new downloads; OLED uses solid black. Applying a preset
+  replaces app/Home wallpaper selections. **Restore previous look** restores the last look during
+  that Studio session. Pins, per-conversation scenes, area switches and power settings are retained.
+- **Ambient light** drifts on a 24-second native animation loop. **Gentle motion** adds soft presses
+  to Studio/Home buttons and a fading Studio transition. Both respect system reduced motion,
+  low-power mode, background app state and focus mode. OLED stays still. Existing low-power settings
+  are preserved; **Enable motion** explicitly turns low-power mode off. All surfaces share one pair
+  of OS listeners, and animation loops stop on plugin shutdown, even before mounted UI is removed.
+- **Matching calls** styles inspected voice-panel cards and native speaking borders, along with
+  supported legacy audio-call avatars and controls. Native speaking widths, focus/PIP rules, video
+  children, gesture handlers, muted/selected states and red destructive buttons stay native.
+- **Glass search** styles the native search input, result rows/cards, recent-search headings and
+  search screen background. Query tags, input refs, search history, clear-history actions, native
+  result navigation, spoilers, safe-area insets and virtual-list geometry are retained.
+- **Focus mode** is available in Studio and as an enter/exit shortcut on Home. It gives the interface
+  solid backdrops, stops decorative motion and empty-state art, hides the Home music card, and hides
+  optional gift/apps shortcuts while keeping an already-open app launcher available. Exiting restores
+  the saved look. It does not mute notifications, alter presence or change channel notification settings.
+
+Beta8 keeps new installations paused and migrates beta7 settings additively. A missing gradient module
+uses a static tint; unknown call/search layouts keep their original output. The browser preview uses
+the actual Studio and styling functions with sample components/data, not an Android Discord session.
+Native phone testing is still needed for both call layouts, speaking/PIP transitions, keyboard/search
+behavior and animation smoothness on the target device.
+
+Local beta8 validation passes TypeScript, 178 tests, normalized full-repository lint, all 12 JavaScript
+plugin builds, archive verification, Classic compatibility checks, and interactive previews at 320
+and 430 pixel widths. Motion tests cover accessibility, backgrounding and shutdown cleanup.
 
 This is **wallpaper-backed translucency inside Discord**, not a transparent Android window,
 screen capture, or live iOS Liquid Glass blur. Opaque native screens, media viewers, video surfaces,
@@ -484,7 +516,7 @@ The distributables are written to:
 build/classic/manifest.json
 build/classic/index.js
 build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
-build/dist/com.cuddled.fullappglass@1.0.0-beta7.zip
+build/dist/com.cuddled.fullappglass@1.0.0-beta8.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 

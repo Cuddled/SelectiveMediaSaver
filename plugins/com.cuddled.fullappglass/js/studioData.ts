@@ -1,4 +1,5 @@
 import { runtime } from './core'
+import { focusAppearance } from './experience'
 import { pickedImage, resolveScene, validId } from './studioModel'
 import type { Settings } from './core'
 
@@ -92,10 +93,10 @@ export function createStudioData() {
 		},
 		effectiveSettings(): Settings {
 			const settings = runtime.getSettings()
-			return {
+			return focusAppearance({
 				...settings,
 				accentColor: api.scene().accent as Settings['accentColor'],
-			}
+			})
 		},
 		guilds(): HomeItem[] {
 			const guilds = call('guilds', 'getGuilds')

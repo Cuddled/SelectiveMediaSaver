@@ -3,6 +3,7 @@ import {
 	ABSOLUTE_FILL,
 	WALLPAPER_SOURCE,
 } from '../../com.cuddled.liquidglass/js/wallpaper'
+import { Atmosphere } from './Atmosphere'
 import {
 	backAccountBar,
 	backAccountShade,
@@ -14,6 +15,7 @@ import {
 	surfaceColor,
 	toolbarColor,
 } from './core'
+import { generatedBackdrop } from './experience'
 import { polishEnabled, polishStyles } from './polish'
 import type * as ReactTypes from 'react'
 import type { Settings } from './core'
@@ -198,6 +200,7 @@ export function createSurfaces(
 		const settings = access.getSettings()
 		const enabled = active()
 		const uri = access.getWallpaper?.(undefined, 'app') ?? WALLPAPER_SOURCE.uri
+		const generated = generatedBackdrop(settings, uri)
 		const request = React.useMemo(() => ({}), [enabled, uri])
 		const current = React.useRef<object | null>(request)
 		current.current = request
@@ -208,7 +211,7 @@ export function createSurfaces(
 			},
 			[],
 		)
-		const ready = enabled && loaded === request
+		const ready = enabled && (generated || loaded === request)
 		const mark = (success: boolean) => {
 			if (active() && current.current === request)
 				setLoaded(success ? request : null)
@@ -224,16 +227,18 @@ export function createSurfaces(
 						accessibilityElementsHidden: true,
 						importantForAccessibility: 'no-hide-descendants',
 					},
-					React.createElement(native.Image, {
-						key: uri,
-						source: { uri },
-						resizeMode: 'cover',
-						blurRadius: settings.lowPower ? 0 : settings.blur,
-						style: [ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }],
-						onLoadStart: () => mark(false),
-						onLoad: () => mark(true),
-						onError: () => mark(false),
-					}),
+					generated
+						? null
+						: React.createElement(native.Image, {
+								key: uri,
+								source: { uri },
+								resizeMode: 'cover',
+								blurRadius: settings.lowPower ? 0 : settings.blur,
+								style: [ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }],
+								onLoadStart: () => mark(false),
+								onLoad: () => mark(true),
+								onError: () => mark(false),
+							}),
 					React.createElement(native.View, {
 						style: [
 							ABSOLUTE_FILL,
@@ -243,6 +248,7 @@ export function createSurfaces(
 							},
 						],
 					}),
+					React.createElement(Atmosphere, { settings, backdrop: generated }),
 				)
 			: null
 		// A dark fallback remains behind the app while the image loads or is offline.
@@ -312,6 +318,7 @@ export function createSurfaces(
 		channelId?: string
 	}) {
 		const uri = access.getWallpaper?.(channelId) ?? WALLPAPER_SOURCE.uri
+		const generated = generatedBackdrop(settings, uri)
 		const request = React.useMemo(() => ({}), [enabled, uri])
 		const current = React.useRef<object | null>(request)
 		current.current = request
@@ -322,7 +329,7 @@ export function createSurfaces(
 			},
 			[],
 		)
-		const ready = enabled && loaded === request
+		const ready = enabled && (generated || loaded === request)
 		const mark = (ok: boolean) => {
 			if (active() && enabled && current.current === request)
 				setLoaded(ok ? request : null)
@@ -340,22 +347,36 @@ export function createSurfaces(
 				accessibilityElementsHidden: true,
 				importantForAccessibility: 'no-hide-descendants',
 			},
-			React.createElement(native.Image, {
-				key: uri,
-				source: { uri },
-				resizeMode: 'cover',
-				blurRadius: settings.lowPower ? 0 : settings.blur,
-				style: [ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }],
-				onLoadStart: () => mark(false),
-				onLoad: () => mark(true),
-				onError: () => mark(false),
-			}),
-			React.createElement(native.View, {
-				style: [
-					ABSOLUTE_FILL,
-					{ backgroundColor: hexWithAlpha('#000000', settings.darkness) },
-				],
-			}),
+			generated
+				? null
+				: React.createElement(native.Image, {
+						key: uri,
+						source: { uri },
+						resizeMode: 'cover',
+						blurRadius: settings.lowPower ? 0 : settings.blur,
+						style: [ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }],
+						onLoadStart: () => mark(false),
+						onLoad: () => mark(true),
+						onError: () => mark(false),
+					}),
+			React.createElement(
+				native.View,
+				{
+					style: [
+						ABSOLUTE_FILL,
+						{ backgroundColor: hexWithAlpha('#000000', settings.darkness) },
+					],
+				},
+				generated
+					? React.createElement(Atmosphere, {
+							settings: {
+								...settings,
+								studio: { ...settings.studio, ambient: false },
+							},
+							backdrop: true,
+						})
+					: null,
+			),
 			React.createElement(native.View, {
 				style: [ABSOLUTE_FILL, { backgroundColor: surfaceColor(settings) }],
 			}),
@@ -416,6 +437,7 @@ export function createSurfaces(
 		const settings = access.getSettings()
 		const enabled = active() && settings.profiles
 		const uri = access.getWallpaper?.(undefined, 'app') ?? WALLPAPER_SOURCE.uri
+		const generated = generatedBackdrop(settings, uri)
 		const request = React.useMemo(() => ({}), [enabled, uri])
 		const current = React.useRef<object | null>(request)
 		current.current = request
@@ -426,7 +448,7 @@ export function createSurfaces(
 			},
 			[],
 		)
-		const ready = enabled && loaded === request
+		const ready = enabled && (generated || loaded === request)
 		const mark = (ok: boolean) => {
 			if (
 				active() &&
@@ -450,16 +472,18 @@ export function createSurfaces(
 				accessibilityElementsHidden: true,
 				importantForAccessibility: 'no-hide-descendants',
 			},
-			React.createElement(native.Image, {
-				key: uri,
-				source: { uri },
-				resizeMode: 'cover',
-				blurRadius: settings.lowPower ? 0 : settings.blur,
-				style: [ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }],
-				onLoadStart: () => mark(false),
-				onLoad: () => mark(true),
-				onError: () => mark(false),
-			}),
+			generated
+				? null
+				: React.createElement(native.Image, {
+						key: uri,
+						source: { uri },
+						resizeMode: 'cover',
+						blurRadius: settings.lowPower ? 0 : settings.blur,
+						style: [ABSOLUTE_FILL, { opacity: ready ? 1 : 0 }],
+						onLoadStart: () => mark(false),
+						onLoad: () => mark(true),
+						onError: () => mark(false),
+					}),
 			React.createElement(native.View, {
 				style: [
 					ABSOLUTE_FILL,
@@ -469,6 +493,9 @@ export function createSurfaces(
 			React.createElement(native.View, {
 				style: [ABSOLUTE_FILL, { backgroundColor: surfaceColor(settings) }],
 			}),
+			generated
+				? React.createElement(Atmosphere, { settings, backdrop: true })
+				: null,
 		)
 	}
 	class Guard extends React.Component<

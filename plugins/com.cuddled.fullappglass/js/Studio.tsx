@@ -3,11 +3,21 @@ import {
 	ABSOLUTE_FILL,
 	WALLPAPER_SOURCE,
 } from '../../com.cuddled.liquidglass/js/wallpaper'
+import { Atmosphere, useMotion } from './Atmosphere'
 import { runtime } from './core'
+import {
+	applyMood,
+	focusAppearance,
+	generatedBackdrop,
+	MOODS,
+	moodSnapshot,
+} from './experience'
 import { saveSettings } from './settingsWriter'
 import { getStudioData } from './studioData'
 import { imageUri, interfaceFont, togglePin } from './studioModel'
 import type { ReactNode } from 'react'
+import type { Settings } from './core'
+import type { Mood } from './experience'
 import type { HomeItem, StudioData } from './studioData'
 import type { StudioSettings } from './studioModel'
 
@@ -28,6 +38,16 @@ const card = {
 	borderRadius: 22,
 	padding: 18,
 	gap: 12,
+}
+function glassCard() {
+	const settings = runtime.getSettings()
+	return [
+		card,
+		{
+			backgroundColor: hexWithAlpha(settings.panelColor, 0.94),
+			borderColor: hexWithAlpha(settings.accentColor, 0.18),
+		},
+	]
 }
 
 function Label({
@@ -69,14 +89,42 @@ function Action({
 	disabled?: boolean
 	compact?: boolean
 }) {
-	const { Pressable, Text } = revenge.react.ReactNative
+	const { Pressable, Text, Animated } = revenge.react.ReactNative
+	const React = revenge.react.React
+	const settings = runtime.getSettings()
+	const motion = useMotion(settings) && settings.studio.softMotion
+	const [scale] = React.useState(() =>
+		Animated?.Value ? new Animated.Value(1) : null,
+	)
+	const Button = React.useMemo(
+		() =>
+			Animated?.createAnimatedComponent
+				? Animated.createAnimatedComponent(Pressable)
+				: Pressable,
+		[Pressable, Animated],
+	)
+	React.useEffect(() => {
+		if (!motion) scale?.setValue(1)
+		return () => scale?.stopAnimation()
+	}, [motion, scale])
+	const press = (value: number) => {
+		if (motion && scale)
+			Animated.timing(scale, {
+				toValue: value,
+				duration: 140,
+				useNativeDriver: true,
+				isInteraction: false,
+			}).start()
+	}
 	return (
-		<Pressable
+		<Button
 			accessibilityRole="button"
 			accessibilityState={{ selected, disabled }}
 			disabled={disabled}
 			hitSlop={compact ? 8 : undefined}
 			onPress={onPress}
+			onPressIn={() => press(0.975)}
+			onPressOut={() => press(1)}
 			style={{
 				minHeight: compact ? 28 : 44,
 				justifyContent: 'center',
@@ -85,8 +133,11 @@ function Action({
 				borderRadius: 14,
 				borderWidth: 1,
 				borderColor: selected ? runtime.getSettings().accentColor : '#FFFFFF26',
-				backgroundColor: selected ? '#B8A1FF22' : '#20263BE6',
+				backgroundColor: selected
+					? hexWithAlpha(settings.accentColor, 0.16)
+					: hexWithAlpha(settings.panelColor, 0.94),
 				opacity: disabled ? 0.45 : 1,
+				...(scale ? { transform: [{ scale }] } : {}),
 			}}
 		>
 			<Text
@@ -95,7 +146,7 @@ function Action({
 			>
 				{children}
 			</Text>
-		</Pressable>
+		</Button>
 	)
 }
 function Avatar({ item }: { item: HomeItem }) {
@@ -176,6 +227,7 @@ export function StudioLauncher({ compact = false }: { compact?: boolean }) {
 	)
 	const [open, setOpen] = React.useState(false)
 	const settings = runtime.getSettings()
+	const motion = useMotion(settings)
 	React.useEffect(() => {
 		if (!settings.enabled && compact) setOpen(false)
 	}, [settings.enabled, compact])
@@ -194,7 +246,7 @@ export function StudioLauncher({ compact = false }: { compact?: boolean }) {
 			</Action>
 			<native.Modal
 				visible={open}
-				animationType={settings.lowPower ? 'none' : 'slide'}
+				animationType={motion && settings.studio.softMotion ? 'fade' : 'none'}
 				onRequestClose={() => setOpen(false)}
 				presentationStyle="fullScreen"
 			>
@@ -233,6 +285,8 @@ function StudioScreen({
 	const studio = settings.studio
 	const wallpaper =
 		studio.homeWallpaper || studio.wallpaper || WALLPAPER_SOURCE.uri
+	const appearance = focusAppearance({ ...settings, enabled: true })
+	const generated = generatedBackdrop(appearance, wallpaper)
 	const run = async (job: () => Promise<unknown>) => {
 		if (busy) return
 		setBusy(true)
@@ -267,14 +321,16 @@ function StudioScreen({
 				paddingTop: Math.max(24, StatusBar?.currentHeight ?? 24),
 			}}
 		>
-			<Image
-				key={wallpaper}
-				source={{ uri: wallpaper }}
-				style={ABSOLUTE_FILL}
-				resizeMode="cover"
-				blurRadius={settings.lowPower ? 0 : settings.blur}
-				accessible={false}
-			/>
+			{!generated ? (
+				<Image
+					key={wallpaper}
+					source={{ uri: wallpaper }}
+					style={ABSOLUTE_FILL}
+					resizeMode="cover"
+					blurRadius={settings.lowPower ? 0 : settings.blur}
+					accessible={false}
+				/>
+			) : null}
 			<View
 				pointerEvents="none"
 				style={[
@@ -287,6 +343,7 @@ function StudioScreen({
 					},
 				]}
 			/>
+			<Atmosphere settings={appearance} backdrop={generated} />
 			<View
 				style={{
 					padding: 16,
@@ -346,6 +403,7 @@ function StudioScreen({
 						open={open}
 						customize={() => setTab('style')}
 						busy={busy}
+						run={run}
 					/>
 				) : (
 					<Customize data={data} change={change} run={run} busy={busy} />
@@ -360,11 +418,13 @@ function Home({
 	open,
 	customize,
 	busy,
+	run,
 }: {
 	data?: StudioData
 	open(kind: 'guild' | 'channel' | 'friend', id: string): void
 	customize(): void
 	busy: boolean
+	run(job: () => Promise<unknown>): void
 }) {
 	const { View, Image, Linking } = revenge.react.ReactNative
 	const studio = runtime.getSettings().studio
@@ -382,16 +442,31 @@ function Home({
 		<>
 			<View
 				style={[
-					card,
-					{ backgroundColor: '#27213AE8', borderColor: '#B8A1FF55' },
+					...glassCard(),
+					{
+						borderColor: hexWithAlpha(runtime.getSettings().accentColor, 0.45),
+					},
 				]}
 			>
 				<Label large>
 					{data?.self() ? `Welcome, ${data.self()!.name}` : 'Welcome home'}
 				</Label>
 				<Label subtle>Your favorite places and people, one tap away.</Label>
+				<Action
+					disabled={busy}
+					selected={studio.focus}
+					onPress={() =>
+						run(() =>
+							saveSettings(current => ({
+								studio: { ...current.studio, focus: !current.studio.focus },
+							})),
+						)
+					}
+				>
+					{studio.focus ? 'Exit focus mode' : 'Enter focus mode'}
+				</Action>
 			</View>
-			<View style={card}>
+			<View style={glassCard()}>
 				<Label large>Favorite servers</Label>
 				{favorites.length ? (
 					favorites.map(item => (
@@ -409,7 +484,7 @@ function Home({
 					</>
 				)}
 			</View>
-			<View style={card}>
+			<View style={glassCard()}>
 				<Label large>Pinned friends</Label>
 				{pins.length ? (
 					pins.map(item => (
@@ -427,7 +502,7 @@ function Home({
 					</>
 				)}
 			</View>
-			<View style={card}>
+			<View style={glassCard()}>
 				<Label large>Recent conversations</Label>
 				{data?.chats().length ? (
 					data
@@ -448,8 +523,8 @@ function Home({
 					</Label>
 				)}
 			</View>
-			{studio.music ? (
-				<View style={card}>
+			{studio.music && !studio.focus ? (
+				<View style={glassCard()}>
 					<Label large>On repeat</Label>
 					{music ? (
 						<>
@@ -581,6 +656,188 @@ function PictureField({
 	)
 }
 
+function ExperienceControls({
+	busy,
+	run,
+}: {
+	busy: boolean
+	run(job: () => Promise<unknown>): void
+}) {
+	const { View, Switch } = revenge.react.ReactNative
+	const settings = runtime.getSettings()
+	const [previous, setPrevious] = revenge.react.React.useState<{
+		appearance: Partial<Settings>
+		mood: StudioSettings['mood']
+		wallpaper: string
+		homeWallpaper: string
+	} | null>(null)
+	const mood = settings.studio.mood
+	return (
+		<>
+			<View style={glassCard()}>
+				<Label large>Set the mood</Label>
+				<Label subtle>
+					One tap coordinates your backdrop, glass and accents. Your saved
+					conversation scenes keep their own look.
+				</Label>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+					{(Object.keys(MOODS) as Mood[]).map(key => (
+						<View
+							key={key}
+							style={{
+								flexBasis: '46%',
+								flexGrow: 1,
+								minWidth: 112,
+								gap: 8,
+								padding: 10,
+								borderRadius: 18,
+								backgroundColor: MOODS[key].base,
+								borderWidth: 1,
+								borderColor: mood === key ? MOODS[key].accent : '#FFFFFF18',
+							}}
+						>
+							<View accessible={false} style={{ flexDirection: 'row', gap: 6 }}>
+								{(['accent', 'secondary', 'panel'] as const).map(role => (
+									<View
+										key={role}
+										style={{
+											width: 20,
+											height: 20,
+											borderRadius: 10,
+											backgroundColor: MOODS[key][role],
+										}}
+									/>
+								))}
+							</View>
+							<Action
+								disabled={busy}
+								selected={mood === key}
+								onPress={() =>
+									run(async () => {
+										const current = runtime.getSettings()
+										const backup = {
+											appearance: moodSnapshot(current),
+											mood: current.studio.mood,
+											wallpaper: current.studio.wallpaper,
+											homeWallpaper: current.studio.homeWallpaper,
+										}
+										await saveSettings(value => applyMood(value, key))
+										setPrevious(backup)
+									})
+								}
+							>
+								{MOODS[key].name}
+							</Action>
+							<Label subtle>{MOODS[key].description}</Label>
+						</View>
+					))}
+				</View>
+				{previous ? (
+					<Action
+						disabled={busy}
+						onPress={() =>
+							run(async () => {
+								await saveSettings(current => ({
+									...previous.appearance,
+									studio: {
+										...current.studio,
+										mood: previous.mood,
+										wallpaper: previous.wallpaper,
+										homeWallpaper: previous.homeWallpaper,
+									},
+								}))
+								setPrevious(null)
+							})
+						}
+					>
+						Restore previous look
+					</Action>
+				) : null}
+			</View>
+			<View style={glassCard()}>
+				<Label large>Feel & focus</Label>
+				{(
+					[
+						[
+							'ambient',
+							'Ambient light',
+							'Slow drifting light behind your glass.',
+						],
+						[
+							'softMotion',
+							'Gentle motion',
+							'Soft presses and transitions in Home and Studio.',
+						],
+						[
+							'calls',
+							'Matching calls',
+							'Coordinated participant cards, speaking rings and controls.',
+						],
+						[
+							'search',
+							'Glass search',
+							'Matching search input, results and recent-search headings.',
+						],
+						[
+							'focus',
+							'Focus mode',
+							'A solid backdrop, still interface and fewer composer shortcuts. Exit here or from Home.',
+						],
+					] as const
+				).map(([key, title, description]) => (
+					<View
+						key={key}
+						style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+					>
+						<View style={{ flex: 1 }}>
+							<Label>{title}</Label>
+							<Label subtle>{description}</Label>
+						</View>
+						<Switch
+							accessibilityLabel={title}
+							disabled={busy}
+							value={settings.studio[key]}
+							onValueChange={value =>
+								run(() =>
+									saveSettings(current => ({
+										studio: { ...current.studio, [key]: value },
+									})),
+								)
+							}
+						/>
+					</View>
+				))}
+				<Label subtle>
+					{settings.studio.focus
+						? 'Focus is on. Your saved style returns when you exit.'
+						: settings.lowPower
+							? 'Low power is on: light stays still. Enable motion below to switch low power off.'
+							: 'Motion follows your device’s reduced-motion setting and pauses in the background. OLED stays still.'}
+				</Label>
+				{settings.lowPower ? (
+					<Action
+						disabled={busy}
+						onPress={() =>
+							run(() =>
+								saveSettings(current => ({
+									lowPower: false,
+									studio: {
+										...current.studio,
+										ambient: true,
+										softMotion: true,
+									},
+								})),
+							)
+						}
+					>
+						Enable motion
+					</Action>
+				) : null}
+			</View>
+		</>
+	)
+}
+
 function Customize({
 	data,
 	change,
@@ -638,7 +895,8 @@ function Customize({
 	)
 	return (
 		<>
-			<View style={card}>
+			<ExperienceControls busy={busy} run={run} />
+			<View style={glassCard()}>
 				<Label large>Wallpapers</Label>
 				<Label subtle>
 					Photos stay on this device. If a photo is moved or removed, choose it
@@ -651,7 +909,7 @@ function Customize({
 					homeWallpaper,
 				}))}
 			</View>
-			<View style={card}>
+			<View style={glassCard()}>
 				<Label large>People & places</Label>
 				<Label subtle>
 					Pin favorites or give a server or conversation its own look.
@@ -808,7 +1066,7 @@ function Customize({
 					<Action onPress={() => setSceneKey('')}>Done</Action>
 				</View>
 			) : null}
-			<View style={card}>
+			<View style={glassCard()}>
 				<Label large>Typography</Label>
 				<Label subtle>
 					Interface labels use these fonts. Chat messages keep Discord’s native
@@ -873,7 +1131,7 @@ function Customize({
 					))}
 				</View>
 			</View>
-			<View style={card}>
+			<View style={glassCard()}>
 				<Label large>Finishing touches</Label>
 				{(
 					[
