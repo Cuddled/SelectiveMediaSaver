@@ -94,6 +94,20 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				gradient: null,
 			}
 			const modules: Record<string, any> = {
+				'modules/main_tabs_v2/native/tabs/messages/MessagesHeader.tsx': {
+					default: { type: () => header },
+				},
+				'modules/in_app_notifications/native/Notification.tsx': {
+					NotificationPressable: () => header,
+				},
+				'design/components/Text/native/Text.tsx': {
+					Text: { render: () => header },
+				},
+				'modules/chat_input/native/action_buttons/ChatInputActionButtonApps.tsx':
+					{ default: { type: () => header } },
+				'design/components/Icon/native/redesign/generated/ChatIcon.tsx': {
+					ChatIcon: () => header,
+				},
 				[pathsForBeta5.shade]: { default: { type: () => header } },
 				[pathsForBeta5.text]: { default: { type: () => header } },
 				[pathsForBeta5.base]: { default: () => header },
@@ -243,6 +257,36 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				assert.ok(h.paths.includes(path))
 			for (const path of Object.values(h.pathsForBeta5))
 				assert.ok(h.paths.includes(path))
+			for (const [path, key, inner] of [
+				[
+					'modules/main_tabs_v2/native/tabs/messages/MessagesHeader.tsx',
+					'default',
+					'type',
+				],
+				[
+					'modules/in_app_notifications/native/Notification.tsx',
+					'NotificationPressable',
+					'',
+				],
+				['design/components/Text/native/Text.tsx', 'Text', 'render'],
+				[
+					'modules/chat_input/native/action_buttons/ChatInputActionButtonApps.tsx',
+					'default',
+					'type',
+				],
+				[
+					'design/components/Icon/native/redesign/generated/ChatIcon.tsx',
+					'ChatIcon',
+					'',
+				],
+			]) {
+				const props = { active: true, variant: 'code' }
+				const result = inner
+					? h.modules[path][key][inner](props)
+					: h.modules[path][key](props)
+				assert.equal(result.props.original, h.header)
+				if (inner) assert.equal(result.props.children.props.props, props)
+			}
 			for (const [path, exportName, key] of [
 				[h.pathsForBeta5.shade, 'default', 'type'],
 				[h.pathsForBeta5.text, 'default', 'type'],
@@ -365,6 +409,34 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			runtime.update({ enabled: true })
 			const pending = definition.start(h.api)
 			h.stop()
+			assert.equal(
+				h.modules[
+					'modules/main_tabs_v2/native/tabs/messages/MessagesHeader.tsx'
+				].default.type(),
+				h.header,
+			)
+			assert.equal(
+				h.modules[
+					'modules/in_app_notifications/native/Notification.tsx'
+				].NotificationPressable(),
+				h.header,
+			)
+			assert.equal(
+				h.modules['design/components/Text/native/Text.tsx'].Text.render(),
+				h.header,
+			)
+			assert.equal(
+				h.modules[
+					'modules/chat_input/native/action_buttons/ChatInputActionButtonApps.tsx'
+				].default.type(),
+				h.header,
+			)
+			assert.equal(
+				h.modules[
+					'design/components/Icon/native/redesign/generated/ChatIcon.tsx'
+				].ChatIcon(),
+				h.header,
+			)
 			assert.equal(h.nativeThemes.at(-1), 'midnight')
 			nativeUpdater.updateTheme('light')
 			assert.equal(h.nativeThemes.at(-1), 'light')
