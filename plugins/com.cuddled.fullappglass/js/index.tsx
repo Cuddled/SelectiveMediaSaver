@@ -15,6 +15,7 @@ import {
 	surfaceColor,
 } from './core'
 import { createNativeThemeSync } from './nativeTheme'
+import { createPolish } from './polish'
 import { profileControlColor, profileSemanticContext } from './profileAccents'
 import { readableReplies } from './replies'
 import SettingsPage from './Settings'
@@ -71,12 +72,14 @@ export default plugin<{ jsonStorage: Settings }>({
 		const React = revenge.react.React
 		const access = { ...runtime, isActive: () => alive }
 		const surfaces = createSurfaces(React, revenge.react.ReactNative, access)
+		const polish = createPolish(React, revenge.react.ReactNative.View, access)
 		const chat = createMainTabsWallpaper(React, revenge.react.ReactNative, {
 			...access,
 			getSettings: () => asGlass(runtime.getSettings()),
 		})
 		api.cleanup(() => {
 			surfaces.dispose()
+			polish.dispose()
 			chat.dispose()
 		})
 		const watch = (path: string, install: (exports: RecordAny) => void) => {
@@ -107,6 +110,33 @@ export default plugin<{ jsonStorage: Settings }>({
 			if (typeof target?.[key] === 'function')
 				api.cleanup(revenge.patcher.after(target as any, key, callback))
 		}
+		watch('modules/channel_list_v2/native/items/TextChannel.tsx', exports =>
+			after(exports.default, 'type', original =>
+				polish.wrap('text-channel', original),
+			),
+		)
+		watch('modules/guild_sidebar/native/BaseChannelItem.tsx', exports =>
+			after(exports, 'default', original =>
+				polish.wrap('base-channel', original),
+			),
+		)
+		watch('design/components/Sheet/native/ActionSheet.native.tsx', exports =>
+			after(exports.ActionSheet, 'render', original =>
+				polish.wrap('sheet', original),
+			),
+		)
+		watch('design/components/Sheet/native/ActionSheetRow.native.tsx', exports =>
+			after(exports, 'ActionSheetRow', original =>
+				polish.wrap('row', original),
+			),
+		)
+		watch(
+			'design/components/Sheet/native/ActionSheetHeaderBar.native.tsx',
+			exports =>
+				after(exports, 'ActionSheetHeaderBar', original =>
+					polish.wrap('handle', original),
+				),
+		)
 		watch('modules/user_settings/ThemeStore.tsx', exports => {
 			themeStore = exports.default
 			nativeTheme.refresh()

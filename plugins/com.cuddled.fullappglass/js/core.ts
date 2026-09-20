@@ -26,6 +26,11 @@ export interface Settings {
 	profiles: boolean
 	menus: boolean
 	controls: boolean
+	accentColor: HexColor
+	accentOpacity: number
+	polishChannels: boolean
+	polishComposer: boolean
+	polishMenus: boolean
 }
 
 // Start paused so the user can turn their other appearance plugin off first.
@@ -43,6 +48,11 @@ export const DEFAULT_SETTINGS: Settings = {
 	profiles: true,
 	menus: true,
 	controls: true,
+	accentColor: '#B8A1FF',
+	accentOpacity: 0.65,
+	polishChannels: true,
+	polishComposer: true,
+	polishMenus: true,
 }
 
 const clamp = (value: unknown, fallback: number, max = 1) =>
@@ -62,6 +72,9 @@ export function normalize(value: unknown): Settings {
 		'profiles',
 		'menus',
 		'controls',
+		'polishChannels',
+		'polishComposer',
+		'polishMenus',
 	] as const)
 		if (typeof raw[key] === 'boolean') result[key] = raw[key]
 	result.transparency = clamp(raw.transparency, result.transparency)
@@ -69,6 +82,8 @@ export function normalize(value: unknown): Settings {
 	result.blur = clamp(raw.blur, result.blur, 10)
 	result.panelColor = normalizeHexColor(raw.panelColor, result.panelColor)
 	result.textColor = normalizeHexColor(raw.textColor, result.textColor)
+	result.accentColor = normalizeHexColor(raw.accentColor, result.accentColor)
+	result.accentOpacity = clamp(raw.accentOpacity, result.accentOpacity)
 	return result
 }
 

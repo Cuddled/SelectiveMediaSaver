@@ -198,7 +198,7 @@ particular native build paints additional opaque layers over the wallpaper.
 
 ## Full-App Glass (Experimental) for Revenge Next
 
-`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta4` plugin. It does not require
+`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta5` plugin. It does not require
 Liquid Glass to be installed and has its own JSON storage. Liquid Glass's code, version, saved
 colors, and profiles are not changed by this experiment. A few audited pure helpers are bundled
 into the new ZIP; there is no runtime dependency on the other plugin.
@@ -221,6 +221,13 @@ In its settings, enable **Full-App Glass**, then use:
   account-bar backing.
 - **Wallpaper darkness:** default 28%, independent from transparency.
 - **Glass tint:** Midnight, Violet, Ocean, or Black swatches.
+- **Your custom look:** independent switches for rounded channel selections, the outlined dark
+  message-entry pill, and coordinated action sheets. All three start on and follow the existing
+  area switches. Channel highlights and the polished composer also follow **Inputs and cards**.
+- **Accent color:** Lavender, Ice, Rose, Mint, Gold, or Pearl swatches, plus a custom six-digit
+  hex field. **Accent opacity** changes outline and selection intensity; drag to preview, release
+  to apply. Existing colors, transparency, area choices, enabled state and saved settings survive
+  upgrades. New installs still start paused.
 - **Area switches:** main screens (shared list/navigation/settings surfaces), conversations,
   own/member profiles, menus/overlays, and controls/cards. Shared Discord tokens mean groups are
   not an exhaustive per-screen allowlist.
@@ -261,10 +268,23 @@ Navigation identities, refs, media, interaction handlers, role/name-style colors
 disabled states are retained. A temporary dark theme context is used while preview is active;
 the user's saved Discord appearance preference is not modified.
 
+Beta5 adds the approved clean appearance through inspected Discord 347 boundaries. Text-channel
+selections use rounded accent fills and fine outlines; supported voice/DM/thread rows use the
+shared base-channel renderer. Fixed list measurements, unread/mention logic, selection state,
+press/long-press callbacks, and thread/voice content are preserved. The composer adds only a dark
+decorative overlay and accent edge inside its existing wallpaper backing, retaining draft input,
+keyboard padding, reply/autocomplete siblings and touch targets. Supported action sheets use a
+solid glass-tinted background, a subtle top outline, coordinated dismiss handles and transparent
+row cards. Existing sheet scroll/keyboard/dismiss behavior, action order, danger variants and
+disabled states remain Discord's own. Sheets with custom backgrounds or border gradients keep
+their background. Unknown element shapes are skipped; paused styling restores the original
+styles. These are visual changes, not a recreation of the concept's navigation or action layout.
+
 This is **wallpaper-backed translucency inside Discord**, not a transparent Android window,
 screen capture, or live iOS Liquid Glass blur. Opaque native screens, media viewers, video surfaces,
-and some separately hosted modals may not reveal the root wallpaper. Highly transparent menus
-can show underlying content through them; reduce transparency if readability suffers. Android
+and some separately hosted modals may not reveal the root wallpaper. With **Matching menus** on,
+supported action sheets stay opaque for readability. Other highly transparent overlays can show
+underlying content through them; reduce transparency if needed. Android
 347.x phone verification is still required for full coverage, keyboard/navigation behavior,
 restart persistence, and interaction with other plugins. No new native saver or root access is used.
 
@@ -408,7 +428,7 @@ The distributables are written to:
 build/classic/manifest.json
 build/classic/index.js
 build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
-build/dist/com.cuddled.fullappglass@1.0.0-beta4.zip
+build/dist/com.cuddled.fullappglass@1.0.0-beta5.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 

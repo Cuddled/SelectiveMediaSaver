@@ -625,6 +625,35 @@ test('bottom wallpaper handles loading, failure, stale callbacks, area switches 
 	}
 })
 
+test('composer accents update live without moving the draft, reply or keyboard layout', () => {
+	const h = harness('input')
+	const initial = h.render()
+	const accent = initial.layer.props.children[3]
+	assert.equal(accent.props.pointerEvents, 'none')
+	assert.equal(accent.props.importantForAccessibility, 'no-hide-descendants')
+	assert.equal(accent.props.style.borderRadius, 24)
+	h.state.update({
+		...h.state.getSettings(),
+		accentColor: '#9EE8CE',
+		accentOpacity: 1,
+	})
+	assert.equal(
+		h.render().layer.props.children[3].props.style.borderColor,
+		'#9EE8CEA5',
+	)
+	for (const key of ['polishComposer', 'controls'] as const) {
+		h.state.update({ ...h.state.getSettings(), [key]: false })
+		const off = h.render()
+		assert.equal(off.layer.props.children[3], null)
+		assert.equal(off.root.props.style, initial.root.props.style)
+		assert.equal(off.scope.props.children, initial.scope.props.children)
+		assert.equal(off.scope.key, initial.scope.key)
+		h.state.update({ ...h.state.getSettings(), [key]: true })
+	}
+	const account = harness('account')
+	assert.equal(account.render().layer.props.children[3], null)
+})
+
 test('account background wrappers are stable and preserve props without wrapping unknown renderers', () => {
 	const h = harness('account')
 	const second = h.runtime.wrapAccountBackground(h.original) as any
