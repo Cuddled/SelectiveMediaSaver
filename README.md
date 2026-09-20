@@ -115,6 +115,16 @@ Desktop-only BetterDiscord features such as Electron folder opening, DOM setting
 desktop menus are not used on mobile. Cross-restart media hash deduplication, the desktop metadata
 browser/cleanup scheduler, and a mobile manual-save menu are still follow-up work.
 
+## Original Media Mode for Revenge Next
+
+**NoCompression - Original Media 1.1.0-beta1** upgrades the existing NoCompression
+plugin with original image/video defaults and per-attachment choices. Tap a
+pending attachment to choose **Original** or **Compress this upload**. Oversized
+originals offer compression or cancellation using the current native upload limit.
+Restart Discord after updating to load the Android component.
+
+See [Original Media controls and compatibility](plugins/com.cuddled.nocompression/README.md).
+
 ## Revenge Classic compatibility ports for Next
 
 The same Revenge Next repository also contains direct compatibility ports of these nine supplied

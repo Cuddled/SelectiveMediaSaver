@@ -36,6 +36,9 @@ jobs:
       - name: Build and package all plugins
         run: ./gradlew --no-daemon packageAllPlugins
 
+      - name: Verify original media byte copying
+        run: ./gradlew --no-daemon :plugins:com.cuddled.nocompression:testDebugUnitTest
+
       - name: Verify packaged repository metadata
         run: |
           npm run generate-index -- \

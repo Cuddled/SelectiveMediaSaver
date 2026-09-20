@@ -2,6 +2,9 @@
 	"name": "Cuddled's Revenge Plugins",
 	"description": "Revenge Next plugins by Cuddled, including Selective Media Saver.",
 	"channels": {
+		"com.cuddled.nocompression": {
+			"latest": "1.1.0-beta1"
+		},
 		"com.cuddled.fullappglass": {
 			"latest": "1.0.0-beta16"
 		}
