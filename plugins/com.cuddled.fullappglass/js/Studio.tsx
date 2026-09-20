@@ -12,6 +12,7 @@ import {
 	MOODS,
 	moodSnapshot,
 } from './experience'
+import { avatarFrame, avatarRadius, profileCardStyle } from './identity'
 import { saveSettings } from './settingsWriter'
 import { getStudioData } from './studioData'
 import { imageUri, interfaceFont, togglePin } from './studioModel'
@@ -838,6 +839,261 @@ function ExperienceControls({
 	)
 }
 
+function IdentityControls({
+	busy,
+	change,
+}: {
+	busy: boolean
+	change(changes: Partial<StudioSettings>): void
+}) {
+	const { View, Text, Switch, Pressable } = revenge.react.ReactNative
+	const settings = runtime.getSettings()
+	const studio = settings.studio
+	const toggle = (
+		key:
+			| 'avatarStyles'
+			| 'profileLayout'
+			| 'profileBannerFade'
+			| 'profileFloatAvatar'
+			| 'profileCompactConnections'
+			| 'profileCollapsible',
+		title: string,
+		description: string,
+	) => (
+		<View
+			key={key}
+			style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+		>
+			<View style={{ flex: 1 }}>
+				<Label>{title}</Label>
+				<Label subtle>{description}</Label>
+			</View>
+			<Switch
+				accessibilityLabel={title}
+				value={studio[key]}
+				disabled={busy}
+				onValueChange={value => change({ [key]: value })}
+			/>
+		</View>
+	)
+	return (
+		<>
+			<View style={glassCard()}>
+				<Label large>Avatar styles</Label>
+				<Label subtle>
+					Give supported profile and list avatars a signature shape. These
+					changes are only visible on your device.
+				</Label>
+				{toggle(
+					'avatarStyles',
+					'Style avatars',
+					'Keep native status indicators and avatar animations.',
+				)}
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+					{(['native', 'circle', 'rounded', 'soft'] as const).map(shape => {
+						const selected = studio.avatarShape === shape
+						const name = {
+							native: 'Discord',
+							circle: 'Circle',
+							rounded: 'Rounded',
+							soft: 'Soft square',
+						}[shape]
+						return (
+							<Pressable
+								key={shape}
+								accessibilityRole="button"
+								accessibilityLabel={`Avatar shape: ${name}`}
+								accessibilityState={{ selected, disabled: busy }}
+								disabled={busy}
+								onPress={() => change({ avatarShape: shape })}
+								style={{
+									width: '47%',
+									flexGrow: 1,
+									minHeight: 110,
+									padding: 12,
+									borderRadius: 18,
+									alignItems: 'center',
+									gap: 8,
+									borderWidth: 1,
+									borderColor: selected ? settings.accentColor : '#FFFFFF26',
+									backgroundColor: selected
+										? hexWithAlpha(settings.accentColor, 0.12)
+										: '#00000014',
+								}}
+							>
+								<View
+									style={{
+										width: 44,
+										height: 44,
+										borderRadius: avatarRadius(shape, 44),
+										backgroundColor: hexWithAlpha(settings.accentColor, 0.24),
+										alignItems: 'center',
+										justifyContent: 'center',
+										borderWidth: 1,
+										borderColor: settings.accentColor,
+									}}
+								>
+									<Text style={{ color: ink, fontSize: 20, fontWeight: '700' }}>
+										A
+									</Text>
+								</View>
+								<Label>{name}</Label>
+							</Pressable>
+						)
+					})}
+				</View>
+				<Label>Avatar border</Label>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+					{(['none', 'subtle', 'accent'] as const).map(border => (
+						<Action
+							key={border}
+							disabled={busy}
+							selected={studio.avatarBorder === border}
+							onPress={() => change({ avatarBorder: border })}
+						>
+							{
+								{ none: 'No border', subtle: 'Subtle', accent: 'Accent' }[
+									border
+								]
+							}
+						</Action>
+					))}
+				</View>
+				<Label subtle>
+					Decorated avatars, call indicators and some chat avatars keep their
+					original look.
+				</Label>
+			</View>
+			<View style={glassCard()}>
+				<Label large>Profile design</Label>
+				<View
+					accessibilityLabel="Sample profile preview"
+					style={{
+						borderRadius: 20,
+						borderWidth: 1,
+						borderColor: hexWithAlpha(settings.accentColor, 0.25),
+						overflow: 'hidden',
+						backgroundColor: settings.panelColor,
+					}}
+				>
+					<View
+						style={{
+							height: 84,
+							backgroundColor: hexWithAlpha(settings.accentColor, 0.24),
+							justifyContent: 'flex-end',
+						}}
+					>
+						{studio.profileLayout && studio.profileBannerFade ? (
+							<View
+								style={{
+									position: 'absolute',
+									inset: 0,
+									justifyContent: 'flex-end',
+								}}
+							>
+								{Array.from({ length: 16 }, (_, i) => i + 1).map(step => (
+									<View
+										key={step}
+										style={{
+											height: 4,
+											backgroundColor: hexWithAlpha(
+												settings.panelColor,
+												step / 16,
+											),
+										}}
+									/>
+								))}
+							</View>
+						) : null}
+					</View>
+					<View style={{ padding: 16, gap: 8 }}>
+						<View
+							style={{
+								width: 66,
+								height: 66,
+								marginTop: -44,
+								borderRadius:
+									studio.profileLayout &&
+									studio.profileFloatAvatar &&
+									studio.avatarStyles
+										? avatarRadius(studio.avatarShape, 54) + 6
+										: 33,
+								padding: 5,
+								backgroundColor: settings.panelColor,
+								borderWidth:
+									studio.profileLayout && studio.profileFloatAvatar ? 1 : 0,
+								borderColor: hexWithAlpha(settings.accentColor, 0.42),
+							}}
+						>
+							<View
+								style={{
+									width: 54,
+									height: 54,
+									borderRadius: 27,
+									backgroundColor: '#35304F',
+									alignItems: 'center',
+									justifyContent: 'center',
+									...(studio.avatarStyles ? avatarFrame(settings, 54) : {}),
+								}}
+							>
+								<Text style={{ color: ink, fontWeight: '700', fontSize: 24 }}>
+									A
+								</Text>
+							</View>
+						</View>
+						<Label large>Alex</Label>
+						<Label subtle>A little more you.</Label>
+						<View
+							style={
+								studio.profileLayout
+									? [profileCardStyle(settings), { padding: 12 }]
+									: { paddingVertical: 12 }
+							}
+						>
+							<Label>
+								Connections{' '}
+								{studio.profileLayout && studio.profileCollapsible ? '−' : ''}
+							</Label>
+							<Label subtle>Spotify · sample account</Label>
+						</View>
+					</View>
+				</View>
+				{toggle(
+					'profileLayout',
+					'Redesigned profiles',
+					'Soft cards and coordinated borders for profile sections.',
+				)}
+				{toggle(
+					'profileBannerFade',
+					'Soft banner fade',
+					'Blend the banner’s lower edge into the profile.',
+				)}
+				{toggle(
+					'profileFloatAvatar',
+					'Floating avatar backing',
+					'Frame the avatar where it overlaps the banner.',
+				)}
+				{toggle(
+					'profileCompactConnections',
+					'Compact connections',
+					'Tighter connection rows that still expand for larger text.',
+				)}
+				{toggle(
+					'profileCollapsible',
+					'Collapsible connections',
+					'Tap connection headings to fold or expand their details.',
+				)}
+				{!settings.profiles ? (
+					<Label subtle>
+						Enable the Profiles area in Full-App Glass settings to apply this
+						profile design.
+					</Label>
+				) : null}
+			</View>
+		</>
+	)
+}
+
 function Customize({
 	data,
 	change,
@@ -896,6 +1152,7 @@ function Customize({
 	return (
 		<>
 			<ExperienceControls busy={busy} run={run} />
+			<IdentityControls busy={busy} change={change} />
 			<View style={glassCard()}>
 				<Label large>Wallpapers</Label>
 				<Label subtle>

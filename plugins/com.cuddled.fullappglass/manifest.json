@@ -2,10 +2,10 @@
 	"format": 1,
 	"id": "com.cuddled.fullappglass",
 	"name": "Full-App Glass (Experimental)",
-	"description": "Personal glass Home with mood presets, ambient light, focus mode, matching calls and search for Discord 347.",
+	"description": "Personal glass Home with avatar styles, redesigned profiles, mood presets, calls and search for Discord 347.",
 	"icon": "ic_theme_24px",
 	"author": "Cuddled",
-	"version": "1.0.0-beta8",
+	"version": "1.0.0-beta9",
 	"dependencies": {
 		"revenge.api": { "version": ">=1.0.0 <2.0.0" },
 		"discord": { "version": ">=347.0 <348.0" }

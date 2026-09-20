@@ -7,6 +7,14 @@ export interface Scene {
 	accent: string
 }
 export interface StudioSettings {
+	avatarStyles: boolean
+	avatarShape: 'native' | 'circle' | 'rounded' | 'soft'
+	avatarBorder: 'none' | 'subtle' | 'accent'
+	profileLayout: boolean
+	profileBannerFade: boolean
+	profileFloatAvatar: boolean
+	profileCompactConnections: boolean
+	profileCollapsible: boolean
 	mood: 'custom' | 'midnight' | 'ice' | 'rose' | 'oled'
 	ambient: boolean
 	softMotion: boolean
@@ -33,6 +41,14 @@ export interface StudioSettings {
 	scenes: Record<string, Scene>
 }
 export const STUDIO_DEFAULTS: StudioSettings = {
+	avatarStyles: true,
+	avatarShape: 'rounded',
+	avatarBorder: 'accent',
+	profileLayout: true,
+	profileBannerFade: true,
+	profileFloatAvatar: true,
+	profileCompactConnections: true,
+	profileCollapsible: true,
 	mood: 'custom',
 	ambient: true,
 	softMotion: true,
@@ -86,6 +102,12 @@ export function normalizeStudio(value: unknown): StudioSettings {
 		scenes: {} as StudioSettings['scenes'],
 	}
 	for (const key of [
+		'avatarStyles',
+		'profileLayout',
+		'profileBannerFade',
+		'profileFloatAvatar',
+		'profileCompactConnections',
+		'profileCollapsible',
 		'ambient',
 		'softMotion',
 		'calls',
@@ -103,6 +125,10 @@ export function normalizeStudio(value: unknown): StudioSettings {
 		'music',
 	] as const)
 		if (typeof raw[key] === 'boolean') result[key] = raw[key]
+	if (['native', 'circle', 'rounded', 'soft'].includes(raw.avatarShape ?? ''))
+		result.avatarShape = raw.avatarShape!
+	if (['none', 'subtle', 'accent'].includes(raw.avatarBorder ?? ''))
+		result.avatarBorder = raw.avatarBorder!
 	if (['custom', 'midnight', 'ice', 'rose', 'oled'].includes(raw.mood ?? ''))
 		result.mood = raw.mood!
 	for (const key of ['wallpaper', 'homeWallpaper', 'emptyImage'] as const)

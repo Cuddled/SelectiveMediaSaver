@@ -374,7 +374,7 @@ export default function SettingsPage({
 						}}
 					>
 						<Text variant="heading-lg/semibold" style={{ color: '#F7F8FF' }}>
-							Full-App Glass · beta8
+							Full-App Glass · beta9
 						</Text>
 						<Text variant="text-sm/normal" style={{ color: '#E5DFFF' }}>
 							Turn Liquid Glass and other appearance plugins OFF, then reload
