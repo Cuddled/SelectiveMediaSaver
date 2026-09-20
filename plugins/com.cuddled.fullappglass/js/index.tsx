@@ -20,6 +20,7 @@ import {
 	createExperienceSurfaces,
 	voiceButtonStyles,
 } from './experienceSurfaces'
+import { createIdentitySurfaces } from './identity'
 import { createNativeThemeSync } from './nativeTheme'
 import { createPolish } from './polish'
 import { profileControlColor, profileSemanticContext } from './profileAccents'
@@ -32,6 +33,7 @@ import { createStudioSurfaces, LINE_ICONS, mediaTheme } from './studioSurfaces'
 import { createSurfaces } from './surfaces'
 import type { Settings } from './core'
 import type { ExperienceKind } from './experienceSurfaces'
+import type { IdentityKind } from './identity'
 import type { StudioKind } from './studioSurfaces'
 
 type RecordAny = Record<string, any>
@@ -124,6 +126,11 @@ export default plugin<{ jsonStorage: Settings }>({
 			revenge.react.ReactNative,
 			access,
 		)
+		const identity = createIdentitySurfaces(
+			React,
+			revenge.react.ReactNative,
+			access,
+		)
 		api.cleanup(
 			data.subscribeAppearance(() => {
 				colors = palette(data.effectiveSettings())
@@ -140,6 +147,7 @@ export default plugin<{ jsonStorage: Settings }>({
 			chat.dispose()
 			studio.dispose()
 			experience.dispose()
+			identity.dispose()
 		})
 		const watch = (path: string, install: (exports: RecordAny) => void) => {
 			let installed = false
@@ -220,6 +228,72 @@ export default plugin<{ jsonStorage: Settings }>({
 					),
 				)
 			})
+		for (const [path, keys, kind] of [
+			[
+				'modules/main_tabs_v2/native/tabs/you/YouScreen.tsx',
+				['default'],
+				'you-root',
+			],
+			['design/void/Avatar/native/Avatar.tsx', ['default', 'type'], 'avatar'],
+			[
+				'design/void/CutoutableAvatarImage/native/CutoutableAvatarImage.tsx',
+				['default', 'type'],
+				'avatar-image',
+			],
+			[
+				'modules/user_profile/native/UserProfileAvatar.tsx',
+				['default', 'render'],
+				'profile-avatar',
+			],
+			[
+				'modules/user_profile/native/UserProfileBanner.tsx',
+				['default'],
+				'banner',
+			],
+			['modules/user_profile/native/UserProfileCard.tsx', ['default'], 'card'],
+			[
+				'modules/user_profile/native/UserProfileSection.tsx',
+				['default'],
+				'section',
+			],
+			[
+				'modules/user_profile/native/UserProfileConnections.tsx',
+				['UserProfileAccountConnectionsCard'],
+				'connections',
+			],
+			[
+				'modules/user_profile/native/UserProfileConnections.tsx',
+				['UserProfileApplicationRoleConnectionsCard'],
+				'connections',
+			],
+			[
+				'design/components/TableRow/native/TableRow.native.tsx',
+				['TableRowInner'],
+				'connection-row',
+			],
+		] as Array<[string, string[], IdentityKind]>) {
+			watch(path, exports => {
+				if (kind === 'avatar-image')
+					identity.setAvatarSizes(exports.AVATAR_SIZE_MAP)
+				let target = exports
+				for (const key of keys.slice(0, -1)) target = target?.[key]
+				const method = keys[keys.length - 1]
+				if (typeof target?.[method] !== 'function') return
+				api.cleanup(
+					revenge.patcher.instead(
+						target as any,
+						method,
+						function (this: any, args, original) {
+							return identity.wrap(
+								kind,
+								Reflect.apply(original, this, args),
+								args[0],
+							)
+						},
+					),
+				)
+			})
+		}
 		for (const [path, keys, kind] of [
 			[
 				'modules/voice_panel/native/card/VoicePanelCard.tsx',

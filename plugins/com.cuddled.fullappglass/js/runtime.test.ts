@@ -94,6 +94,35 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				gradient: null,
 			}
 			const modules: Record<string, any> = {
+				'modules/main_tabs_v2/native/tabs/you/YouScreen.tsx': {
+					default: () => header,
+				},
+				'design/void/Avatar/native/Avatar.tsx': {
+					default: { type: () => header },
+				},
+				'design/void/CutoutableAvatarImage/native/CutoutableAvatarImage.tsx': {
+					default: { type: () => header },
+					AVATAR_SIZE_MAP: { normal: 40 },
+				},
+				'modules/user_profile/native/UserProfileAvatar.tsx': {
+					default: { render: () => header },
+				},
+				'modules/user_profile/native/UserProfileBanner.tsx': {
+					default: () => header,
+				},
+				'modules/user_profile/native/UserProfileCard.tsx': {
+					default: () => header,
+				},
+				'modules/user_profile/native/UserProfileSection.tsx': {
+					default: () => header,
+				},
+				'modules/user_profile/native/UserProfileConnections.tsx': {
+					UserProfileAccountConnectionsCard: () => header,
+					UserProfileApplicationRoleConnectionsCard: () => header,
+				},
+				'design/components/TableRow/native/TableRow.native.tsx': {
+					TableRowInner: () => header,
+				},
 				'modules/voice_panel/native/card/VoicePanelCard.tsx': {
 					default: { type: () => header },
 				},
@@ -261,6 +290,31 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			)
 			assert.ok(h.paths.includes('modules/chat/native/Chat.android.tsx'))
 			for (const [path, keys] of [
+				['modules/main_tabs_v2/native/tabs/you/YouScreen.tsx', ['default']],
+				['design/void/Avatar/native/Avatar.tsx', ['default', 'type']],
+				[
+					'design/void/CutoutableAvatarImage/native/CutoutableAvatarImage.tsx',
+					['default', 'type'],
+				],
+				[
+					'modules/user_profile/native/UserProfileAvatar.tsx',
+					['default', 'render'],
+				],
+				['modules/user_profile/native/UserProfileBanner.tsx', ['default']],
+				['modules/user_profile/native/UserProfileCard.tsx', ['default']],
+				['modules/user_profile/native/UserProfileSection.tsx', ['default']],
+				[
+					'modules/user_profile/native/UserProfileConnections.tsx',
+					['UserProfileAccountConnectionsCard'],
+				],
+				[
+					'modules/user_profile/native/UserProfileConnections.tsx',
+					['UserProfileApplicationRoleConnectionsCard'],
+				],
+				[
+					'design/components/TableRow/native/TableRow.native.tsx',
+					['TableRowInner'],
+				],
 				[
 					'modules/voice_panel/native/card/VoicePanelCard.tsx',
 					['default', 'type'],
@@ -439,6 +493,49 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			runtime.update({ enabled: true })
 			const pending = definition.start(h.api)
 			h.stop()
+			assert.equal(
+				h.modules[
+					'modules/main_tabs_v2/native/tabs/you/YouScreen.tsx'
+				].default(),
+				h.header,
+			)
+			for (const [path, exportName, inner] of [
+				['design/void/Avatar/native/Avatar.tsx', 'default', 'type'],
+				[
+					'design/void/CutoutableAvatarImage/native/CutoutableAvatarImage.tsx',
+					'default',
+					'type',
+				],
+				[
+					'modules/user_profile/native/UserProfileAvatar.tsx',
+					'default',
+					'render',
+				],
+				['modules/user_profile/native/UserProfileBanner.tsx', 'default', ''],
+				['modules/user_profile/native/UserProfileCard.tsx', 'default', ''],
+				['modules/user_profile/native/UserProfileSection.tsx', 'default', ''],
+				[
+					'modules/user_profile/native/UserProfileConnections.tsx',
+					'UserProfileAccountConnectionsCard',
+					'',
+				],
+				[
+					'modules/user_profile/native/UserProfileConnections.tsx',
+					'UserProfileApplicationRoleConnectionsCard',
+					'',
+				],
+				[
+					'design/components/TableRow/native/TableRow.native.tsx',
+					'TableRowInner',
+					'',
+				],
+			])
+				assert.equal(
+					inner
+						? h.modules[path][exportName][inner]()
+						: h.modules[path][exportName](),
+					h.header,
+				)
 			assert.equal(
 				h.modules[
 					'modules/voice_panel/native/card/VoicePanelCard.tsx'

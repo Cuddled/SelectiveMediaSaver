@@ -198,7 +198,7 @@ particular native build paints additional opaque layers over the wallpaper.
 
 ## Full-App Glass (Experimental) for Revenge Next
 
-`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta8` plugin. It does not require
+`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta9` plugin. It does not require
 Liquid Glass to be installed and has its own JSON storage. Liquid Glass's code, version, saved
 colors, and profiles are not changed by this experiment. A few audited pure helpers are bundled
 into the new ZIP; there is no runtime dependency on the other plugin.
@@ -368,6 +368,33 @@ Local beta8 validation passes TypeScript, 178 tests, normalized full-repository 
 plugin builds, archive verification, Classic compatibility checks, and interactive previews at 320
 and 430 pixel widths. Motion tests cover accessibility, backgrounding and shutdown cleanup.
 
+Beta9 adds **Avatar styles** and **Profile design** to Appearance Studio:
+
+- Choose Discord, Circle, Rounded or Soft square avatar shapes and No border, Subtle or Accent
+  borders. Supported native Avatar image slots keep their source, animation, loading callbacks,
+  size and status layers. Native status cutouts are preserved; decorated, speaking, muted/deafened,
+  stage and channel avatars stay unchanged. Older SVG masks and separately rendered native chat
+  avatars are not reshaped. These changes affect only this device's view of Discord.
+- Profile cards and sections receive soft corners and coordinated borders. A framed avatar backing
+  follows the existing banner overlap without moving the native avatar or its media-viewer ref.
+  A static fade softens both own and member banner edges while preserving images, GIF interaction,
+  native scroll refs, animated styles and profile-effect layers.
+- Connection rows use less padding and a 48-pixel minimum height; they remain free to grow with
+  larger text. Compact styling is scoped to native account and application-role connection cards.
+- Connection headings can collapse or expand their contents. Sections start expanded for another
+  user, and collapsed links remain mounted but hidden from accessibility navigation. Native privacy
+  filtering, account verification indicators, link/long-press actions and trailing controls remain
+  intact. Other profile details and actions are not made collapsible.
+- The avatar controls and profile design have separate master switches. Profile design respects the
+  existing Profiles area switch; all changes stop when the plugin is paused or unloaded. Existing
+  settings migrate additively, and new installations still start paused.
+
+Beta9 local validation passes TypeScript, 185 tests, normalized full-repository lint, JavaScript
+builds and archive checks. The interactive preview exercises the actual Studio and styling functions
+with sample components at 320 and 430 pixel widths, including larger connection text, preset controls,
+save-failure rollback and collapse accessibility. This is not native Android verification: final phone
+QA should cover decorated/status avatars, own/member profiles, GIF banners, media viewing and scrolling.
+
 This is **wallpaper-backed translucency inside Discord**, not a transparent Android window,
 screen capture, or live iOS Liquid Glass blur. Opaque native screens, media viewers, video surfaces,
 and some separately hosted modals may not reveal the root wallpaper. With **Matching menus** on,
@@ -516,7 +543,7 @@ The distributables are written to:
 build/classic/manifest.json
 build/classic/index.js
 build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
-build/dist/com.cuddled.fullappglass@1.0.0-beta8.zip
+build/dist/com.cuddled.fullappglass@1.0.0-beta9.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 
