@@ -13,6 +13,7 @@ import {
 	moodSnapshot,
 } from './experience'
 import { avatarFrame, avatarRadius, profileCardStyle } from './identity'
+import { SignatureMotif } from './motif'
 import { saveSettings } from './settingsWriter'
 import { getStudioData } from './studioData'
 import { imageUri, interfaceFont, togglePin } from './studioModel'
@@ -83,14 +84,16 @@ function Action({
 	selected = false,
 	disabled = false,
 	compact = false,
+	signature = false,
 }: {
 	children: ReactNode
 	onPress(): void
 	selected?: boolean
 	disabled?: boolean
 	compact?: boolean
+	signature?: boolean
 }) {
-	const { Pressable, Text, Animated } = revenge.react.ReactNative
+	const { Pressable, Text, Animated, View } = revenge.react.ReactNative
 	const React = revenge.react.React
 	const settings = runtime.getSettings()
 	const motion = useMotion(settings) && settings.studio.softMotion
@@ -141,12 +144,17 @@ function Action({
 				...(scale ? { transform: [{ scale }] } : {}),
 			}}
 		>
-			<Text
-				maxFontSizeMultiplier={compact ? 1.2 : undefined}
-				style={{ color: ink, fontSize: 14, fontWeight: '600' }}
-			>
-				{children}
-			</Text>
+			<View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+				<Text
+					maxFontSizeMultiplier={compact ? 1.2 : undefined}
+					style={{ color: ink, fontSize: 14, fontWeight: '600', flexShrink: 1 }}
+				>
+					{children}
+				</Text>
+				{signature && selected ? (
+					<SignatureMotif settings={settings} size={17} />
+				) : null}
+			</View>
 		</Button>
 	)
 }
@@ -374,10 +382,18 @@ function StudioScreen({
 					paddingBottom: 12,
 				}}
 			>
-				<Action selected={tab === 'home'} onPress={() => setTab('home')}>
+				<Action
+					signature
+					selected={tab === 'home'}
+					onPress={() => setTab('home')}
+				>
 					Home
 				</Action>
-				<Action selected={tab === 'style'} onPress={() => setTab('style')}>
+				<Action
+					signature
+					selected={tab === 'style'}
+					onPress={() => setTab('style')}
+				>
 					Customize
 				</Action>
 			</View>
@@ -449,9 +465,14 @@ function Home({
 					},
 				]}
 			>
-				<Label large>
-					{data?.self() ? `Welcome, ${data.self()!.name}` : 'Welcome home'}
-				</Label>
+				<View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+					<View style={{ flex: 1 }}>
+						<Label large>
+							{data?.self() ? `Welcome, ${data.self()!.name}` : 'Welcome home'}
+						</Label>
+					</View>
+					<SignatureMotif settings={runtime.getSettings()} size={30} />
+				</View>
 				<Label subtle>Your favorite places and people, one tap away.</Label>
 				<Action
 					disabled={busy}
@@ -1094,6 +1115,141 @@ function IdentityControls({
 	)
 }
 
+function DetailControls({
+	busy,
+	change,
+}: {
+	busy: boolean
+	change(changes: Partial<StudioSettings>): void
+}) {
+	const { View, Switch } = revenge.react.ReactNative
+	const settings = runtime.getSettings()
+	const studio = settings.studio
+	const group = (
+		title: string,
+		rows: Array<
+			[
+				keyof Pick<
+					StudioSettings,
+					| 'friendList'
+					| 'forumCards'
+					| 'inviteCards'
+					| 'dmList'
+					| 'systemNotices'
+					| 'voiceMessages'
+					| 'jumpToLatest'
+					| 'mediaFrames'
+				>,
+				string,
+				string,
+			]
+		>,
+	) => (
+		<View style={glassCard()}>
+			<Label large>{title}</Label>
+			{title === 'Chat details' ? (
+				<Label subtle>
+					Reopen the channel or reload Discord to refresh colors on messages
+					already loaded.
+				</Label>
+			) : null}
+			{rows.map(([key, label, description]) => (
+				<View
+					key={key}
+					style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+				>
+					<View style={{ flex: 1 }}>
+						<Label>{label}</Label>
+						<Label subtle>{description}</Label>
+					</View>
+					<Switch
+						accessibilityLabel={label}
+						disabled={busy}
+						value={studio[key]}
+						onValueChange={value => change({ [key]: value })}
+					/>
+				</View>
+			))}
+		</View>
+	)
+	return (
+		<>
+			<View style={glassCard()}>
+				<View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+					<View style={{ flex: 1 }}>
+						<Label large>Your signature</Label>
+					</View>
+					<SignatureMotif settings={settings} size={32} />
+				</View>
+				<Label subtle>
+					A quiet mark on Home, Studio tabs and empty-state artwork.
+				</Label>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+					{(['butterfly', 'star', 'none'] as const).map(value => (
+						<Action
+							key={value}
+							compact
+							disabled={busy}
+							selected={studio.signatureMotif === value}
+							onPress={() => change({ signatureMotif: value })}
+						>
+							{value === 'butterfly'
+								? 'Butterfly'
+								: value === 'star'
+									? 'Star'
+									: 'None'}
+						</Action>
+					))}
+				</View>
+			</View>
+			{group('Lists & cards', [
+				[
+					'friendList',
+					'Friend list styling',
+					'Soft rows and tidy action buttons in Friends.',
+				],
+				[
+					'dmList',
+					'DM list redesign',
+					'Rounded conversation rows with a subtle selected tint.',
+				],
+				[
+					'forumCards',
+					'Forum cards',
+					'Coordinated borders and corners in list and grid views.',
+				],
+				[
+					'inviteCards',
+					'Server invite cards',
+					'Matching backing, border and icon corners. Invite actions stay familiar.',
+				],
+			])}
+			{group('Chat details', [
+				[
+					'mediaFrames',
+					'Media frames',
+					'Frames on search, forum and media previews; matching backgrounds behind chat media.',
+				],
+				[
+					'voiceMessages',
+					'Voice messages',
+					'A framed recorder and matching playback background. Keep the native waveform and controls.',
+				],
+				[
+					'jumpToLatest',
+					'Jump to latest button',
+					'A rounded accent capsule for Discord’s jump button.',
+				],
+				[
+					'systemNotices',
+					'System notices',
+					'Accent timestamps and selection highlights on everyday notices.',
+				],
+			])}
+		</>
+	)
+}
+
 function Customize({
 	data,
 	change,
@@ -1151,6 +1307,7 @@ function Customize({
 	)
 	return (
 		<>
+			<DetailControls busy={busy} change={change} />
 			<ExperienceControls busy={busy} run={run} />
 			<IdentityControls busy={busy} change={change} />
 			<View style={glassCard()}>

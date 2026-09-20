@@ -1,6 +1,7 @@
 import { hexWithAlpha } from '../../com.cuddled.liquidglass/js/core'
 import { ABSOLUTE_FILL } from '../../com.cuddled.liquidglass/js/wallpaper'
 import icons from './lineIcons'
+import { SignatureMotif } from './motif'
 import { interfaceFont } from './studioModel'
 import type * as ReactTypes from 'react'
 import type { Settings } from './core'
@@ -257,16 +258,22 @@ export function createStudioSurfaces(
 					transform: [{ rotate: '-25deg' }],
 				},
 			}),
-			React.createElement(native.View, {
-				style: {
-					width: 62,
-					height: 62,
-					borderRadius: 31,
-					backgroundColor: hexWithAlpha(settings.accentColor, 0.12),
-					borderWidth: 1.5,
-					borderColor: settings.accentColor,
+			React.createElement(
+				native.View,
+				{
+					style: {
+						width: 62,
+						height: 62,
+						borderRadius: 31,
+						backgroundColor: hexWithAlpha(settings.accentColor, 0.12),
+						borderWidth: 1.5,
+						borderColor: settings.accentColor,
+						alignItems: 'center',
+						justifyContent: 'center',
+					},
 				},
-			}),
+				React.createElement(SignatureMotif, { settings, size: 36 }),
+			),
 			React.createElement(native.View, {
 				style: {
 					position: 'absolute',
@@ -343,7 +350,7 @@ export function createStudioSurfaces(
 			if (
 				!settings.enabled ||
 				!settings.mainScreens ||
-				!settings.studio.mediaCards
+				(!settings.studio.mediaCards && !settings.studio.mediaFrames)
 			)
 				return original
 			return atPath(React, original, ['child'], pressable =>
@@ -355,6 +362,12 @@ export function createStudioSurfaces(
 							style: [
 								pressable.props.style,
 								{ borderRadius: 16, overflow: 'hidden' },
+								settings.studio.mediaFrames
+									? {
+											borderWidth: 1,
+											borderColor: hexWithAlpha(settings.accentColor, 0.38),
+										}
+									: undefined,
 							],
 						})
 					: pressable,
@@ -363,13 +376,19 @@ export function createStudioSurfaces(
 		if (kind === 'media-post')
 			return settings.enabled &&
 				settings.mainScreens &&
-				settings.studio.mediaCards &&
+				(settings.studio.mediaCards || settings.studio.mediaFrames) &&
 				Object.hasOwn(original.props, 'androidStyle') &&
 				typeof original.props.shouldSpoiler === 'boolean'
 				? React.cloneElement(original, {
 						androidStyle: [
 							original.props.androidStyle,
 							{ borderRadius: 16, overflow: 'hidden' },
+							settings.studio.mediaFrames
+								? {
+										borderWidth: 1,
+										borderColor: hexWithAlpha(settings.accentColor, 0.38),
+									}
+								: undefined,
 						],
 					})
 				: original

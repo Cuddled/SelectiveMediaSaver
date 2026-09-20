@@ -17,6 +17,14 @@ import {
 	surfaceColor,
 } from './core'
 import {
+	createDetailSurfaces,
+	DETAIL_HOOKS,
+	styleAttachments,
+	styleGuildInvite,
+	styleNativeMessage,
+	styleSystemNotice,
+} from './details'
+import {
 	createExperienceSurfaces,
 	voiceButtonStyles,
 } from './experienceSurfaces'
@@ -131,6 +139,11 @@ export default plugin<{ jsonStorage: Settings }>({
 			revenge.react.ReactNative,
 			access,
 		)
+		const details = createDetailSurfaces(
+			React,
+			revenge.react.ReactNative,
+			access,
+		)
 		api.cleanup(
 			data.subscribeAppearance(() => {
 				colors = palette(data.effectiveSettings())
@@ -148,6 +161,7 @@ export default plugin<{ jsonStorage: Settings }>({
 			studio.dispose()
 			experience.dispose()
 			identity.dispose()
+			details.dispose()
 		})
 		const watch = (path: string, install: (exports: RecordAny) => void) => {
 			let installed = false
@@ -177,6 +191,60 @@ export default plugin<{ jsonStorage: Settings }>({
 			if (typeof target?.[key] === 'function')
 				api.cleanup(revenge.patcher.after(target as any, key, callback))
 		}
+		for (const [path, keys, kind] of DETAIL_HOOKS) {
+			watch(path, exports => {
+				let target = exports
+				for (const key of keys.slice(0, -1)) target = target?.[key]
+				const method = keys[keys.length - 1]
+				if (typeof target?.[method] !== 'function') return
+				api.cleanup(
+					revenge.patcher.instead(
+						target as any,
+						method,
+						function (this: any, args, original) {
+							return details.wrap(
+								kind,
+								Reflect.apply(original, this, args),
+								args[0],
+							)
+						},
+					),
+				)
+			})
+		}
+		for (const [path, keys, transform] of [
+			[
+				'modules/messages/native/renderer/row_data/embeds/coded_links/invite/GuildInvite.tsx',
+				[
+					'createGuildInvite',
+					'createResolvingGuildInvite',
+					'createExpiredGuildInvite',
+					'createDisabledGuildInvite',
+					'createErroredGuildInvite',
+				],
+				styleGuildInvite,
+			],
+			[
+				'modules/messages/native/renderer/system_messages/SystemMessage.tsx',
+				['createSystemMessageContent'],
+				styleSystemNotice,
+			],
+			[
+				'modules/messages/native/renderer/transformMessageAttachments.tsx',
+				['default'],
+				styleAttachments,
+			],
+		] as const)
+			watch(path, exports => {
+				const processColor = revenge.react.ReactNative.processColor
+				if (typeof processColor !== 'function') return
+				for (const key of keys)
+					after(exports, key, original =>
+						alive
+							? transform(data.effectiveSettings(), original, processColor)
+							: original,
+					)
+			})
 		for (const [key, path, exportKey] of [
 			['guilds', 'stores/GuildStore.tsx', 'default'],
 			['channels', 'stores/ChannelStore.tsx', 'default'],
@@ -609,7 +677,11 @@ export default plugin<{ jsonStorage: Settings }>({
 				const processColor = revenge.react.ReactNative.processColor
 				if (typeof processColor === 'function')
 					after(exports, 'default', original =>
-						readableReplies(runtime.getSettings(), original, processColor),
+						styleNativeMessage(
+							data.effectiveSettings(),
+							readableReplies(runtime.getSettings(), original, processColor),
+							processColor,
+						),
 					)
 			},
 		)
