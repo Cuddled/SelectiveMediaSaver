@@ -140,8 +140,9 @@ export function styleDetail(
 			return original
 		return React.cloneElement(original, {
 			radius: 18,
-			// TableRow's inner body is 100% of a measured row; a new border would add height.
-			style: [original.props.style, styles.row],
+			// Supplying style replaces TableRow's { padding: 0 } on InternalCard.
+			// Keep it, or Card's default padding pushes the 100%-height body out of its cell.
+			style: [{ padding: 0 }, original.props.style, styles.row],
 		})
 	}
 	if (kind === 'friend-action') {

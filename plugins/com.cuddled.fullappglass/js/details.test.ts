@@ -88,7 +88,7 @@ test('friend cards preserve measured height, native profile actions, labels and 
 	for (const key of Object.keys(row.props).filter(k => k !== 'style'))
 		assert.equal(result.props[key], row.props[key])
 	assert.equal(result.props.radius, 18)
-	assert.equal(result.props.style[0], row.props.style)
+	assert.equal(result.props.style[1], row.props.style)
 	assert.equal(flatten(result.props.style).height, undefined)
 	assert.equal(
 		style('friend-row', row, props),
@@ -113,6 +113,41 @@ test('friend cards preserve measured height, native profile actions, labels and 
 		),
 		row,
 	)
+})
+
+test('Friends decoration preserves TableRow zero padding over the native Card defaults', () => {
+	const props = {
+		height: '100%',
+		label: e('Name'),
+		subLabel: e('Activity'),
+		icon: e('Avatar'),
+		trailing: e('Actions'),
+		onPress: press,
+	}
+	// Discord 347 TableRow passes style: { padding: 0 }, then spreads its rest
+	// props into InternalCard. Card merges its own { padding: 16 } underneath.
+	// UserRow normally supplies no style; adding one replaces that zero padding.
+	const cardStyle = (row: React.ReactElement<any>) =>
+		flatten([{ padding: 16 }, { style: { padding: 0 }, ...row.props }.style])
+	const original = e('TableRow', props)
+	assert.equal(cardStyle(original).padding, 0)
+	for (const extra of [{}, { style: null }, { style: { opacity: 0.8 } }]) {
+		const row = e('TableRow', { ...props, ...extra })
+		const result = style(
+			'friend-row',
+			row,
+			{ user: { id: '123' } },
+			settings,
+			true,
+		)
+		assert.equal(cardStyle(result).padding, 0, 'No extra outer-card padding')
+		assert.equal(result.props.height, '100%')
+		assert.equal(cardStyle(result).height, undefined)
+		assert.equal(cardStyle(result).minHeight, undefined)
+		assert.equal(cardStyle(result).borderWidth, undefined)
+		for (const key of ['label', 'subLabel', 'icon', 'trailing', 'onPress'])
+			assert.equal(result.props[key], row.props[key])
+	}
 })
 
 test('friend action decoration preserves call/message buttons and leaves positive actions alone', () => {
