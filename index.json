@@ -361,18 +361,32 @@
       }
     },
     "com.cuddled.nocompression": {
-      "name": "NoCompression",
-      "description": "Prevents Discord from compressing files when uploading",
+      "name": "NoCompression - Original Media",
+      "description": "Preserve original images and videos, choose compression per attachment, and check the current upload limit.",
       "author": "MSMA (original), Cuddled (Revenge Next port)",
       "icon": "ic_file_upload_24px",
       "channels": {
-        "latest": "1.0.0"
+        "latest": "1.1.0-beta1",
+        "beta": "1.1.0-beta1"
       },
       "versions": {
         "1.0.0": {
           "url": "https://cuddled.github.io/SelectiveMediaSaver/pool/com.cuddled.nocompression@1.0.0.zip",
           "sha256": "488f24a03c725e3bbe5b37d446b785203e6e41918a20730fc2c75642ecbc4da7",
           "size": 2567,
+          "dependencies": {
+            "revenge.api": {
+              "version": ">=1.0.0 <2.0.0"
+            },
+            "discord": {
+              "version": ">=347.0 <348.0"
+            }
+          }
+        },
+        "1.1.0-beta1": {
+          "url": "https://cuddled.github.io/SelectiveMediaSaver/pool/com.cuddled.nocompression@1.1.0-beta1.zip",
+          "sha256": "1ab8134a3d0e39c124fd1f9c53ec4db5d1b0e60a7e39b2d2a865f7bfff9bba5e",
+          "size": 21688,
           "dependencies": {
             "revenge.api": {
               "version": ">=1.0.0 <2.0.0"
