@@ -57,7 +57,7 @@ export function polishStyles(settings: Settings) {
 		},
 		sheet: {
 			// Opaque backing prevents chat text from showing through the action rows.
-			backgroundColor: settings.panelColor,
+			backgroundColor: settings.menuColor,
 			borderTopLeftRadius: 24,
 			borderTopRightRadius: 24,
 			borderWidth: 1,
@@ -214,6 +214,9 @@ export function polishSheet(
 		],
 		// This opts this sheet out of the stock theme gradient over its new backing.
 		showGradient: false,
+		bodyStyles: settings.compactMenus
+			? [original.props.bodyStyles, { gap: 8 }]
+			: original.props.bodyStyles,
 	})
 }
 
@@ -289,18 +292,166 @@ export function polishHandle(
 	return fragment ? React.cloneElement(original, {}, [siblings[0], next]) : next
 }
 
+function functionElement(value: Element) {
+	return (
+		typeof value.type === 'function' &&
+		!(value.type as any).prototype?.isReactComponent
+	)
+}
+
+function customRowSize(style: unknown): boolean {
+	if (Array.isArray(style)) return style.some(customRowSize)
+	if (!style) return false
+	// Registered/animated styles are not safe to inspect or override here.
+	if (typeof style !== 'object') return true
+	return [
+		'height',
+		'minHeight',
+		'maxHeight',
+		'padding',
+		'paddingVertical',
+		'paddingTop',
+		'paddingBottom',
+	].some(key => Object.hasOwn(style, key))
+}
+
+/** TableRow calls its local TableRowInner, so scope the rendered child instead
+ * of patching the export (which misses that lexical call). Never wrap settings rows.
+ */
+export function scopeMenuCard(
+	React: ReactApi,
+	original: unknown,
+	wrap: (inner: Element) => ReactTypes.ReactNode,
+): unknown {
+	if (!element(React, original)) return original
+	const fragment = original.type === React.Fragment
+	const siblings = original.props.children
+	if (fragment && (!Array.isArray(siblings) || siblings.length !== 2))
+		return original
+	const card = fragment ? siblings[0] : original
+	if (
+		!element(React, card) ||
+		card.props.border !== 'none' ||
+		card.props.shadow !== 'none' ||
+		card.props.variant !== 'muted'
+	)
+		return original
+	const inner = card.props.children
+	if (
+		!element(React, inner) ||
+		!functionElement(inner) ||
+		!Object.hasOwn(inner.props, 'label')
+	)
+		return original
+	const next = React.cloneElement(card, {}, wrap(inner))
+	return fragment ? React.cloneElement(original, {}, [next, siblings[1]]) : next
+}
+
+/** A minimum size keeps touch targets usable while allowing wrapped/large text. */
+export function compactMenuBody(
+	React: ReactApi,
+	original: unknown,
+	props: Record<string, any>,
+	settings: Settings,
+): unknown {
+	if (
+		!polishEnabled(settings, 'Menus') ||
+		!settings.compactMenus ||
+		typeof props.label !== 'string' ||
+		props.height != null ||
+		props.subLabel != null ||
+		props.trailing != null ||
+		props.draggable ||
+		props.dragHandlePressableProps != null ||
+		!element(React, original) ||
+		!Object.hasOwn(original.props, 'style') ||
+		!Array.isArray(original.props.children) ||
+		original.props.children.length !== 5
+	)
+		return original
+	return React.cloneElement(original, {
+		style: [original.props.style, { minHeight: 52, paddingVertical: 10 }],
+	})
+}
+
 export function createPolish(React: ReactApi, View: any, access: Access) {
 	let alive = true
-	function Styled({ original, kind }: { original: unknown; kind: PolishKind }) {
+	const rows = new WeakMap<
+		ReactTypes.FunctionComponent<any>,
+		ReactTypes.FunctionComponent<any>
+	>()
+	const inners = new WeakMap<
+		ReactTypes.FunctionComponent<any>,
+		ReactTypes.FunctionComponent<any>
+	>()
+	function useSettings() {
 		React.useSyncExternalStore(
 			access.subscribe,
 			access.getSnapshot,
 			access.getSnapshot,
 		)
-		const settings =
-			alive && access.isActive()
-				? access.getSettings()
-				: { ...access.getSettings(), enabled: false }
+		return alive && access.isActive()
+			? access.getSettings()
+			: { ...access.getSettings(), enabled: false }
+	}
+	function wrapInner(inner: Element, allowCompact: boolean) {
+		const Renderer = inner.type as ReactTypes.FunctionComponent<any>
+		let Wrapper = inners.get(Renderer)
+		if (!Wrapper) {
+			Wrapper = ({ originalProps, allowCompact }) => {
+				const settings = useSettings()
+				// Always call the original renderer, including when paused, for hook order.
+				const output = Renderer(originalProps)
+				return allowCompact
+					? (compactMenuBody(
+							React,
+							output,
+							originalProps,
+							settings,
+						) as ReactTypes.ReactNode)
+					: output
+			}
+			inners.set(Renderer, Wrapper)
+		}
+		return React.createElement(Wrapper, {
+			key: inner.key,
+			originalProps: inner.props,
+			allowCompact,
+		})
+	}
+	function scopeRow(original: unknown): unknown {
+		if (
+			!element(React, original) ||
+			!['default', 'danger'].includes(original.props.value)
+		)
+			return original
+		const row = original.props.children
+		if (
+			!element(React, row) ||
+			!functionElement(row) ||
+			!Object.hasOwn(row.props, 'label') ||
+			!['default', 'danger'].includes(row.props.variant)
+		)
+			return original
+		const Renderer = row.type as ReactTypes.FunctionComponent<any>
+		let Wrapper = rows.get(Renderer)
+		if (!Wrapper) {
+			Wrapper = props => {
+				const output = Renderer(props)
+				return scopeMenuCard(React, output, inner =>
+					wrapInner(inner, !customRowSize(props.style)),
+				) as ReactTypes.ReactNode
+			}
+			rows.set(Renderer, Wrapper)
+		}
+		return React.cloneElement(
+			original,
+			{},
+			React.createElement(Wrapper, { ...row.props, key: row.key }),
+		)
+	}
+	function Styled({ original, kind }: { original: unknown; kind: PolishKind }) {
+		const settings = useSettings()
 		switch (kind) {
 			case 'text-channel':
 				return polishTextChannel(React, original, settings)
@@ -309,7 +460,7 @@ export function createPolish(React: ReactApi, View: any, access: Access) {
 			case 'sheet':
 				return polishSheet(React, original, settings)
 			case 'row':
-				return polishRow(React, original, settings)
+				return scopeRow(polishRow(React, original, settings))
 			case 'handle':
 				return polishHandle(React, original, settings)
 		}

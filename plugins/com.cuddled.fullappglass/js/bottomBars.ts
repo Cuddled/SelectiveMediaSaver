@@ -103,3 +103,62 @@ export function backAccountBar(
 	if (original.props.children != null) return original
 	return backing(React, original, enabled, wallpaper)
 }
+
+/** YouBarFloatingShade already blocks touches over the measured bar footprint.
+ * Give that invisible backing a wallpaper fill so channel names cannot bleed
+ * around the avatar cutout. Keep its dimensions and gradient siblings intact.
+ */
+export function backAccountShade(
+	React: ReactApi,
+	original: unknown,
+	enabled: boolean,
+	wallpaper: ReactTypes.ReactNode,
+): unknown {
+	if (
+		!React.isValidElement<Record<string, any>>(original) ||
+		original.type !== React.Fragment
+	)
+		return original
+	const children = original.props.children
+	if (!Array.isArray(children) || children.length !== 3) return original
+	const [blocker, gradient, fill] = children
+	if (
+		!React.isValidElement<Record<string, any>>(blocker) ||
+		blocker.props.pointerEvents !== 'box-only' ||
+		blocker.props.children != null ||
+		!Array.isArray(blocker.props.style) ||
+		!React.isValidElement<Record<string, any>>(gradient) ||
+		gradient.props.pointerEvents !== 'none' ||
+		!Array.isArray(gradient.props.colors) ||
+		gradient.props.colors.length !== 2 ||
+		!React.isValidElement<Record<string, any>>(fill) ||
+		!Object.hasOwn(fill.props, 'style') ||
+		fill.props.children != null
+	)
+		return original
+	const measured = blocker.props.style.at(-1)
+	if (
+		measured?.opacity !== 0 ||
+		typeof measured.height !== 'number' ||
+		!Number.isFinite(measured.height) ||
+		measured.height <= 0
+	)
+		return original
+	return React.cloneElement(original, {}, [
+		React.cloneElement(blocker, {
+			style: enabled
+				? [
+						blocker.props.style,
+						{
+							opacity: 1,
+							backgroundColor: '#0B0D17',
+							overflow: 'hidden',
+						},
+					]
+				: blocker.props.style,
+			children: wallpaper,
+		}),
+		gradient,
+		fill,
+	])
+}

@@ -193,6 +193,10 @@ export default plugin<{ jsonStorage: Settings }>({
 			after(exports.default, 'type', surfaces.wrapAccountBackground),
 		)
 		watch(
+			'modules/main_tabs_v2/native/you_bar/YouBarFloatingShade.tsx',
+			exports => after(exports.default, 'type', surfaces.wrapAccountShade),
+		)
+		watch(
 			'modules/channel_list_v2/native/components/ChannelListStickyHeader.tsx',
 			exports => after(exports, 'default', surfaces.wrapListHeader),
 		)

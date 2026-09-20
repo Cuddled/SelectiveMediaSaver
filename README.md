@@ -198,7 +198,7 @@ particular native build paints additional opaque layers over the wallpaper.
 
 ## Full-App Glass (Experimental) for Revenge Next
 
-`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta5` plugin. It does not require
+`com.cuddled.fullappglass` is a separate, standalone `1.0.0-beta6` plugin. It does not require
 Liquid Glass to be installed and has its own JSON storage. Liquid Glass's code, version, saved
 colors, and profiles are not changed by this experiment. A few audited pure helpers are bundled
 into the new ZIP; there is no runtime dependency on the other plugin.
@@ -231,6 +231,11 @@ In its settings, enable **Full-App Glass**, then use:
 - **Area switches:** main screens (shared list/navigation/settings surfaces), conversations,
   own/member profiles, menus/overlays, and controls/cards. Shared Discord tokens mean groups are
   not an exhaustive per-screen allowlist.
+- **Menu background:** independent Charcoal, Midnight, Plum, Black, Navy and Slate presets,
+  plus a custom six-digit hex color. Defaults to dark Charcoal without changing the saved glass tint.
+- **Compact menus:** on by default with Matching menus; reduces ordinary action-row padding and
+  space between groups. Turn it off to restore stock spacing. Rows can grow with larger text;
+  custom-height, rich-content and draggable rows keep their original dimensions.
 - **Low-power mode:** on by default; optional static wallpaper blur up to 10 px when off.
 - **Pause** and **reset (paused):** restore Discord's colors without deleting another plugin's data.
 
@@ -279,6 +284,15 @@ row cards. Existing sheet scroll/keyboard/dismiss behavior, action order, danger
 disabled states remain Discord's own. Sheets with custom backgrounds or border gradients keep
 their background. Unknown element shapes are skipped; paused styling restores the original
 styles. These are visual changes, not a recreation of the concept's navigation or action layout.
+
+Beta6 gives matching menus their own opaque background color and optional compact spacing.
+Only ActionSheetRow's inspected TableRow/InternalCard/TableRowInner tree receives the density
+change; settings rows are untouched. Standard rows use a 52 dp minimum height and 10 dp vertical
+padding, with no fixed height, and sheet group gaps shrink to 8 dp. A wallpaper fill now covers
+the account bar's existing measured invisible touch-blocking area, preventing channel text from
+showing around its upper edge. Its original hit area, gradient siblings, avatar mask, animated
+nameplate and controls stay in place. All new choices are additive; existing saved settings survive.
+Final menu density and account-bar appearance still need confirmation on the Android phone.
 
 This is **wallpaper-backed translucency inside Discord**, not a transparent Android window,
 screen capture, or live iOS Liquid Glass blur. Opaque native screens, media viewers, video surfaces,
@@ -428,7 +442,7 @@ The distributables are written to:
 build/classic/manifest.json
 build/classic/index.js
 build/dist/com.cuddled.liquidglass@1.0.0-beta7.zip
-build/dist/com.cuddled.fullappglass@1.0.0-beta5.zip
+build/dist/com.cuddled.fullappglass@1.0.0-beta6.zip
 build/dist/com.cuddled.selectivemediasaver@2.4.0-next8.zip
 ```
 

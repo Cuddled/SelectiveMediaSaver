@@ -3,6 +3,7 @@ import test from 'node:test'
 import * as React from 'react'
 import { createState, DEFAULT_SETTINGS, normalize } from './core'
 import {
+	compactMenuBody,
 	createPolish,
 	polishBaseChannel,
 	polishEnabled,
@@ -11,6 +12,7 @@ import {
 	polishSheet,
 	polishStyles,
 	polishTextChannel,
+	scopeMenuCard,
 } from './polish'
 
 const active = normalize({ enabled: true })
@@ -224,7 +226,6 @@ test('action sheets retain dismiss/keyboard/scroll/ref behavior and skip custom 
 		'onExpand',
 		'handleComponent',
 		'contentStyles',
-		'bodyStyles',
 		'scrollable',
 		'startExpanded',
 		'keyboardShouldPersistTaps',
@@ -232,9 +233,15 @@ test('action sheets retain dismiss/keyboard/scroll/ref behavior and skip custom 
 	])
 		assert.equal(next.props[key], (original.props as any)[key])
 	assert.equal(next.props.backgroundStyles[0], original.props.backgroundStyles)
+	assert.equal(next.props.backgroundStyles[1].backgroundColor, active.menuColor)
+	assert.deepEqual(next.props.bodyStyles, [
+		original.props.bodyStyles,
+		{ gap: 8 },
+	])
 	assert.equal(
-		next.props.backgroundStyles[1].backgroundColor,
-		active.panelColor,
+		(polishSheet(React, original, { ...active, compactMenus: false }) as any)
+			.props.bodyStyles,
+		original.props.bodyStyles,
 	)
 	assert.equal(next.props.showGradient, false)
 	for (const props of [
@@ -248,6 +255,227 @@ test('action sheets retain dismiss/keyboard/scroll/ref behavior and skip custom 
 		polishSheet(React, original, { ...active, menus: false }),
 		original,
 	)
+})
+
+test('beta5 settings retain their tint and accents while menu options get independent defaults', () => {
+	const saved = {
+		enabled: true,
+		panelColor: '#291835',
+		accentColor: '#9EE8CE',
+		accentOpacity: 0.2,
+		polishMenus: false,
+		transparency: 0.41,
+	}
+	const migrated = normalize(saved)
+	for (const [key, value] of Object.entries(saved))
+		assert.equal((migrated as any)[key], value)
+	assert.equal(migrated.menuColor, '#111321')
+	assert.equal(migrated.compactMenus, true)
+	assert.equal(normalize({ menuColor: 'rgba(1,2,3,1)' }).menuColor, '#111321')
+	const changed = normalize({
+		...migrated,
+		menuColor: '#abc',
+		compactMenus: false,
+	})
+	assert.equal(changed.menuColor, '#AABBCC')
+	assert.equal(changed.panelColor, saved.panelColor)
+	assert.equal(changed.compactMenus, false)
+})
+
+test('compact action rows use stable scoped renderers, retain semantics and restore stock spacing live', () => {
+	const state = createState(active)
+	const hooks = {
+		...React,
+		useSyncExternalStore: (_s: any, snapshot: any) => snapshot(),
+	}
+	const ui = createPolish(hooks, 'View', { ...state, isActive: () => true })
+	const children = [
+		null,
+		React.createElement('Icon', { key: 'icon' }),
+		React.createElement(
+			'Text',
+			{
+				allowFontScaling: true,
+			},
+			'A long action label that can wrap',
+		),
+		null,
+		null,
+	]
+	const body = React.createElement(
+		'View',
+		{
+			style: [
+				{ minHeight: 64, padding: 16, opacity: 0.5 },
+				{ height: undefined },
+			],
+			ref: React.createRef(),
+			onLayout: () => {},
+		},
+		children,
+	)
+	let innerCalls = 0
+	const Inner = () => {
+		innerCalls++
+		return body
+	}
+	const divider = React.createElement('Divider')
+	const onPress = () => {}
+	const Row = (props: any) =>
+		React.createElement(React.Fragment, {}, [
+			React.createElement(
+				'InternalCard',
+				{
+					border: 'none',
+					shadow: 'none',
+					variant: 'muted',
+					disabled: props.disabled,
+					onPress: props.onPress,
+					ref: props.ref,
+					style: props.style,
+				},
+				React.createElement(Inner, props),
+			),
+			divider,
+		])
+	const originalRow = React.createElement(Row, {
+		label: 'Delete message',
+		variant: 'danger',
+		disabled: true,
+		onPress,
+		ref: React.createRef(),
+		key: 'delete',
+	})
+	const original = React.createElement(
+		'Provider',
+		{ value: 'danger' },
+		originalRow,
+	)
+	const wrapped = ui.wrap('row', original) as any
+	const render = () => {
+		const provider = wrapped.type(wrapped.props)
+		const row = provider.props.children
+		const fragment = row.type(row.props)
+		const card = fragment.props.children[0]
+		const inner = card.props.children
+		return {
+			provider,
+			row,
+			fragment,
+			card,
+			inner,
+			body: inner.type(inner.props),
+		}
+	}
+	const compact = render()
+	assert.equal(compact.provider.props.value, 'danger')
+	assert.equal(compact.card.props.disabled, true)
+	assert.equal(compact.card.props.onPress, onPress)
+	assert.equal(compact.row.key, 'delete')
+	assert.equal(compact.row.props.ref, originalRow.props.ref)
+	assert.equal(compact.fragment.props.children[1], divider)
+	assert.equal(compact.body.props.children, children)
+	assert.equal(compact.body.props.ref, body.props.ref)
+	assert.equal(compact.body.props.onLayout, body.props.onLayout)
+	assert.deepEqual(compact.body.props.style[1], {
+		minHeight: 52,
+		paddingVertical: 10,
+	})
+	assert.equal(Object.hasOwn(compact.body.props.style[1], 'height'), false)
+	// Ordinary TableRow calls never pass through the ActionSheetRow boundary.
+	assert.equal(
+		(Row(originalRow.props).props.children as any[])[0].props.children.type,
+		Inner,
+	)
+	for (const changes of [
+		{ compactMenus: false },
+		{ menus: false },
+		{ polishMenus: false },
+		{ enabled: false },
+	]) {
+		state.update({ ...active, ...changes })
+		const off = render()
+		assert.equal(off.row.type, compact.row.type)
+		assert.equal(off.inner.type, compact.inner.type)
+		assert.equal(off.body, body)
+	}
+	state.update(active)
+	assert.deepEqual(render().body.props.style[1], {
+		minHeight: 52,
+		paddingVertical: 10,
+	})
+	ui.dispose()
+	assert.equal(render().body, body)
+	assert.equal(innerCalls, 7)
+})
+
+test('compact menus skip custom-sized and rich rows, and guard unfamiliar card/body layouts', () => {
+	const body = React.createElement('View', { style: { padding: 16 } }, [
+		null,
+		null,
+		null,
+		null,
+		null,
+	])
+	for (const props of [
+		{ height: 80 },
+		{ subLabel: 'Details' },
+		{ trailing: React.createElement('Switch') },
+		{ draggable: true },
+		{ dragHandlePressableProps: {} },
+		{ label: React.createElement('Custom') },
+	])
+		assert.equal(
+			compactMenuBody(React, body, { label: 'Action', ...props }, active),
+			body,
+		)
+	for (const original of [
+		null,
+		{},
+		React.createElement('Unknown', {}, body),
+		React.createElement('View', { style: {} }, [null]),
+	]) {
+		assert.equal(
+			compactMenuBody(React, original, { label: 'Action' }, active),
+			original,
+		)
+		assert.equal(
+			scopeMenuCard(React, original, () => {
+				throw Error('Unexpected wrapper')
+			}),
+			original,
+		)
+	}
+	const ui = createPolish(
+		{ ...React, useSyncExternalStore: (_subscribe, snapshot) => snapshot() },
+		'View',
+		{
+			...createState(active),
+			isActive: () => true,
+		},
+	)
+	for (const style of [{ height: 90 }, [{ paddingVertical: 24 }], 123]) {
+		const Inner = () => body
+		const Row = (props: any) =>
+			React.createElement(
+				'InternalCard',
+				{
+					border: 'none',
+					shadow: 'none',
+					variant: 'muted',
+				},
+				React.createElement(Inner, props),
+			)
+		const original = React.createElement(
+			'Provider',
+			{ value: 'default' },
+			React.createElement(Row, { label: 'Action', variant: 'default', style }),
+		)
+		const wrapped = ui.wrap('row', original) as any
+		const row = wrapped.type(wrapped.props).props.children
+		const inner = row.type(row.props).props.children
+		assert.equal(inner.type(inner.props), body)
+	}
 })
 
 test('menu row styling never changes danger labels, disabled actions, icons or callbacks', () => {

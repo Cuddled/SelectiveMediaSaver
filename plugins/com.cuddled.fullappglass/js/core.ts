@@ -31,6 +31,8 @@ export interface Settings {
 	polishChannels: boolean
 	polishComposer: boolean
 	polishMenus: boolean
+	menuColor: HexColor
+	compactMenus: boolean
 }
 
 // Start paused so the user can turn their other appearance plugin off first.
@@ -53,6 +55,8 @@ export const DEFAULT_SETTINGS: Settings = {
 	polishChannels: true,
 	polishComposer: true,
 	polishMenus: true,
+	menuColor: '#111321',
+	compactMenus: true,
 }
 
 const clamp = (value: unknown, fallback: number, max = 1) =>
@@ -75,6 +79,7 @@ export function normalize(value: unknown): Settings {
 		'polishChannels',
 		'polishComposer',
 		'polishMenus',
+		'compactMenus',
 	] as const)
 		if (typeof raw[key] === 'boolean') result[key] = raw[key]
 	result.transparency = clamp(raw.transparency, result.transparency)
@@ -83,6 +88,7 @@ export function normalize(value: unknown): Settings {
 	result.panelColor = normalizeHexColor(raw.panelColor, result.panelColor)
 	result.textColor = normalizeHexColor(raw.textColor, result.textColor)
 	result.accentColor = normalizeHexColor(raw.accentColor, result.accentColor)
+	result.menuColor = normalizeHexColor(raw.menuColor, result.menuColor)
 	result.accentOpacity = clamp(raw.accentOpacity, result.accentOpacity)
 	return result
 }
