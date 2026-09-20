@@ -9,6 +9,28 @@ notebooks, editable Home layouts, local rules, reactive accents, and saved sessi
 Open **Home → Open Workspace** or the chat’s **✧ Tools** button; hold it for the wheel.
 See [Workspace behavior, limits, and validation](plugins/com.cuddled.fullappglass/WORKSPACE.md).
 
+### Update a sideloaded Full-App Glass beta14
+
+Revenge skips plugins marked **Sideloaded** during repository update checks.
+Its Browse screen also hides the Install action for an already-installed plugin.
+Use the **Full-App Glass Update Helper** for beta14 or older:
+
+1. In **Revenge → Plugins → Advanced**, add or enable
+   `https://cuddled.github.io/SelectiveMediaSaver/next`.
+2. Open **Browse** and install **Full-App Glass Update Helper**.
+3. Open the helper's settings and press **Link and update Glass**. Keep the page open.
+4. Fully close and reopen Discord. Check that Full-App Glass shows **1.0.0-beta15**
+   and its Repository shows **Cuddled's Revenge Plugins**, rather than Sideloaded.
+5. Remove only **Full-App Glass Update Helper** after those checks.
+
+The helper uses Revenge's native repository installer to replace Glass in place;
+it never clears, uninstalls, reads, or rewrites Glass's stored settings. It verifies
+the exact beta15 artifact and refuses unrelated install actions or downgrades.
+Installing the helper alone changes nothing until its button is pressed.
+It is a one-time upgrade for older betas; it does not adopt an already-sideloaded
+beta15 or replace a newer version. The normal repository updater handles later
+releases after the older copy has been upgraded and linked.
+
 Selective Media Saver automatically saves new Discord images, GIFs, and videos from the users,
 servers, or channels you choose. This repository contains the verified BetterDiscord v2.4.0 source
 archive plus separate Android builds for Revenge Classic and Revenge Next.
