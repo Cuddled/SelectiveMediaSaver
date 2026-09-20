@@ -15,6 +15,45 @@ import {
 	recolorProfileToolbar,
 } from './surfaces'
 
+test('account shade stays opaque while wallpaper loads or fails and follows live main-screen settings', () => {
+	const h = harness('account-shade')
+	const first = h.render()
+	assert.equal(first.container.props.style[1].backgroundColor, '#0B0D17')
+	assert.equal(first.layer.props.pointerEvents, 'none')
+	assert.equal(
+		first.layer.props.importantForAccessibility,
+		'no-hide-descendants',
+	)
+	assert.equal(first.image.props.style[1].opacity, 0)
+	first.image.props.onLoad()
+	assert.equal(h.render().image.props.style[1].opacity, 1)
+	first.image.props.onError()
+	assert.equal(h.render().image.props.style[1].opacity, 0)
+	h.state.update({
+		...h.state.getSettings(),
+		panelColor: '#291835',
+		darkness: 0.6,
+	})
+	assert.equal(
+		h.render().layer.props.children[1].props.style[1].backgroundColor,
+		'#00000099',
+	)
+	for (const changes of [{ mainScreens: false }, { enabled: false }]) {
+		h.state.update({ enabled: true, ...changes })
+		const off = h.render()
+		assert.equal(off.layer, null)
+		assert.equal(
+			off.container.props.style,
+			h.original.props.children[0].props.style,
+		)
+	}
+	h.state.update({ enabled: true })
+	assert.equal(h.render().image.props.style[1].opacity, 0)
+	h.runtime.dispose()
+	assert.equal(h.render().layer, null)
+	assert.equal(h.runtime.wrapAccountShade(h.original), h.original)
+})
+
 function harness(
 	scope:
 		| 'app'
@@ -22,6 +61,7 @@ function harness(
 		| 'header'
 		| 'input'
 		| 'account'
+		| 'account-shade'
 		| 'masked-account' = 'app',
 	gradient = false,
 ) {
@@ -124,6 +164,21 @@ function harness(
 			{ style: { paddingBottom: 20 }, onLayout: () => {} },
 			React.createElement(React.Fragment, {}, [null, null, box, null]),
 		)
+	} else if (scope === 'account-shade') {
+		original = React.createElement(React.Fragment, {}, [
+			React.createElement('View', {
+				style: [
+					{ position: 'absolute', bottom: 0, left: 0, right: 0 },
+					{ height: 80, opacity: 0 },
+				],
+				pointerEvents: 'box-only',
+			}),
+			React.createElement('LinearGradient', {
+				pointerEvents: 'none',
+				colors: ['#00000000', '#171B2B33'],
+			}),
+			React.createElement('View', { style: { height: 48 } }),
+		])
 	} else if (scope === 'account' || scope === 'masked-account') {
 		const fill = React.createElement('AnimatedView', {
 			style: [{ width: 330, height: 56 }, { animatedRadius: true }],
@@ -153,12 +208,14 @@ function harness(
 				? runtime.wrapListHeader(original)
 				: scope === 'input'
 					? runtime.wrapFloatingInput(original)
-					: scope === 'account' || scope === 'masked-account'
-						? runtime.wrapAccountBackground(original)
-						: runtime.wrapProfileBackdrop(original)
+					: scope === 'account-shade'
+						? runtime.wrapAccountShade(original)
+						: scope === 'account' || scope === 'masked-account'
+							? runtime.wrapAccountBackground(original)
+							: runtime.wrapProfileBackdrop(original)
 	) as any
 	const boundary =
-		scope === 'header' || scope === 'input'
+		scope === 'header' || scope === 'input' || scope === 'account-shade'
 			? wrapped
 			: scope === 'account' || scope === 'masked-account'
 				? wrapped.type(wrapped.props)
@@ -171,6 +228,18 @@ function harness(
 		render() {
 			cursor = 0
 			const root = boundary.type(boundary.props)
+			if (scope === 'account-shade') {
+				const container = root.props.children[0]
+				const wallpaper = container.props.children
+				const layer = wallpaper.type(wallpaper.props)
+				return {
+					root,
+					container,
+					layer,
+					scope: null,
+					image: layer?.props.children[0],
+				}
+			}
 			if (
 				scope === 'input' ||
 				scope === 'account' ||

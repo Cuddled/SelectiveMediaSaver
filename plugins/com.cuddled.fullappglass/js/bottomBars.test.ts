@@ -1,9 +1,71 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as React from 'react'
-import { backAccountBar, backFloatingInput } from './bottomBars'
+import {
+	backAccountBar,
+	backAccountShade,
+	backFloatingInput,
+} from './bottomBars'
 
 const wallpaper = React.createElement('Wallpaper', { key: 'wallpaper' })
+
+test('account shade covers the measured bar footprint without changing masks, hit area or gradients', () => {
+	for (const height of [56, 80, 112]) {
+		const position = { position: 'absolute', bottom: 0, left: 0, right: 0 }
+		const blocker = React.createElement('View', {
+			style: [position, { height, opacity: 0 }],
+			pointerEvents: 'box-only',
+			ref: React.createRef(),
+			onLayout: () => {},
+		})
+		const gradient = React.createElement('LinearGradient', {
+			style: [
+				position,
+				{ bottom: (height + 16) / 2, height: (height + 16) / 2, width: 360 },
+			],
+			pointerEvents: 'none',
+			colors: ['#00000000', '#171B2B33'],
+			locations: [0, 1],
+		})
+		const fill = React.createElement('View', {
+			style: [position, { height: (height + 16) / 2 }],
+		})
+		const original = React.createElement(React.Fragment, {}, [
+			blocker,
+			gradient,
+			fill,
+		])
+		const next = backAccountShade(React, original, true, wallpaper) as any
+		const backing = next.props.children[0]
+		assert.equal(backing.props.style[0], blocker.props.style)
+		assert.deepEqual(backing.props.style[1], {
+			opacity: 1,
+			backgroundColor: '#0B0D17',
+			overflow: 'hidden',
+		})
+		for (const key of ['pointerEvents', 'ref', 'onLayout'])
+			assert.equal(backing.props[key], (blocker.props as any)[key])
+		assert.equal(backing.props.children, wallpaper)
+		assert.equal(next.props.children[1], gradient)
+		assert.equal(next.props.children[2], fill)
+		const off = backAccountShade(React, original, false, wallpaper) as any
+		assert.equal(off.props.children[0].props.style, blocker.props.style)
+		for (const props of [
+			{ pointerEvents: 'auto' },
+			{ children: React.createElement('Button') },
+			{ style: [position, { height: NaN, opacity: 0 }] },
+			{ style: [position, { height: 0, opacity: 0 }] },
+			{ style: [position, { height, opacity: 1 }] },
+		]) {
+			const unknown = React.cloneElement(original, {}, [
+				React.cloneElement(blocker, props as any),
+				gradient,
+				fill,
+			])
+			assert.equal(backAccountShade(React, unknown, true, wallpaper), unknown)
+		}
+	}
+})
 
 function input() {
 	const content = [
@@ -140,6 +202,7 @@ test('bottom-bar shape guards refuse unrelated layouts, content-filled account v
 	]) {
 		assert.equal(backFloatingInput(React, original, true, wallpaper), original)
 		assert.equal(backAccountBar(React, original, true, wallpaper), original)
+		assert.equal(backAccountShade(React, original, true, wallpaper), original)
 	}
 	const h = input()
 	for (const props of [

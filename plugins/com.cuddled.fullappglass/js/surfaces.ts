@@ -3,7 +3,11 @@ import {
 	ABSOLUTE_FILL,
 	WALLPAPER_SOURCE,
 } from '../../com.cuddled.liquidglass/js/wallpaper'
-import { backAccountBar, backFloatingInput } from './bottomBars'
+import {
+	backAccountBar,
+	backAccountShade,
+	backFloatingInput,
+} from './bottomBars'
 import {
 	headerColor,
 	profileButtonTheme,
@@ -371,7 +375,7 @@ export function createSurfaces(
 		kind,
 	}: {
 		original: unknown
-		kind: 'input' | 'account'
+		kind: 'input' | 'account' | 'account-shade'
 	}) {
 		React.useSyncExternalStore(
 			access.subscribe,
@@ -389,7 +393,9 @@ export function createSurfaces(
 		})
 		return kind === 'input'
 			? backFloatingInput(React, original, enabled, wallpaper)
-			: backAccountBar(React, original, enabled, wallpaper)
+			: kind === 'account-shade'
+				? backAccountShade(React, original, enabled, wallpaper)
+				: backAccountBar(React, original, enabled, wallpaper)
 	}
 	function ProfileBackdrop({ original }: { original: Element }) {
 		React.useSyncExternalStore(
@@ -469,6 +475,17 @@ export function createSurfaces(
 		}
 	}
 	return {
+		wrapAccountShade(original: unknown) {
+			return alive &&
+				native.View &&
+				native.Image &&
+				React.isValidElement(original)
+				? React.createElement(BottomBar as any, {
+						original,
+						kind: 'account-shade',
+					})
+				: original
+		},
 		wrapFloatingInput(original: unknown) {
 			return alive &&
 				native.View &&

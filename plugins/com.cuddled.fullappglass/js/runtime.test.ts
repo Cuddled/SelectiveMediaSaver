@@ -70,6 +70,7 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				semantic: 'design/tokens/native/SemanticColorContext.native.tsx',
 			}
 			const pathsForBeta5 = {
+				shade: 'modules/main_tabs_v2/native/you_bar/YouBarFloatingShade.tsx',
 				text: 'modules/channel_list_v2/native/items/TextChannel.tsx',
 				base: 'modules/guild_sidebar/native/BaseChannelItem.tsx',
 				sheet: 'design/components/Sheet/native/ActionSheet.native.tsx',
@@ -93,6 +94,7 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 				gradient: null,
 			}
 			const modules: Record<string, any> = {
+				[pathsForBeta5.shade]: { default: { type: () => header } },
 				[pathsForBeta5.text]: { default: { type: () => header } },
 				[pathsForBeta5.base]: { default: () => header },
 				[pathsForBeta5.sheet]: { ActionSheet: { render: () => header } },
@@ -242,6 +244,7 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			for (const path of Object.values(h.pathsForBeta5))
 				assert.ok(h.paths.includes(path))
 			for (const [path, exportName, key] of [
+				[h.pathsForBeta5.shade, 'default', 'type'],
 				[h.pathsForBeta5.text, 'default', 'type'],
 				[h.pathsForBeta5.sheet, 'ActionSheet', 'render'],
 			] as const)
@@ -381,6 +384,7 @@ test('standalone lifecycle installs/restores patches, honors late activation and
 			assert.equal(h.modules[h.pathsForBeta4.input].default(), h.header)
 			assert.equal(h.modules[h.pathsForBeta4.account].default.type(), h.account)
 			assert.equal(h.modules[h.pathsForBeta5.text].default.type(), h.header)
+			assert.equal(h.modules[h.pathsForBeta5.shade].default.type(), h.header)
 			assert.equal(h.modules[h.pathsForBeta5.base].default(), h.header)
 			assert.equal(
 				h.modules[h.pathsForBeta5.sheet].ActionSheet.render(),

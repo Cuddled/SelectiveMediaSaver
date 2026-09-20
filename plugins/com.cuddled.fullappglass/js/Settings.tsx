@@ -120,7 +120,7 @@ function Preview({ settings }: { settings: Settings }) {
 					style={[
 						{
 							padding: 14,
-							gap: 12,
+							gap: menus && settings.compactMenus ? 8 : 16,
 							borderRadius: 16,
 							backgroundColor: surface,
 						},
@@ -164,10 +164,25 @@ const ACCENTS = [
 	['Pearl', '#DCE3F5'],
 ] as const
 
-function AccentPicker({
+const MENU_COLORS = [
+	['Charcoal', '#111321'],
+	['Midnight', '#171B2B'],
+	['Plum', '#21162B'],
+	['Black', '#090A0F'],
+	['Navy', '#0D1A27'],
+	['Slate', '#20242E'],
+] as const
+
+function ColorPicker({
+	label,
+	colors,
+	accent,
 	value,
 	onChange,
 }: {
+	label: string
+	colors: ReadonlyArray<readonly [string, Settings['accentColor']]>
+	accent?: Settings['accentColor']
 	value: Settings['accentColor']
 	onChange(value: Settings['accentColor']): void
 }) {
@@ -179,13 +194,13 @@ function AccentPicker({
 	const valid = /^#[0-9a-f]{6}$/i.test(input.trim())
 	return (
 		<View style={{ gap: 12 }}>
-			<Text variant="heading-md/semibold">Accent color</Text>
+			<Text variant="heading-md/semibold">{label}</Text>
 			<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-				{ACCENTS.map(([name, color]) => (
+				{colors.map(([name, color]) => (
 					<Pressable
 						key={name}
 						accessibilityRole="button"
-						accessibilityLabel={`${name} accent`}
+						accessibilityLabel={`${name} ${label.toLowerCase()}`}
 						accessibilityState={{ selected: value === color }}
 						onPress={() => onChange(color)}
 						style={{
@@ -197,7 +212,7 @@ function AccentPicker({
 							alignItems: 'center',
 							backgroundColor: '#121523',
 							borderWidth: 2,
-							borderColor: value === color ? color : '#FFFFFF25',
+							borderColor: value === color ? (accent ?? color) : '#FFFFFF25',
 						}}
 					>
 						<View
@@ -206,6 +221,8 @@ function AccentPicker({
 								height: 24,
 								borderRadius: 12,
 								backgroundColor: color,
+								borderWidth: 1,
+								borderColor: '#FFFFFF40',
 							}}
 						/>
 						<Text variant="text-xs/semibold" style={{ color: '#F7F8FF' }}>
@@ -215,19 +232,19 @@ function AccentPicker({
 				))}
 			</View>
 			<TextInput
-				accessibilityLabel="Custom accent hex color"
+				accessibilityLabel={`Custom ${label.toLowerCase()} hex color`}
 				value={input}
 				onChangeText={setInput}
 				autoCapitalize="characters"
 				autoCorrect={false}
 				maxLength={7}
-				placeholder="#B8A1FF"
+				placeholder={colors[0][1]}
 				placeholderTextColor="#A0A4BC"
-				selectionColor={value}
+				selectionColor={accent ?? value}
 				style={{
 					minHeight: 48,
 					borderWidth: 1,
-					borderColor: value,
+					borderColor: accent ?? value,
 					borderRadius: 14,
 					paddingHorizontal: 14,
 					color: '#F7F8FF',
@@ -236,11 +253,11 @@ function AccentPicker({
 			/>
 			{!valid && (
 				<Text variant="text-xs/normal" color="text-muted">
-					Use # followed by six hex digits, like #B8A1FF.
+					Use # followed by six hex digits, like {colors[0][1]}.
 				</Text>
 			)}
 			<Button
-				text="Apply custom accent"
+				text={`Apply custom ${label.toLowerCase()}`}
 				variant="secondary"
 				disabled={!valid}
 				onPress={() => {
@@ -352,7 +369,7 @@ export default function SettingsPage({
 						}}
 					>
 						<Text variant="heading-lg/semibold" style={{ color: '#F7F8FF' }}>
-							Full-App Glass · beta5
+							Full-App Glass · beta6
 						</Text>
 						<Text variant="text-sm/normal" style={{ color: '#E5DFFF' }}>
 							Turn Liquid Glass and other appearance plugins OFF, then reload
@@ -398,10 +415,25 @@ export default function SettingsPage({
 							value={draft.polishMenus}
 							onValueChange={polishMenus => commit({ polishMenus })}
 						/>
+						<TableSwitchRow
+							label="Compact menus"
+							subLabel="Tighter action rows and group spacing when Matching menus is on"
+							value={draft.compactMenus}
+							onValueChange={compactMenus => commit({ compactMenus })}
+						/>
 					</TableRowGroup>
-					<AccentPicker
+					<ColorPicker
+						label="Accent color"
+						colors={ACCENTS}
 						value={draft.accentColor}
 						onChange={accentColor => commit({ accentColor })}
+					/>
+					<ColorPicker
+						label="Menu background"
+						colors={MENU_COLORS}
+						accent={draft.accentColor}
+						value={draft.menuColor}
+						onChange={menuColor => commit({ menuColor })}
 					/>
 					<Slider
 						label="Accent opacity"
@@ -412,8 +444,8 @@ export default function SettingsPage({
 						onCommit={accentOpacity => commit({ accentOpacity })}
 					/>
 					<Text variant="text-xs/normal" color="text-muted">
-						These details follow the area switches below. Matching menus use a
-						solid glass-tinted backing to keep actions readable.
+						These details follow the area switches below. Menu background is
+						separate from Glass tint and stays solid to keep actions readable.
 					</Text>
 					<Slider
 						label="Master transparency"
