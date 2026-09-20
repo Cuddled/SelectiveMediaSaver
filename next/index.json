@@ -33,7 +33,8 @@
       "author": "Cuddled",
       "icon": "ic_theme_24px",
       "channels": {
-        "beta": "1.0.0-beta15"
+        "beta": "1.0.0-beta15",
+        "latest": "1.0.0-beta15"
       },
       "versions": {
         "1.0.0-beta1": {
